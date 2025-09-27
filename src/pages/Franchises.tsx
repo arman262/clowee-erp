@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { 
   Building2, 
   Plus, 
@@ -12,60 +13,26 @@ import {
   Trash2,
   Download,
   MapPin,
-  DollarSign
+  DollarSign,
+  Loader2
 } from "lucide-react";
-
-const mockFranchises = [
-  {
-    id: "1",
-    name: "Dhaka Central Gaming",
-    coinPrice: 5,
-    dollPrice: 25,
-    electricityCost: 500,
-    vatPercentage: 7.5,
-    franchiseShare: 60,
-    cloweeShare: 40,
-    paymentDuration: "Monthly",
-    totalMachines: 8,
-    monthlySales: 45250,
-    status: "Active"
-  },
-  {
-    id: "2", 
-    name: "Chittagong Gaming Zone",
-    coinPrice: 4,
-    dollPrice: 20,
-    electricityCost: 400,
-    vatPercentage: 7.5,
-    franchiseShare: 55,
-    cloweeShare: 45,
-    paymentDuration: "Monthly",
-    totalMachines: 6,
-    monthlySales: 32150,
-    status: "Active"
-  },
-  {
-    id: "3",
-    name: "Sylhet Entertainment",
-    coinPrice: 4,
-    dollPrice: 22,
-    electricityCost: 350,
-    vatPercentage: 7.5,
-    franchiseShare: 65,
-    cloweeShare: 35,
-    paymentDuration: "Bi-weekly",
-    totalMachines: 4,
-    monthlySales: 18920,
-    status: "Pending"
-  }
-];
+import { useFranchises, useCreateFranchise, useUpdateFranchise, useDeleteFranchise } from "@/hooks/useFranchises";
+import { FranchiseForm } from "@/components/forms/FranchiseForm";
+import { Tables } from "@/integrations/supabase/types";
 
 export default function Franchises() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingFranchise, setEditingFranchise] = useState<Tables<'franchises'> | null>(null);
 
-  const filteredFranchises = mockFranchises.filter(franchise =>
+  const { data: franchises, isLoading } = useFranchises();
+  const createFranchise = useCreateFranchise();
+  const updateFranchise = useUpdateFranchise();
+  const deleteFranchise = useDeleteFranchise();
+
+  const filteredFranchises = franchises?.filter(franchise =>
     franchise.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) || [];
 
   return (
     <div className="space-y-6">
@@ -79,10 +46,23 @@ export default function Franchises() {
             Manage franchise partners and their gaming operations
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Franchise
-        </Button>
+        <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+          <DialogTrigger asChild>
+            <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Franchise
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <FranchiseForm
+              onSubmit={(data) => {
+                createFranchise.mutate(data);
+                setShowAddForm(false);
+              }}
+              onCancel={() => setShowAddForm(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Search and Filters */}
@@ -106,6 +86,13 @@ export default function Franchises() {
         </CardContent>
       </Card>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+
       {/* Franchises Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredFranchises.map((franchise) => (
@@ -122,15 +109,15 @@ export default function Franchises() {
                     </CardTitle>
                     <CardDescription className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
-                      {franchise.totalMachines} machines
+                      Franchise
                     </CardDescription>
                   </div>
                 </div>
                 <Badge 
-                  variant={franchise.status === 'Active' ? 'default' : 'secondary'}
-                  className={franchise.status === 'Active' ? 'bg-success text-success-foreground' : ''}
+                  variant="default"
+                  className="bg-success text-success-foreground"
                 >
-                  {franchise.status}
+                  Active
                 </Badge>
               </div>
             </CardHeader>
@@ -144,7 +131,7 @@ export default function Franchises() {
                     <span className="text-sm text-muted-foreground">Monthly Sales</span>
                   </div>
                   <p className="text-lg font-semibold text-foreground">
-                    ৳{franchise.monthlySales.toLocaleString()}
+                    --
                   </p>
                 </div>
                 <div className="bg-secondary/30 rounded-lg p-3">
@@ -152,7 +139,7 @@ export default function Franchises() {
                     <span className="text-sm text-muted-foreground">Share Split</span>
                   </div>
                   <p className="text-lg font-semibold text-foreground">
-                    {franchise.franchiseShare}% / {franchise.cloweeShare}%
+                    {franchise.franchise_share}% / {franchise.clowee_share}%
                   </p>
                 </div>
               </div>
@@ -161,15 +148,15 @@ export default function Franchises() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Coin Price:</span>
-                  <span className="text-foreground">৳{franchise.coinPrice}</span>
+                  <span className="text-foreground">৳{franchise.coin_price}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Doll Price:</span>
-                  <span className="text-foreground">৳{franchise.dollPrice}</span>
+                  <span className="text-foreground">৳{franchise.doll_price}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Payment:</span>
-                  <span className="text-foreground">{franchise.paymentDuration}</span>
+                  <span className="text-foreground">{franchise.payment_duration}</span>
                 </div>
               </div>
 
@@ -179,11 +166,39 @@ export default function Franchises() {
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 border-border hover:bg-secondary/50">
-                  <Edit className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
-                <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10">
+                <Dialog open={editingFranchise?.id === franchise.id} onOpenChange={(open) => !open && setEditingFranchise(null)}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 border-border hover:bg-secondary/50"
+                      onClick={() => setEditingFranchise(franchise)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <FranchiseForm
+                      initialData={franchise}
+                      onSubmit={(data) => {
+                        updateFranchise.mutate({ id: franchise.id, ...data });
+                        setEditingFranchise(null);
+                      }}
+                      onCancel={() => setEditingFranchise(null)}
+                    />
+                  </DialogContent>
+                </Dialog>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-destructive text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    if (confirm('Are you sure you want to delete this franchise?')) {
+                      deleteFranchise.mutate(franchise.id);
+                    }
+                  }}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -197,7 +212,7 @@ export default function Franchises() {
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-primary">
-              {mockFranchises.length}
+              {franchises?.length || 0}
             </div>
             <div className="text-sm text-muted-foreground">Total Franchises</div>
           </CardContent>
@@ -205,7 +220,7 @@ export default function Franchises() {
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-accent">
-              {mockFranchises.reduce((sum, f) => sum + f.totalMachines, 0)}
+              --
             </div>
             <div className="text-sm text-muted-foreground">Total Machines</div>
           </CardContent>
@@ -213,7 +228,7 @@ export default function Franchises() {
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-warning">
-              ৳{mockFranchises.reduce((sum, f) => sum + f.monthlySales, 0).toLocaleString()}
+              --
             </div>
             <div className="text-sm text-muted-foreground">Total Monthly Sales</div>
           </CardContent>
@@ -221,7 +236,7 @@ export default function Franchises() {
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-success">
-              {mockFranchises.filter(f => f.status === 'Active').length}
+              {franchises?.length || 0}
             </div>
             <div className="text-sm text-muted-foreground">Active Franchises</div>
           </CardContent>

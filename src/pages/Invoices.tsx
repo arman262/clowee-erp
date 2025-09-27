@@ -5,37 +5,51 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { 
-  Cpu, 
+  FileText, 
   Plus, 
   Search, 
   Eye, 
   Edit, 
   Trash2,
-  Building2,
-  MapPin,
+  Download,
+  DollarSign,
   Calendar,
-  Activity,
   Loader2
 } from "lucide-react";
-import { useMachines, useCreateMachine, useUpdateMachine, useDeleteMachine } from "@/hooks/useMachines";
-import { MachineForm } from "@/components/forms/MachineForm";
+import { useInvoices, useCreateInvoice, useUpdateInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
+import { InvoiceForm } from "@/components/forms/InvoiceForm";
 import { Tables } from "@/integrations/supabase/types";
 
-export default function Machines() {
+export default function Invoices() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingMachine, setEditingMachine] = useState<Tables<'machines'> | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<Tables<'invoices'> | null>(null);
 
-  const { data: machines, isLoading } = useMachines();
-  const createMachine = useCreateMachine();
-  const updateMachine = useUpdateMachine();
-  const deleteMachine = useDeleteMachine();
+  const { data: invoices, isLoading } = useInvoices();
+  const createInvoice = useCreateInvoice();
+  const updateInvoice = useUpdateInvoice();
+  const deleteInvoice = useDeleteInvoice();
 
-  const filteredMachines = machines?.filter(machine =>
-    machine.machine_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    machine.machine_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (machine.franchises?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredInvoices = invoices?.filter(invoice =>
+    invoice.franchises?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    invoice.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    invoice.machines?.machine_number?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Paid':
+        return 'bg-success text-success-foreground';
+      case 'Pending':
+        return 'bg-warning text-warning-foreground';
+      case 'Draft':
+        return 'bg-secondary text-secondary-foreground';
+      case 'Overdue':
+        return 'bg-destructive text-destructive-foreground';
+      default:
+        return 'bg-secondary text-secondary-foreground';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -43,23 +57,23 @@ export default function Machines() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            Machine Management
+            Invoice Management
           </h1>
           <p className="text-muted-foreground mt-1">
-            Monitor and manage gaming machines across all franchises
+            Create and manage franchise invoices
           </p>
         </div>
         <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
               <Plus className="h-4 w-4 mr-2" />
-              Add Machine
+              Create Invoice
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <MachineForm
+            <InvoiceForm
               onSubmit={(data) => {
-                createMachine.mutate(data);
+                createInvoice.mutate(data);
                 setShowAddForm(false);
               }}
               onCancel={() => setShowAddForm(false)}
@@ -74,7 +88,7 @@ export default function Machines() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search machines by name, number, or franchise..."
+              placeholder="Search invoices by franchise, machine, or invoice number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-secondary/30 border-border"
@@ -90,79 +104,77 @@ export default function Machines() {
         </div>
       )}
 
-      {/* Machines Grid */}
+      {/* Invoices Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredMachines.map((machine) => (
-          <Card key={machine.id} className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+        {filteredInvoices.map((invoice) => (
+          <Card key={invoice.id} className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
             <CardHeader className="pb-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center shadow-neon-accent">
-                    <Cpu className="h-5 w-5 text-accent-foreground" />
+                  <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center shadow-neon">
+                    <FileText className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div>
                     <CardTitle className="text-lg text-foreground">
-                      {machine.machine_name}
+                      Invoice #{invoice.id.slice(0, 8)}
                     </CardTitle>
-                    <CardDescription className="text-primary font-medium">
-                      {machine.machine_number} • {machine.esp_id}
+                    <CardDescription>
+                      {invoice.franchises?.name} • {invoice.machines?.machine_name}
                     </CardDescription>
                   </div>
                 </div>
-                <Badge className="bg-success text-success-foreground">
-                  Active
+                <Badge className={getStatusColor(invoice.status || 'Draft')}>
+                  {invoice.status || 'Draft'}
                 </Badge>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {/* Location & Franchise */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Building2 className="h-4 w-4 text-primary" />
-                  <span className="text-foreground font-medium">{machine.franchises?.name || 'No Franchise'}</span>
+              {/* Financial Summary */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-secondary/30 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Total Sales</span>
+                  </div>
+                  <p className="text-lg font-semibold text-foreground">
+                    ৳{invoice.total_sales.toLocaleString()}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{machine.branch_location}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    Installed: {new Date(machine.installation_date).toLocaleDateString()}
-                  </span>
+                <div className="bg-secondary/30 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Net Profit</span>
+                  </div>
+                  <p className="text-lg font-semibold text-accent">
+                    ৳{invoice.net_profit.toLocaleString()}
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-secondary/30 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-primary">
-                    {machine.initial_coin_counter.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Initial Coins</div>
+              {/* Share Breakdown */}
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Franchise Share:</span>
+                  <span className="text-foreground">৳{invoice.franchise_share_amount.toLocaleString()}</span>
                 </div>
-                <div className="bg-secondary/30 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-accent">
-                    {machine.initial_prize_counter.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Initial Prizes</div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Clowee Share:</span>
+                  <span className="text-foreground">৳{invoice.clowee_share_amount.toLocaleString()}</span>
                 </div>
-                <div className="bg-secondary/30 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-warning">
-                    --
-                  </div>
-                  <div className="text-xs text-muted-foreground">Monthly Rev</div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pay to Clowee:</span>
+                  <span className="text-warning font-semibold">৳{invoice.pay_to_clowee.toLocaleString()}</span>
                 </div>
               </div>
 
-              {/* Last Reading */}
+              {/* Invoice Details */}
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Installed:</span>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Invoice Date:</span>
                 </div>
                 <span className="text-foreground">
-                  {new Date(machine.installation_date).toLocaleDateString()}
+                  {new Date(invoice.invoice_date).toLocaleDateString()}
                 </span>
               </div>
 
@@ -172,36 +184,39 @@ export default function Machines() {
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
-                <Dialog open={editingMachine?.id === machine.id} onOpenChange={(open) => !open && setEditingMachine(null)}>
+                <Dialog open={editingInvoice?.id === invoice.id} onOpenChange={(open) => !open && setEditingInvoice(null)}>
                   <DialogTrigger asChild>
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="flex-1 border-border hover:bg-secondary/50"
-                      onClick={() => setEditingMachine(machine)}
+                      onClick={() => setEditingInvoice(invoice)}
                     >
                       <Edit className="h-4 w-4 mr-1" />
                       Edit
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <MachineForm
-                      initialData={machine}
+                    <InvoiceForm
+                      initialData={invoice}
                       onSubmit={(data) => {
-                        updateMachine.mutate({ id: machine.id, ...data });
-                        setEditingMachine(null);
+                        updateInvoice.mutate({ id: invoice.id, ...data });
+                        setEditingInvoice(null);
                       }}
-                      onCancel={() => setEditingMachine(null)}
+                      onCancel={() => setEditingInvoice(null)}
                     />
                   </DialogContent>
                 </Dialog>
+                <Button variant="outline" size="sm" className="border-border hover:bg-secondary/50">
+                  <Download className="h-4 w-4" />
+                </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   className="border-destructive text-destructive hover:bg-destructive/10"
                   onClick={() => {
-                    if (confirm('Are you sure you want to delete this machine?')) {
-                      deleteMachine.mutate(machine.id);
+                    if (confirm('Are you sure you want to delete this invoice?')) {
+                      deleteInvoice.mutate(invoice.id);
                     }
                   }}
                 >
@@ -218,41 +233,41 @@ export default function Machines() {
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-primary">
-              {machines?.length || 0}
+              {invoices?.length || 0}
             </div>
-            <div className="text-sm text-muted-foreground">Total Machines</div>
+            <div className="text-sm text-muted-foreground">Total Invoices</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-success">
-              {machines?.length || 0}
+              {invoices?.filter(i => i.status === 'Paid').length || 0}
             </div>
-            <div className="text-sm text-muted-foreground">Active</div>
+            <div className="text-sm text-muted-foreground">Paid</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-warning">
-              0
+              {invoices?.filter(i => i.status === 'Pending').length || 0}
             </div>
-            <div className="text-sm text-muted-foreground">Maintenance</div>
+            <div className="text-sm text-muted-foreground">Pending</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-accent">
-              {machines?.reduce((sum, m) => sum + m.initial_coin_counter, 0).toLocaleString() || 0}
+              ৳{invoices?.reduce((sum, i) => sum + i.total_sales, 0).toLocaleString() || 0}
             </div>
-            <div className="text-sm text-muted-foreground">Total Coins</div>
+            <div className="text-sm text-muted-foreground">Total Sales</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-primary">
-              --
+              ৳{invoices?.reduce((sum, i) => sum + i.net_profit, 0).toLocaleString() || 0}
             </div>
-            <div className="text-sm text-muted-foreground">Total Revenue</div>
+            <div className="text-sm text-muted-foreground">Total Profit</div>
           </CardContent>
         </Card>
       </div>
