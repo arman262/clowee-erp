@@ -10,6 +10,8 @@ import {
   Users,
   TrendingUp,
   ShoppingCart,
+  Receipt,
+  CreditCard,
 } from "lucide-react";
 
 import {
@@ -36,6 +38,8 @@ const mainItems = [
 
 const financeItems = [
   { title: "Accounting", url: "/accounting", icon: DollarSign },
+  { title: "Expenses", url: "/expenses", icon: Receipt },
+  { title: "Payments", url: "/payments", icon: CreditCard },
   { title: "Inventory", url: "/inventory", icon: Package },
 ];
 

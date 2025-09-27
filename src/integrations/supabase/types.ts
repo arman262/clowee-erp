@@ -55,6 +55,39 @@ export type Database = {
           },
         ]
       }
+      banks: {
+        Row: {
+          account_holder_name: string | null
+          account_number: string | null
+          bank_name: string
+          branch_name: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          routing_number: string | null
+        }
+        Insert: {
+          account_holder_name?: string | null
+          account_number?: string | null
+          bank_name: string
+          branch_name?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          routing_number?: string | null
+        }
+        Update: {
+          account_holder_name?: string | null
+          account_number?: string | null
+          bank_name?: string
+          branch_name?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          routing_number?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -411,6 +444,95 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "machine_counters_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      machine_expenses: {
+        Row: {
+          created_at: string | null
+          expense_date: string
+          expense_details: string
+          id: string
+          item_price: number
+          machine_id: string | null
+          quantity: number | null
+          total_amount: number
+          unique_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expense_date: string
+          expense_details: string
+          id?: string
+          item_price?: number
+          machine_id?: string | null
+          quantity?: number | null
+          total_amount?: number
+          unique_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expense_date?: string
+          expense_details?: string
+          id?: string
+          item_price?: number
+          machine_id?: string | null
+          quantity?: number | null
+          total_amount?: number
+          unique_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "machine_expenses_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      machine_payments: {
+        Row: {
+          amount: number
+          bank_id: string | null
+          created_at: string | null
+          id: string
+          machine_id: string | null
+          payment_date: string
+          remarks: string | null
+        }
+        Insert: {
+          amount?: number
+          bank_id?: string | null
+          created_at?: string | null
+          id?: string
+          machine_id?: string | null
+          payment_date: string
+          remarks?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_id?: string | null
+          created_at?: string | null
+          id?: string
+          machine_id?: string | null
+          payment_date?: string
+          remarks?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "machine_payments_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "machine_payments_machine_id_fkey"
             columns: ["machine_id"]
             isOneToOne: false
             referencedRelation: "machines"
