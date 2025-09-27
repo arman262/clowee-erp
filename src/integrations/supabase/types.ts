@@ -509,6 +509,57 @@ export type Database = {
           },
         ]
       }
+      sales: {
+        Row: {
+          coin_sales: number
+          created_at: string | null
+          franchise_id: string | null
+          id: string
+          machine_id: string | null
+          prize_out_cost: number
+          prize_out_quantity: number
+          sales_amount: number
+          sales_date: string
+        }
+        Insert: {
+          coin_sales: number
+          created_at?: string | null
+          franchise_id?: string | null
+          id?: string
+          machine_id?: string | null
+          prize_out_cost: number
+          prize_out_quantity: number
+          sales_amount: number
+          sales_date: string
+        }
+        Update: {
+          coin_sales?: number
+          created_at?: string | null
+          franchise_id?: string | null
+          id?: string
+          machine_id?: string | null
+          prize_out_cost?: number
+          prize_out_quantity?: number
+          sales_amount?: number
+          sales_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_franchise_id_fkey"
+            columns: ["franchise_id"]
+            isOneToOne: false
+            referencedRelation: "franchises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string | null

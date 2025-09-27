@@ -13,12 +13,14 @@ import {
   Trash2,
   Cpu,
   Calendar,
-  Loader2
+  Loader2,
+  Calculator
 } from "lucide-react";
 import { useMachineCounters, useCreateMachineCounter, useUpdateMachineCounter, useDeleteMachineCounter } from "@/hooks/useMachineCounters";
 import { useCombinedCounterReadings } from "@/hooks/useCombinedCounterReadings";
 import { CounterReadingForm } from "@/components/forms/CounterReadingForm";
 import { CounterReadingDetailsModal } from "@/components/CounterReadingDetailsModal";
+import { PayToCloweeModal } from "@/components/PayToCloweeModal";
 import { Tables } from "@/integrations/supabase/types";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/dateUtils";
@@ -26,8 +28,11 @@ import { formatDate } from "@/lib/dateUtils";
 export default function CounterReadings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showPayToClowee, setShowPayToClowee] = useState(false);
   const [editingReading, setEditingReading] = useState<Tables<'machine_counters'> | null>(null);
   const [viewingReading, setViewingReading] = useState<any | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const { data: combinedReadings, isLoading } = useCombinedCounterReadings();
   const createReading = useCreateMachineCounter();
@@ -39,6 +44,10 @@ export default function CounterReadings() {
     reading.machines?.machine_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     reading.machines?.franchises?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  const totalPages = Math.ceil(filteredReadings.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedReadings = filteredReadings.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -52,23 +61,32 @@ export default function CounterReadings() {
             Record and track machine counter readings
           </p>
         </div>
-        <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Reading
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CounterReadingForm
-              onSubmit={(data) => {
-                createReading.mutate(data);
-                setShowAddForm(false);
-              }}
-              onCancel={() => setShowAddForm(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-3">
+          <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Reading
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <CounterReadingForm
+                onSubmit={(data) => {
+                  createReading.mutate(data);
+                  setShowAddForm(false);
+                }}
+                onCancel={() => setShowAddForm(false)}
+              />
+            </DialogContent>
+          </Dialog>
+          <Button 
+            onClick={() => setShowPayToClowee(true)}
+            className="bg-gradient-accent hover:opacity-90 shadow-neon"
+          >
+            <Calculator className="h-4 w-4 mr-2" />
+            Pay to Clowee
+          </Button>
+        </div>
       </div>
       {/* Search and Filters */}
       <Card className="bg-gradient-card border-border shadow-card">
@@ -108,7 +126,7 @@ export default function CounterReadings() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredReadings.map((reading) => {
+            {paginatedReadings.map((reading) => {
               const isInitial = reading.type === 'initial';
               return (
                 <TableRow key={reading.id} className={isInitial ? 'bg-secondary/20' : ''}>
@@ -203,12 +221,48 @@ export default function CounterReadings() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredReadings.length)} of {filteredReadings.length} results
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-3 text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
       
       {/* Counter Reading Details Modal */}
       <CounterReadingDetailsModal
         reading={viewingReading}
         open={!!viewingReading}
         onOpenChange={(open) => !open && setViewingReading(null)}
+      />
+      
+      {/* Pay to Clowee Modal */}
+      <PayToCloweeModal
+        open={showPayToClowee}
+        onOpenChange={setShowPayToClowee}
       />
     </div>
   );

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TablesInsert } from "@/integrations/supabase/types";
 import { useMachines } from "@/hooks/useMachines";
+import { useMachineCounters } from "@/hooks/useMachineCounters";
 
 interface CounterReadingFormProps {
   onSubmit: (data: TablesInsert<'machine_counters'>) => void;
@@ -16,6 +17,7 @@ interface CounterReadingFormProps {
 
 export function CounterReadingForm({ onSubmit, onCancel, initialData }: CounterReadingFormProps) {
   const { data: machines } = useMachines();
+  const { data: counterReadings } = useMachineCounters();
   const [formData, setFormData] = useState({
     machine_id: initialData?.machine_id || "",
     reading_date: initialData?.reading_date || new Date().toISOString().split('T')[0],
@@ -23,10 +25,53 @@ export function CounterReadingForm({ onSubmit, onCancel, initialData }: CounterR
     prize_counter: initialData?.prize_counter || 0,
     notes: initialData?.notes || ""
   });
+  const [validationErrors, setValidationErrors] = useState({ coin: false, prize: false });
+
+  const selectedMachine = machines?.find(m => m.id === formData.machine_id);
+  
+  const getLastCounterValues = () => {
+    if (!formData.machine_id || !selectedMachine || !formData.reading_date) {
+      return { lastCoin: 0, lastPrize: 0 };
+    }
+    
+    if (!counterReadings) {
+      return { 
+        lastCoin: selectedMachine.initial_coin_counter, 
+        lastPrize: selectedMachine.initial_prize_counter 
+      };
+    }
+    
+    const selectedDate = new Date(formData.reading_date);
+    
+    // Find readings before the selected date for this machine
+    const previousReadings = counterReadings
+      .filter(r => r.machine_id === formData.machine_id && new Date(r.reading_date) < selectedDate)
+      .sort((a, b) => new Date(b.reading_date).getTime() - new Date(a.reading_date).getTime());
+    
+    const lastReading = previousReadings[0];
+    
+    return {
+      lastCoin: lastReading ? lastReading.coin_counter : selectedMachine.initial_coin_counter,
+      lastPrize: lastReading ? lastReading.prize_counter : selectedMachine.initial_prize_counter
+    };
+  };
+  
+  const { lastCoin, lastPrize } = getLastCounterValues();
+  
+  const validateCounters = (coinValue: number, prizeValue: number) => {
+    const errors = {
+      coin: coinValue < lastCoin,
+      prize: prizeValue < lastPrize
+    };
+    setValidationErrors(errors);
+    return !errors.coin && !errors.prize;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    if (validateCounters(formData.coin_counter, formData.prize_counter)) {
+      onSubmit(formData);
+    }
   };
 
   return (
@@ -71,26 +116,52 @@ export function CounterReadingForm({ onSubmit, onCancel, initialData }: CounterR
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="coin_counter">Coin Counter*</Label>
+              <div className="text-xs text-muted-foreground mb-1">
+                Last value: {lastCoin.toLocaleString()}
+              </div>
               <Input
                 id="coin_counter"
                 type="number"
-                min="0"
+                min={lastCoin}
                 value={formData.coin_counter}
-                onChange={(e) => setFormData({ ...formData, coin_counter: Number(e.target.value) })}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  setFormData({ ...formData, coin_counter: value });
+                  validateCounters(value, formData.prize_counter);
+                }}
+                className={validationErrors.coin ? 'border-destructive focus:border-destructive' : ''}
                 required
               />
+              {validationErrors.coin && (
+                <div className="text-xs text-destructive">
+                  Value cannot be less than last reading ({lastCoin.toLocaleString()})
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="prize_counter">Prize Counter*</Label>
+              <div className="text-xs text-muted-foreground mb-1">
+                Last value: {lastPrize.toLocaleString()}
+              </div>
               <Input
                 id="prize_counter"
                 type="number"
-                min="0"
+                min={lastPrize}
                 value={formData.prize_counter}
-                onChange={(e) => setFormData({ ...formData, prize_counter: Number(e.target.value) })}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  setFormData({ ...formData, prize_counter: value });
+                  validateCounters(formData.coin_counter, value);
+                }}
+                className={validationErrors.prize ? 'border-destructive focus:border-destructive' : ''}
                 required
               />
+              {validationErrors.prize && (
+                <div className="text-xs text-destructive">
+                  Value cannot be less than last reading ({lastPrize.toLocaleString()})
+                </div>
+              )}
             </div>
           </div>
 

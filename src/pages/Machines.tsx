@@ -29,6 +29,8 @@ export default function Machines() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMachine, setEditingMachine] = useState<Tables<'machines'> | null>(null);
   const [viewingMachine, setViewingMachine] = useState<(Tables<'machines'> & { franchises?: { name: string } | null }) | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const { data: machines, isLoading } = useMachines();
   const createMachine = useCreateMachine();
@@ -40,6 +42,10 @@ export default function Machines() {
     machine.machine_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (machine.franchises?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  const totalPages = Math.ceil(filteredMachines.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedMachines = filteredMachines.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -152,7 +158,7 @@ export default function Machines() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredMachines.map((machine) => (
+            {paginatedMachines.map((machine) => (
               <TableRow key={machine.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -232,6 +238,36 @@ export default function Machines() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredMachines.length)} of {filteredMachines.length} results
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-3 text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
       
       {/* Machine Details Modal */}
       <MachineDetailsModal

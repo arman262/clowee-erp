@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Franchises from "./pages/Franchises";
 import Machines from "./pages/Machines";
 import CounterReadings from "./pages/CounterReadings";
+import Sales from "./pages/Sales";
 import Invoices from "./pages/Invoices";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/franchises" element={<Franchises />} />
             <Route path="/machines" element={<Machines />} />
             <Route path="/counter-readings" element={<CounterReadings />} />
+            <Route path="/sales" element={<Sales />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/accounting" element={<div className="p-8 text-center text-muted-foreground">Accounting - Coming Soon</div>} />
             <Route path="/inventory" element={<div className="p-8 text-center text-muted-foreground">Inventory - Coming Soon</div>} />

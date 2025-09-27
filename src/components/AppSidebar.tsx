@@ -9,6 +9,7 @@ import {
   Settings,
   Users,
   TrendingUp,
+  ShoppingCart,
 } from "lucide-react";
 
 import {
@@ -29,6 +30,7 @@ const mainItems = [
   { title: "Franchises", url: "/franchises", icon: Building2 },
   { title: "Machines", url: "/machines", icon: Cpu },
   { title: "Counter Readings", url: "/counter-readings", icon: TrendingUp },
+  { title: "Sales", url: "/sales", icon: ShoppingCart },
   { title: "Invoices", url: "/invoices", icon: FileText },
 ];
 
