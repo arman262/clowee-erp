@@ -14,6 +14,8 @@ import {
   Calendar,
   Loader2
 } from "lucide-react";
+import { ExpenseForm } from "@/components/forms/ExpenseForm";
+import { useMachineExpenses, useCreateMachineExpense, useDeleteMachineExpense } from "@/hooks/useMachineExpenses";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function Expenses() {
@@ -24,9 +26,9 @@ export default function Expenses() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Mock data - replace with actual hook
-  const expenses = [];
-  const isLoading = false;
+  const { data: expenses, isLoading } = useMachineExpenses();
+  const createExpense = useCreateMachineExpense();
+  const deleteExpense = useDeleteMachineExpense();
 
   const filteredExpenses = expenses?.filter((expense: any) =>
     expense.expense_details?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -56,9 +58,14 @@ export default function Expenses() {
               Add Expense
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            {/* ExpenseForm component will go here */}
-            <div className="p-4">Expense Form Coming Soon</div>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <ExpenseForm
+              onSubmit={(data) => {
+                createExpense.mutate(data);
+                setShowAddForm(false);
+              }}
+              onCancel={() => setShowAddForm(false)}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -195,7 +202,7 @@ export default function Expenses() {
                         className="border-destructive text-destructive hover:bg-destructive/10"
                         onClick={() => {
                           if (confirm('Are you sure you want to delete this expense?')) {
-                            // deleteExpense.mutate(expense.id);
+                            deleteExpense.mutate(expense.id);
                           }
                         }}
                       >

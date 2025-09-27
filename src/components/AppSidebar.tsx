@@ -12,6 +12,7 @@ import {
   ShoppingCart,
   Receipt,
   CreditCard,
+  Landmark,
 } from "lucide-react";
 
 import {
@@ -40,6 +41,7 @@ const financeItems = [
   { title: "Accounting", url: "/accounting", icon: DollarSign },
   { title: "Expenses", url: "/expenses", icon: Receipt },
   { title: "Payments", url: "/payments", icon: CreditCard },
+  { title: "Banks", url: "/banks", icon: Landmark },
   { title: "Inventory", url: "/inventory", icon: Package },
 ];
 
