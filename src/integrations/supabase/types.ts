@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      attachments: {
+        Row: {
+          id: string
+          franchise_id: string | null
+          file_name: string
+          file_url: string
+          file_type: string
+          file_size: number | null
+          mime_type: string | null
+          uploaded_at: string | null
+        }
+        Insert: {
+          id?: string
+          franchise_id?: string | null
+          file_name: string
+          file_url: string
+          file_type: string
+          file_size?: number | null
+          mime_type?: string | null
+          uploaded_at?: string | null
+        }
+        Update: {
+          id?: string
+          franchise_id?: string | null
+          file_name?: string
+          file_url?: string
+          file_type?: string
+          file_size?: number | null
+          mime_type?: string | null
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_franchise_id_fkey"
+            columns: ["franchise_id"]
+            isOneToOne: false
+            referencedRelation: "franchises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string

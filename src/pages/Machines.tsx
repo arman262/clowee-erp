@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Cpu, 
   Plus, 
@@ -19,12 +20,15 @@ import {
 } from "lucide-react";
 import { useMachines, useCreateMachine, useUpdateMachine, useDeleteMachine } from "@/hooks/useMachines";
 import { MachineForm } from "@/components/forms/MachineForm";
+import { MachineDetailsModal } from "@/components/MachineDetailsModal";
 import { Tables } from "@/integrations/supabase/types";
+import { formatDate } from "@/lib/dateUtils";
 
 export default function Machines() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMachine, setEditingMachine] = useState<Tables<'machines'> | null>(null);
+  const [viewingMachine, setViewingMachine] = useState<(Tables<'machines'> & { franchises?: { name: string } | null }) | null>(null);
 
   const { data: machines, isLoading } = useMachines();
   const createMachine = useCreateMachine();
@@ -67,153 +71,7 @@ export default function Machines() {
           </DialogContent>
         </Dialog>
       </div>
-
-      {/* Search and Filters */}
-      <Card className="bg-gradient-card border-border shadow-card">
-        <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search machines by name, number, or franchise..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-secondary/30 border-border"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Loading State */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      )}
-
-      {/* Machines Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredMachines.map((machine) => (
-          <Card key={machine.id} className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
-            <CardHeader className="pb-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center shadow-neon-accent">
-                    <Cpu className="h-5 w-5 text-accent-foreground" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg text-foreground">
-                      {machine.machine_name}
-                    </CardTitle>
-                    <CardDescription className="text-primary font-medium">
-                      {machine.machine_number} • {machine.esp_id}
-                    </CardDescription>
-                  </div>
-                </div>
-                <Badge className="bg-success text-success-foreground">
-                  Active
-                </Badge>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              {/* Location & Franchise */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Building2 className="h-4 w-4 text-primary" />
-                  <span className="text-foreground font-medium">{machine.franchises?.name || 'No Franchise'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{machine.branch_location}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    Installed: {new Date(machine.installation_date).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-secondary/30 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-primary">
-                    {machine.initial_coin_counter.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Initial Coins</div>
-                </div>
-                <div className="bg-secondary/30 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-accent">
-                    {machine.initial_prize_counter.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Initial Prizes</div>
-                </div>
-                <div className="bg-secondary/30 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-warning">
-                    --
-                  </div>
-                  <div className="text-xs text-muted-foreground">Monthly Rev</div>
-                </div>
-              </div>
-
-              {/* Last Reading */}
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Installed:</span>
-                </div>
-                <span className="text-foreground">
-                  {new Date(machine.installation_date).toLocaleDateString()}
-                </span>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1 border-border hover:bg-secondary/50">
-                  <Eye className="h-4 w-4 mr-1" />
-                  View
-                </Button>
-                <Dialog open={editingMachine?.id === machine.id} onOpenChange={(open) => !open && setEditingMachine(null)}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1 border-border hover:bg-secondary/50"
-                      onClick={() => setEditingMachine(machine)}
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <MachineForm
-                      initialData={machine}
-                      onSubmit={(data) => {
-                        updateMachine.mutate({ id: machine.id, ...data });
-                        setEditingMachine(null);
-                      }}
-                      onCancel={() => setEditingMachine(null)}
-                    />
-                  </DialogContent>
-                </Dialog>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="border-destructive text-destructive hover:bg-destructive/10"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to delete this machine?')) {
-                      deleteMachine.mutate(machine.id);
-                    }
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Summary Stats */}
+            {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
@@ -256,6 +114,133 @@ export default function Machines() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Search and Filters */}
+      <Card className="bg-gradient-card border-border shadow-card">
+        <CardContent className="p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search machines by name, number, or franchise..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-secondary/30 border-border"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+      {/* Machines Table */}
+      <Card className="bg-gradient-card border-border shadow-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Machine</TableHead>
+              <TableHead>Franchise</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Installation Date</TableHead>
+              <TableHead>Initial Coins</TableHead>
+              <TableHead>Initial Prizes</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredMachines.map((machine) => (
+              <TableRow key={machine.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-accent rounded-lg flex items-center justify-center">
+                      <Cpu className="h-4 w-4 text-accent-foreground" />
+                    </div>
+                    <div>
+                      <div className="font-medium">{machine.machine_name}</div>
+                      <div className="text-sm text-muted-foreground">{machine.machine_number} • {machine.esp_id}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    <span>{machine.franchises?.name || 'No Franchise'}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{machine.branch_location}</span>
+                  </div>
+                </TableCell>
+                <TableCell>{formatDate(machine.installation_date)}</TableCell>
+                <TableCell className="text-primary font-medium">{machine.initial_coin_counter.toLocaleString()}</TableCell>
+                <TableCell className="text-accent font-medium">{machine.initial_prize_counter.toLocaleString()}</TableCell>
+                <TableCell>
+                  <Badge className="bg-success text-success-foreground">Active</Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setViewingMachine(machine)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Dialog open={editingMachine?.id === machine.id} onOpenChange={(open) => !open && setEditingMachine(null)}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setEditingMachine(machine)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <MachineForm
+                          initialData={machine}
+                          onSubmit={(data) => {
+                            updateMachine.mutate({ id: machine.id, ...data });
+                            setEditingMachine(null);
+                          }}
+                          onCancel={() => setEditingMachine(null)}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="border-destructive text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this machine?')) {
+                          deleteMachine.mutate(machine.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+      
+      {/* Machine Details Modal */}
+      <MachineDetailsModal
+        machine={viewingMachine}
+        open={!!viewingMachine}
+        onOpenChange={(open) => !open && setViewingMachine(null)}
+      />
+
+
     </div>
   );
 }

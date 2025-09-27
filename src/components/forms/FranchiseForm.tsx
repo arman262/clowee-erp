@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileUpload } from "@/components/ui/file-upload";
 import { TablesInsert } from "@/integrations/supabase/types";
 
 interface FranchiseFormProps {
@@ -178,6 +179,26 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
               value={formData.security_deposit_notes || ''}
               onChange={(e) => setFormData({ ...formData, security_deposit_notes: e.target.value })}
               rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FileUpload
+              label="Agreement Copy (Optional)"
+              accept=".pdf"
+              multiple={false}
+              value={formData.agreement_copy || ''}
+              onChange={(file) => setFormData({ ...formData, agreement_copy: file as string })}
+              fileType="agreement_copy"
+            />
+            
+            <FileUpload
+              label="Trade & NID Copy (Multiple files)"
+              accept=".pdf,.jpg,.jpeg,.png"
+              multiple={true}
+              value={formData.trade_nid_copy || []}
+              onChange={(files) => setFormData({ ...formData, trade_nid_copy: files as string[] })}
+              fileType="trade_nid_copy"
             />
           </div>
 

@@ -12,18 +12,22 @@ import {
   Edit, 
   Trash2,
   Download,
-  DollarSign,
   Calendar,
-  Loader2
+  Loader2,
+  Banknote
 } from "lucide-react";
 import { useInvoices, useCreateInvoice, useUpdateInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
 import { InvoiceForm } from "@/components/forms/InvoiceForm";
+import { InvoiceDetailsModal } from "@/components/InvoiceDetailsModal";
 import { Tables } from "@/integrations/supabase/types";
+import { formatDate } from "@/lib/dateUtils";
+import Franchises from "./Franchises"
 
 export default function Invoices() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Tables<'invoices'> | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
 
   const { data: invoices, isLoading } = useInvoices();
   const createInvoice = useCreateInvoice();
@@ -134,7 +138,7 @@ export default function Invoices() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-secondary/30 rounded-lg p-3">
                   <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-primary" />
+                    <Banknote className="h-4 w-4 text-primary" />
                     <span className="text-sm text-muted-foreground">Total Sales</span>
                   </div>
                   <p className="text-lg font-semibold text-foreground">
@@ -162,8 +166,8 @@ export default function Invoices() {
                   <span className="text-foreground">৳{invoice.clowee_share_amount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Pay to Clowee:</span>
-                  <span className="text-warning font-semibold">৳{invoice.pay_to_clowee.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Pay to Clowee(Doll Cost + Profit Share):</span>
+                  <span className="text-warning font-semibold">৳{invoice.pay_to_clowee + invoice.total_prize_cost}</span>
                 </div>
               </div>
 
@@ -174,13 +178,18 @@ export default function Invoices() {
                   <span className="text-muted-foreground">Invoice Date:</span>
                 </div>
                 <span className="text-foreground">
-                  {new Date(invoice.invoice_date).toLocaleDateString()}
+                  {formatDate(invoice.invoice_date)}
                 </span>
               </div>
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1 border-border hover:bg-secondary/50">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1 border-border hover:bg-secondary/50"
+                  onClick={() => setViewingInvoice(invoice)}
+                >
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
@@ -227,6 +236,13 @@ export default function Invoices() {
           </Card>
         ))}
       </div>
+      
+      {/* Invoice Details Modal */}
+      <InvoiceDetailsModal
+        invoice={viewingInvoice}
+        open={!!viewingInvoice}
+        onOpenChange={(open) => !open && setViewingInvoice(null)}
+      />
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">

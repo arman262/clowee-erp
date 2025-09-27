@@ -29,7 +29,7 @@ export function InvoiceForm({ onSubmit, onCancel, initialData }: InvoiceFormProp
     net_profit: initialData?.net_profit || 0,
     franchise_share_amount: initialData?.franchise_share_amount || 0,
     clowee_share_amount: initialData?.clowee_share_amount || 0,
-    pay_to_clowee: initialData?.pay_to_clowee || 0,
+    pay_to_clowee: initialData?.pay_to_clowee +initialData?.total_prize_cost || 0,
     status: initialData?.status || 'Draft'
   });
 

@@ -28,7 +28,7 @@ const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Franchises", url: "/franchises", icon: Building2 },
   { title: "Machines", url: "/machines", icon: Cpu },
-  { title: "Counter Readings", url: "/readings", icon: TrendingUp },
+  { title: "Counter Readings", url: "/counter-readings", icon: TrendingUp },
   { title: "Invoices", url: "/invoices", icon: FileText },
 ];
 
@@ -51,8 +51,8 @@ export function AppSidebar() {
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
-      ? "bg-primary/20 text-primary border-r-2 border-primary shadow-neon" 
-      : "hover:bg-secondary/50 hover:text-primary transition-all duration-200";
+      ? "bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-r-4 border-primary shadow-lg shadow-primary/20 backdrop-blur-sm relative before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:rounded-l-lg" 
+      : "hover:bg-gradient-to-r hover:from-secondary/30 hover:to-secondary/10 hover:text-primary hover:border-r-2 hover:border-primary/50 hover:shadow-md hover:shadow-primary/10 hover:backdrop-blur-sm transition-all duration-300 ease-in-out hover:translate-x-1 relative group";
 
   return (
     <Sidebar className={`${collapsed ? "w-16" : "w-64"} border-r border-border`}>
@@ -80,9 +80,18 @@ export function AppSidebar() {
               {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end className={getNavCls}>
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                    <NavLink to={item.url} end className={({ isActive }) => `${getNavCls({ isActive })} ${isActive ? 'active' : ''}`}>
+                      {({ isActive }) => (
+                        <>
+                          <item.icon className={`h-4 w-4 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'scale-110' : ''}`} />
+                          {!collapsed && (
+                            <span className={`transition-all duration-200 group-hover:font-medium ${isActive ? 'font-medium' : ''}`}>
+                              {item.title}
+                            </span>
+                          )}
+                          <div className={`absolute inset-0 bg-gradient-to-r from-primary/0 to-primary/5 transition-opacity duration-300 rounded-l-lg ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                        </>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -98,9 +107,18 @@ export function AppSidebar() {
               {financeItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavCls}>
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                    <NavLink to={item.url} className={({ isActive }) => `${getNavCls({ isActive })} ${isActive ? 'active' : ''}`}>
+                      {({ isActive }) => (
+                        <>
+                          <item.icon className={`h-4 w-4 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'scale-110' : ''}`} />
+                          {!collapsed && (
+                            <span className={`transition-all duration-200 group-hover:font-medium ${isActive ? 'font-medium' : ''}`}>
+                              {item.title}
+                            </span>
+                          )}
+                          <div className={`absolute inset-0 bg-gradient-to-r from-primary/0 to-primary/5 transition-opacity duration-300 rounded-l-lg ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                        </>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -116,9 +134,18 @@ export function AppSidebar() {
               {systemItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavCls}>
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                    <NavLink to={item.url} className={({ isActive }) => `${getNavCls({ isActive })} ${isActive ? 'active' : ''}`}>
+                      {({ isActive }) => (
+                        <>
+                          <item.icon className={`h-4 w-4 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'scale-110' : ''}`} />
+                          {!collapsed && (
+                            <span className={`transition-all duration-200 group-hover:font-medium ${isActive ? 'font-medium' : ''}`}>
+                              {item.title}
+                            </span>
+                          )}
+                          <div className={`absolute inset-0 bg-gradient-to-r from-primary/0 to-primary/5 transition-opacity duration-300 rounded-l-lg ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                        </>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -18,12 +18,14 @@ import {
 } from "lucide-react";
 import { useFranchises, useCreateFranchise, useUpdateFranchise, useDeleteFranchise } from "@/hooks/useFranchises";
 import { FranchiseForm } from "@/components/forms/FranchiseForm";
+import { FranchiseDetailsModal } from "@/components/FranchiseDetailsModal";
 import { Tables } from "@/integrations/supabase/types";
 
 export default function Franchises() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingFranchise, setEditingFranchise] = useState<Tables<'franchises'> | null>(null);
+  const [viewingFranchise, setViewingFranchise] = useState<Tables<'franchises'> | null>(null);
 
   const { data: franchises, isLoading } = useFranchises();
   const createFranchise = useCreateFranchise();
@@ -63,6 +65,41 @@ export default function Franchises() {
             />
           </DialogContent>
         </Dialog>
+      </div>
+            {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-gradient-glass border-border shadow-card">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-primary">
+              {franchises?.length || 0}
+            </div>
+            <div className="text-sm text-muted-foreground">Total Franchises</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-glass border-border shadow-card">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-accent">
+              --
+            </div>
+            <div className="text-sm text-muted-foreground">Total Machines</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-glass border-border shadow-card">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-warning">
+              --
+            </div>
+            <div className="text-sm text-muted-foreground">Total Monthly Sales</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-glass border-border shadow-card">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-success">
+              {franchises?.length || 0}
+            </div>
+            <div className="text-sm text-muted-foreground">Active Franchises</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search and Filters */}
@@ -162,7 +199,12 @@ export default function Franchises() {
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1 border-border hover:bg-secondary/50">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1 border-border hover:bg-secondary/50"
+                  onClick={() => setViewingFranchise(franchise)}
+                >
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
@@ -206,42 +248,15 @@ export default function Franchises() {
           </Card>
         ))}
       </div>
+      
+      {/* Franchise Details Modal */}
+      <FranchiseDetailsModal
+        franchise={viewingFranchise}
+        open={!!viewingFranchise}
+        onOpenChange={(open) => !open && setViewingFranchise(null)}
+      />
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-primary">
-              {franchises?.length || 0}
-            </div>
-            <div className="text-sm text-muted-foreground">Total Franchises</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-accent">
-              --
-            </div>
-            <div className="text-sm text-muted-foreground">Total Machines</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-warning">
-              --
-            </div>
-            <div className="text-sm text-muted-foreground">Total Monthly Sales</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-success">
-              {franchises?.length || 0}
-            </div>
-            <div className="text-sm text-muted-foreground">Active Franchises</div>
-          </CardContent>
-        </Card>
-      </div>
+
     </div>
   );
 }
