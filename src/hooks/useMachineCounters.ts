@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { db } from "@/integrations/postgres/client";
 import { toast } from 'sonner';
 
 type MachineCounter = Tables<'machine_counters'>;
@@ -11,7 +10,7 @@ export const useMachineCounters = () => {
   return useQuery({
     queryKey: ['machine_counters'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('machine_counters')
         .select(`
           *,
@@ -25,7 +24,7 @@ export const useMachineCounters = () => {
         `)
         .order('reading_date', { ascending: false });
       
-      if (error) throw error;
+      
       return data;
     }
   });
@@ -36,13 +35,13 @@ export const useCreateMachineCounter = () => {
   
   return useMutation({
     mutationFn: async (counter: MachineCounterInsert) => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('machine_counters')
         .insert(counter)
         .select()
         .single();
       
-      if (error) throw error;
+      
       return data;
     },
     onSuccess: () => {
@@ -60,14 +59,14 @@ export const useUpdateMachineCounter = () => {
   
   return useMutation({
     mutationFn: async ({ id, ...updates }: MachineCounterUpdate & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('machine_counters')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
       
-      if (error) throw error;
+      
       return data;
     },
     onSuccess: () => {
@@ -85,12 +84,12 @@ export const useDeleteMachineCounter = () => {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await db
         .from('machine_counters')
         .delete()
         .eq('id', id);
       
-      if (error) throw error;
+      
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });

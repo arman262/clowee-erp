@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { db } from "@/integrations/postgres/client";
 import { toast } from 'sonner';
 
 type Invoice = Tables<'invoices'>;
@@ -11,7 +10,7 @@ export const useInvoices = () => {
   return useQuery({
     queryKey: ['invoices'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('invoices')
         .select(`
           *,
@@ -25,7 +24,7 @@ export const useInvoices = () => {
         `)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      
       return data;
     }
   });
@@ -36,13 +35,13 @@ export const useCreateInvoice = () => {
   
   return useMutation({
     mutationFn: async (invoice: InvoiceInsert) => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('invoices')
         .insert(invoice)
         .select()
         .single();
       
-      if (error) throw error;
+      
       return data;
     },
     onSuccess: () => {
@@ -60,14 +59,14 @@ export const useUpdateInvoice = () => {
   
   return useMutation({
     mutationFn: async ({ id, ...updates }: InvoiceUpdate & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('invoices')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
       
-      if (error) throw error;
+      
       return data;
     },
     onSuccess: () => {
@@ -85,12 +84,12 @@ export const useDeleteInvoice = () => {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await db
         .from('invoices')
         .delete()
         .eq('id', id);
       
-      if (error) throw error;
+      
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });

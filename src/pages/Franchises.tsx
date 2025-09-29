@@ -19,13 +19,12 @@ import {
 import { useFranchises, useCreateFranchise, useUpdateFranchise, useDeleteFranchise } from "@/hooks/useFranchises";
 import { FranchiseForm } from "@/components/forms/FranchiseForm";
 import { FranchiseDetailsModal } from "@/components/FranchiseDetailsModal";
-import { Tables } from "@/integrations/supabase/types";
 
 export default function Franchises() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingFranchise, setEditingFranchise] = useState<Tables<'franchises'> | null>(null);
-  const [viewingFranchise, setViewingFranchise] = useState<Tables<'franchises'> | null>(null);
+  const [editingFranchise, setEditingFranchise] = useState<any | null>(null);
+  const [viewingFranchise, setViewingFranchise] = useState<any | null>(null);
 
   const { data: franchises, isLoading } = useFranchises();
   const createFranchise = useCreateFranchise();

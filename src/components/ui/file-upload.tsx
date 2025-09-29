@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, X, FileText, Download, Eye, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 
 interface FileUploadProps {
   label: string;
@@ -26,30 +25,9 @@ export function FileUpload({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const uploadFile = async (file: File) => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${file.name}`;
-      const filePath = `${fileType}/${fileName}`;
-
-      const { data, error } = await supabase.storage
-        .from('attachments')
-        .upload(filePath, file);
-
-      if (error) {
-        console.error('Storage error:', error);
-        // Fallback: return a placeholder URL with file name
-        return `placeholder://${file.name}`;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('attachments')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
-    } catch (error) {
-      console.error('Upload error:', error);
-      return `placeholder://${file.name}`;
-    }
+    // Simple file handling - return file name as placeholder
+    // In a real implementation, you would upload to your file storage service
+    return `file://${file.name}`;
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,25 +43,16 @@ export function FileUpload({
 
     setUploading(true);
     try {
-      const uploadPromises = files.map(uploadFile);
-      const urls = await Promise.all(uploadPromises);
+      const fileNames = files.map(f => `file://${f.name}`);
       
-      if (multiple) {
-        const currentFiles = Array.isArray(value) ? value : [];
-        onChange([...currentFiles, ...urls]);
-      } else {
-        onChange(urls[0]);
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      // Still show the files even if upload fails
-      const fileNames = files.map(f => `placeholder://${f.name}`);
       if (multiple) {
         const currentFiles = Array.isArray(value) ? value : [];
         onChange([...currentFiles, ...fileNames]);
       } else {
         onChange(fileNames[0]);
       }
+    } catch (error) {
+      console.error('File handling error:', error);
     } finally {
       setUploading(false);
     }
@@ -140,7 +109,7 @@ export function FileUpload({
           <div className="space-y-2">
             {displayFiles.map((url, index) => {
               const isUploading = url.startsWith('uploading://');
-              const isPlaceholder = url.startsWith('placeholder://');
+              const isPlaceholder = url.startsWith('file://');
               const fileName = url.split('://')[1] || url.split('/').pop() || 'file';
               
               return (
@@ -154,7 +123,7 @@ export function FileUpload({
                     {fileName}
                     {isUploading && <span className="text-muted-foreground ml-1">(uploading...)</span>}
                   </span>
-                  {!isUploading && !isPlaceholder && (
+                  {!isUploading && (
                     <>
                       <Button
                         type="button"

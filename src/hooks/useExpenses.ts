@@ -1,23 +1,26 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { db } from "@/integrations/postgres/client";
 import { toast } from 'sonner';
 
-type Expense = Tables<'expenses'>;
-type ExpenseInsert = TablesInsert<'expenses'>;
-type ExpenseUpdate = TablesUpdate<'expenses'>;
+type Expense = {
+  id: string;
+  category: string;
+  amount: number;
+  expense_date: string;
+  description?: string;
+  created_by?: string;
+  created_at?: string;
+};
 
 export const useExpenses = () => {
   return useQuery({
     queryKey: ['expenses'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      return await db
         .from('expenses')
         .select('*')
-        .order('expense_date', { ascending: false });
-      
-      if (error) throw error;
-      return data;
+        .order('expense_date', { ascending: false })
+        .execute();
     }
   });
 };
@@ -26,14 +29,13 @@ export const useCreateExpense = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (expense: ExpenseInsert) => {
-      const { data, error } = await supabase
+    mutationFn: async (expense: Omit<Expense, 'id' | 'created_at'>) => {
+      const { data } = await db
         .from('expenses')
         .insert(expense)
         .select()
         .single();
       
-      if (error) throw error;
       return data;
     },
     onSuccess: () => {
@@ -50,15 +52,14 @@ export const useUpdateExpense = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, ...updates }: ExpenseUpdate & { id: string }) => {
-      const { data, error } = await supabase
+    mutationFn: async ({ id, ...updates }: Partial<Expense> & { id: string }) => {
+      const { data } = await db
         .from('expenses')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
       
-      if (error) throw error;
       return data;
     },
     onSuccess: () => {
@@ -76,12 +77,11 @@ export const useDeleteExpense = () => {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      await db
         .from('expenses')
         .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+        .eq('id', id)
+        .execute();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });

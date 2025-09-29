@@ -1,19 +1,27 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { db } from "@/integrations/postgres/client";
 import { toast } from "sonner";
+
+type Bank = {
+  id: string;
+  bank_name: string;
+  account_number?: string;
+  account_holder_name?: string;
+  branch_name?: string;
+  routing_number?: string;
+  is_active?: boolean;
+  created_at?: string;
+};
 
 export function useBanks() {
   return useQuery({
     queryKey: ["banks"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      return await db
         .from("banks")
         .select("*")
-        .order("bank_name", { ascending: true });
-
-      if (error) throw error;
-      return data;
+        .order("bank_name", { ascending: true })
+        .execute();
     },
   });
 }
@@ -22,14 +30,14 @@ export function useCreateBank() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: TablesInsert<"banks">) => {
-      const { data: result, error } = await supabase
+    mutationFn: async (data: Omit<Bank, 'id' | 'created_at'>) => {
+      const result = await db
         .from("banks")
         .insert(data)
         .select()
         .single();
 
-      if (error) throw error;
+      
       return result;
     },
     onSuccess: () => {
@@ -47,15 +55,15 @@ export function useUpdateBank() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string } & TablesUpdate<"banks">) => {
-      const { data: result, error } = await supabase
+    mutationFn: async ({ id, ...data }: { id: string } & Partial<Bank>) => {
+      const result = await db
         .from("banks")
         .update(data)
         .eq("id", id)
         .select()
         .single();
 
-      if (error) throw error;
+      
       return result;
     },
     onSuccess: () => {
@@ -74,12 +82,13 @@ export function useDeleteBank() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      await db
         .from("banks")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .execute();
 
-      if (error) throw error;
+      
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["banks"] });

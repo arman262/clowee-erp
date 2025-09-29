@@ -2,7 +2,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { FileText, DollarSign, Calendar, Building2, Cpu } from "lucide-react";
-import { Tables } from "@/integrations/supabase/types";
 import { formatDate } from "@/lib/dateUtils";
 
 interface InvoiceDetailsModalProps {

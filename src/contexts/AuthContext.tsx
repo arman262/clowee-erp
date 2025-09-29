@@ -1,6 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { User } from '@supabase/supabase-js';
+import { db } from '@/integrations/postgres/client';
+
+interface User {
+  id: string;
+  email: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -29,19 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  const fetchUserRole = async (userId: string) => {
+  const fetchUserRole = async (email: string) => {
     try {
-      // Get user email from auth user
-      const { data: authUser } = await supabase.auth.getUser();
-      if (!authUser.user?.email) return;
-
-      const { data, error } = await supabase
+      const { data } = await db
         .from('users')
         .select('role')
-        .eq('email', authUser.user.email)
+        .eq('email', email)
         .single();
 
-      if (error) throw error;
       setUserRole(data?.role || 'user');
     } catch (error) {
       console.error('Error fetching user role:', error);
@@ -50,28 +49,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    // Simple password check for now
-    const { data: userData, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .eq('password_hash', password)
-      .single();
+    try {
+      const users = await db
+        .from('users')
+        .select('*')
+        .execute();
+      
+      const userData = users?.find((user: any) => 
+        user.email === email && user.password_hash === password
+      );
 
-    if (error || !userData) {
-      throw new Error('Invalid credentials');
+      if (!userData) {
+        throw new Error('Invalid credentials');
+      }
+      
+      const mockUser = { id: userData.id, email: email } as User;
+      setUser(mockUser);
+      setUserRole(userData.role);
+      
+      localStorage.setItem('clowee_user', JSON.stringify({
+        user: mockUser,
+        role: userData.role
+      }));
+    } catch (error) {
+      throw error;
     }
-    
-    // Create a mock session
-    const mockUser = { id: userData.id, email: email } as User;
-    setUser(mockUser);
-    setUserRole(userData.role);
-    
-    // Store in localStorage
-    localStorage.setItem('clowee_user', JSON.stringify({
-      user: mockUser,
-      role: userData.role
-    }));
   };
 
   const signOut = async () => {

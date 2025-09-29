@@ -19,14 +19,13 @@ import {
 import { useInvoices, useCreateInvoice, useUpdateInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
 import { InvoiceForm } from "@/components/forms/InvoiceForm";
 import { InvoiceDetailsModal } from "@/components/InvoiceDetailsModal";
-import { Tables } from "@/integrations/supabase/types";
 import { formatDate } from "@/lib/dateUtils";
 import Franchises from "./Franchises"
 
 export default function Invoices() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState<Tables<'invoices'> | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
 
   const { data: invoices, isLoading } = useInvoices();

@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Download, Eye, Building2, DollarSign, Calendar, Percent } from "lucide-react";
-import { Tables } from "@/integrations/supabase/types";
 import { formatDate } from "@/lib/dateUtils";
 
 interface FranchiseDetailsModalProps {

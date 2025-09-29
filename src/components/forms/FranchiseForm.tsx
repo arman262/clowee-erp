@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUpload } from "@/components/ui/file-upload";
-import { TablesInsert } from "@/integrations/supabase/types";
 
 interface FranchiseFormProps {
   onSubmit: (data: TablesInsert<'franchises'>) => void;

@@ -1,44 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from "@/integrations/postgres/client";
 
 export const useCombinedCounterReadings = () => {
   return useQuery({
     queryKey: ['combined_counter_readings'],
     queryFn: async () => {
       // Get machines with initial counters
-      const { data: machines, error: machinesError } = await supabase
+      const machines = await db
         .from('machines')
-        .select(`
-          id,
-          machine_name,
-          machine_number,
-          initial_coin_counter,
-          initial_prize_counter,
-          installation_date,
-          franchises (
-            name
-          )
-        `)
-        .order('installation_date', { ascending: false });
-
-      if (machinesError) throw machinesError;
+        .select('*')
+        .order('installation_date', { ascending: false })
+        .execute();
 
       // Get counter readings
-      const { data: readings, error: readingsError } = await supabase
+      const readings = await db
         .from('machine_counters')
-        .select(`
-          *,
-          machines (
-            machine_name,
-            machine_number,
-            franchises (
-              name
-            )
-          )
-        `)
-        .order('reading_date', { ascending: false });
-
-      if (readingsError) throw readingsError;
+        .select('*')
+        .order('reading_date', { ascending: false })
+        .execute();
 
       // Combine data: initial readings + actual readings
       const combinedData = [];

@@ -21,7 +21,6 @@ import { useCombinedCounterReadings } from "@/hooks/useCombinedCounterReadings";
 import { CounterReadingForm } from "@/components/forms/CounterReadingForm";
 import { CounterReadingDetailsModal } from "@/components/CounterReadingDetailsModal";
 import { PayToCloweeModal } from "@/components/PayToCloweeModal";
-import { Tables } from "@/integrations/supabase/types";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/dateUtils";
 
@@ -29,7 +28,7 @@ export default function CounterReadings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPayToClowee, setShowPayToClowee] = useState(false);
-  const [editingReading, setEditingReading] = useState<Tables<'machine_counters'> | null>(null);
+  const [editingReading, setEditingReading] = useState<any | null>(null);
   const [viewingReading, setViewingReading] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -183,14 +182,14 @@ export default function CounterReadings() {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => setEditingReading(reading as Tables<'machine_counters'>)}
+                                onClick={() => setEditingReading(reading)}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                               <CounterReadingForm
-                                initialData={reading as Tables<'machine_counters'>}
+                                initialData={reading}
                                 onSubmit={(data) => {
                                   updateReading.mutate({ id: reading.id, ...data });
                                   setEditingReading(null);

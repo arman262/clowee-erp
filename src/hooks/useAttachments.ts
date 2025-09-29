@@ -1,6 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { db } from "@/integrations/postgres/client";
+
+type Attachment = {
+  id: string;
+  franchise_id?: string;
+  file_name: string;
+  file_url: string;
+  file_type: string;
+  file_size?: number;
+  mime_type?: string;
+  uploaded_at?: string;
+};
 
 export function useAttachments(franchiseId?: string) {
   return useQuery({
@@ -8,14 +18,12 @@ export function useAttachments(franchiseId?: string) {
     queryFn: async () => {
       if (!franchiseId) return [];
       
-      const { data, error } = await supabase
+      const data = await db
         .from("attachments")
         .select("*")
-        .eq("franchise_id", franchiseId)
-        .order("uploaded_at", { ascending: false });
+        .execute();
 
-      if (error) throw error;
-      return data as Tables<"attachments">[];
+      return data.filter((item: any) => item.franchise_id === franchiseId);
     },
     enabled: !!franchiseId,
   });
@@ -25,14 +33,14 @@ export function useCreateAttachment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: TablesInsert<"attachments">) => {
-      const { data: attachment, error } = await supabase
+    mutationFn: async (data: Omit<Attachment, 'id' | 'uploaded_at'>) => {
+      const attachment = await db
         .from("attachments")
         .insert(data)
         .select()
         .single();
 
-      if (error) throw error;
+      
       return attachment;
     },
     onSuccess: (data) => {
@@ -46,12 +54,13 @@ export function useDeleteAttachment() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      await db
         .from("attachments")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .execute();
 
-      if (error) throw error;
+      
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attachments"] });

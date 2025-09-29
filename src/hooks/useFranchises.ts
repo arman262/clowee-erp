@@ -1,23 +1,35 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { db } from "@/integrations/postgres/client";
 import { toast } from 'sonner';
 
-type Franchise = Tables<'franchises'>;
-type FranchiseInsert = TablesInsert<'franchises'>;
-type FranchiseUpdate = TablesUpdate<'franchises'>;
+type Franchise = {
+  id: string;
+  name: string;
+  coin_price: number;
+  doll_price: number;
+  electricity_cost: number;
+  vat_percentage?: number;
+  franchise_share: number;
+  clowee_share: number;
+  payment_duration: string;
+  maintenance_percentage?: number;
+  security_deposit_type?: string;
+  security_deposit_notes?: string;
+  agreement_copy?: string;
+  trade_nid_copy?: string[];
+  created_at?: string;
+  updated_at?: string;
+};
 
 export const useFranchises = () => {
   return useQuery({
     queryKey: ['franchises'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      return await db
         .from('franchises')
         .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
+        .order('created_at', { ascending: false })
+        .execute();
     }
   });
 };
@@ -26,14 +38,13 @@ export const useCreateFranchise = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (franchise: FranchiseInsert) => {
-      const { data, error } = await supabase
+    mutationFn: async (franchise: Omit<Franchise, 'id' | 'created_at' | 'updated_at'>) => {
+      const { data } = await db
         .from('franchises')
         .insert(franchise)
         .select()
         .single();
       
-      if (error) throw error;
       return data;
     },
     onSuccess: () => {
@@ -50,15 +61,14 @@ export const useUpdateFranchise = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, ...updates }: FranchiseUpdate & { id: string }) => {
-      const { data, error } = await supabase
+    mutationFn: async ({ id, ...updates }: Partial<Franchise> & { id: string }) => {
+      const { data } = await db
         .from('franchises')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
       
-      if (error) throw error;
       return data;
     },
     onSuccess: () => {
@@ -76,12 +86,11 @@ export const useDeleteFranchise = () => {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      await db
         .from('franchises')
         .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+        .eq('id', id)
+        .execute();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['franchises'] });

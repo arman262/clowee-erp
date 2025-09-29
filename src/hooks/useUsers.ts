@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/integrations/postgres/client";
 
 export function useUsers() {
   const [users, setUsers] = useState<any[]>([]);
@@ -7,12 +7,12 @@ export function useUsers() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("users")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      
       setUsers(data || []);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -22,7 +22,7 @@ export function useUsers() {
   };
 
   const addUser = async (userData: { name: string; email: string; password: string; role: string }) => {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("users")
       .insert([{
         name: userData.name,
@@ -33,7 +33,7 @@ export function useUsers() {
       .select()
       .single();
 
-    if (error) throw error;
+    
     setUsers(prev => [data, ...prev]);
     return data;
   };
@@ -49,24 +49,24 @@ export function useUsers() {
       updateData.password_hash = userData.password; // Store plain text for now
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("users")
       .update(updateData)
       .eq("id", id)
       .select()
       .single();
 
-    if (error) throw error;
+    
     setUsers(prev => prev.map(user => user.id === id ? data : user));
   };
 
   const deleteUser = async (id: string) => {
-    const { error } = await supabase
+    const { error } = await db
       .from("users")
       .delete()
       .eq("id", id);
 
-    if (error) throw error;
+    
     setUsers(prev => prev.filter(user => user.id !== id));
   };
 

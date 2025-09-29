@@ -21,14 +21,13 @@ import {
 import { useMachines, useCreateMachine, useUpdateMachine, useDeleteMachine } from "@/hooks/useMachines";
 import { MachineForm } from "@/components/forms/MachineForm";
 import { MachineDetailsModal } from "@/components/MachineDetailsModal";
-import { Tables } from "@/integrations/supabase/types";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function Machines() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingMachine, setEditingMachine] = useState<Tables<'machines'> | null>(null);
-  const [viewingMachine, setViewingMachine] = useState<(Tables<'machines'> & { franchises?: { name: string } | null }) | null>(null);
+  const [editingMachine, setEditingMachine] = useState<any | null>(null);
+  const [viewingMachine, setViewingMachine] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
