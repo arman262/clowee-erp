@@ -13,7 +13,9 @@ import {
   Receipt,
   CreditCard,
   Landmark,
+  LogOut,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 import {
   Sidebar,
@@ -53,6 +55,7 @@ const systemItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const { signOut, user, userRole, isAdmin } = useAuth();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
@@ -70,14 +73,28 @@ export function AppSidebar() {
             <span className="text-primary-foreground font-bold text-sm">C</span>
           </div>
           {!collapsed && (
-            <div>
+            <div className="flex-1">
               <h1 className="font-bold text-lg bg-gradient-primary bg-clip-text text-transparent">
                 Clowee ERP
               </h1>
-              <p className="text-xs text-muted-foreground">Accounting System</p>
+              <p className="text-xs text-muted-foreground">{userRole === 'admin' ? 'Administrator' : 'User'}</p>
             </div>
           )}
         </div>
+        {!collapsed && (
+          <div className="mt-3 pt-3 border-t border-border">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground truncate">{user?.email}</span>
+              <button
+                onClick={() => signOut()}
+                className="p-1 hover:bg-secondary rounded transition-colors"
+                title="Sign out"
+              >
+                <LogOut className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarContent>
@@ -135,32 +152,34 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>System</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {systemItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={({ isActive }) => `${getNavCls({ isActive })} ${isActive ? 'active' : ''}`}>
-                      {({ isActive }) => (
-                        <>
-                          <item.icon className={`h-4 w-4 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'scale-110' : ''}`} />
-                          {!collapsed && (
-                            <span className={`transition-all duration-200 group-hover:font-medium ${isActive ? 'font-medium' : ''}`}>
-                              {item.title}
-                            </span>
-                          )}
-                          <div className={`absolute inset-0 bg-gradient-to-r from-primary/0 to-primary/5 transition-opacity duration-300 rounded-l-lg ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
-                        </>
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>System</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {systemItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} className={({ isActive }) => `${getNavCls({ isActive })} ${isActive ? 'active' : ''}`}>
+                        {({ isActive }) => (
+                          <>
+                            <item.icon className={`h-4 w-4 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'scale-110' : ''}`} />
+                            {!collapsed && (
+                              <span className={`transition-all duration-200 group-hover:font-medium ${isActive ? 'font-medium' : ''}`}>
+                                {item.title}
+                              </span>
+                            )}
+                            <div className={`absolute inset-0 bg-gradient-to-r from-primary/0 to-primary/5 transition-opacity duration-300 rounded-l-lg ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                          </>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );

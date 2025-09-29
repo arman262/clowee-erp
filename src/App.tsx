@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/components/MainLayout";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Franchises from "./pages/Franchises";
 import Machines from "./pages/Machines";
@@ -13,36 +15,60 @@ import Invoices from "./pages/Invoices";
 import Expenses from "./pages/Expenses";
 import Payments from "./pages/Payments";
 import Banks from "./pages/Banks";
+import Users from "./pages/Users";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function AppRoutes() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
+  return (
+    <MainLayout>
+      <Routes>
+        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/franchises" element={<ProtectedRoute><Franchises /></ProtectedRoute>} />
+        <Route path="/machines" element={<ProtectedRoute><Machines /></ProtectedRoute>} />
+        <Route path="/counter-readings" element={<ProtectedRoute><CounterReadings /></ProtectedRoute>} />
+        <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+        <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+        <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
+        <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+        <Route path="/banks" element={<ProtectedRoute><Banks /></ProtectedRoute>} />
+        <Route path="/accounting" element={<ProtectedRoute><div className="p-8 text-center text-muted-foreground">Accounting - Coming Soon</div></ProtectedRoute>} />
+        <Route path="/inventory" element={<ProtectedRoute><div className="p-8 text-center text-muted-foreground">Inventory - Coming Soon</div></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute adminOnly><div className="p-8 text-center text-muted-foreground">Settings - Coming Soon</div></ProtectedRoute>} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </MainLayout>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <MainLayout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/franchises" element={<Franchises />} />
-            <Route path="/machines" element={<Machines />} />
-            <Route path="/counter-readings" element={<CounterReadings />} />
-            <Route path="/sales" element={<Sales />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/payments" element={<Payments />} />
-            <Route path="/banks" element={<Banks />} />
-            <Route path="/accounting" element={<div className="p-8 text-center text-muted-foreground">Accounting - Coming Soon</div>} />
-            <Route path="/inventory" element={<div className="p-8 text-center text-muted-foreground">Inventory - Coming Soon</div>} />
-            <Route path="/users" element={<div className="p-8 text-center text-muted-foreground">Users - Coming Soon</div>} />
-            <Route path="/settings" element={<div className="p-8 text-center text-muted-foreground">Settings - Coming Soon</div>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </MainLayout>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
