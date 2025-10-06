@@ -16,6 +16,7 @@ import Expenses from "./pages/Expenses";
 import Payments from "./pages/Payments";
 import Banks from "./pages/Banks";
 import Users from "./pages/Users";
+import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="/accounting" element={<ProtectedRoute><div className="p-8 text-center text-muted-foreground">Accounting - Coming Soon</div></ProtectedRoute>} />
         <Route path="/inventory" element={<ProtectedRoute><div className="p-8 text-center text-muted-foreground">Inventory - Coming Soon</div></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute adminOnly><div className="p-8 text-center text-muted-foreground">Settings - Coming Soon</div></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

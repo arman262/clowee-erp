@@ -12,22 +12,44 @@ import {
   Calendar,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Plus,
+  Printer
 } from "lucide-react";
-import { useSales, useDeleteSale, useUpdateSale } from "@/hooks/useSales";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useSales, useCreateSale, useDeleteSale, useUpdateSale } from "@/hooks/useSales";
+import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { EditSalesModal } from "@/components/EditSalesModal";
+import { SalesForm } from "@/components/forms/SalesForm";
+import { InvoicePrint } from "@/components/InvoicePrint";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function Sales() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
   const [viewingSale, setViewingSale] = useState<any | null>(null);
   const [editingSale, setEditingSale] = useState<any | null>(null);
+  const [printingSale, setPrintingSale] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const { data: sales, isLoading } = useSales();
+  const { data: payments } = useMachinePayments();
+  const createSale = useCreateSale();
   const deleteSale = useDeleteSale();
   const updateSale = useUpdateSale();
+
+  // Calculate dynamic payment status
+  const getPaymentStatus = (sale: any) => {
+    const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
+    const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const payToClowee = Number(sale.pay_to_clowee || 0);
+    
+    if (totalPaid === 0) return { status: 'Due', totalPaid, balance: payToClowee };
+    if (totalPaid >= payToClowee) return { status: totalPaid > payToClowee ? 'Overpaid' : 'Paid', totalPaid, balance: 0 };
+    return { status: 'Partial', totalPaid, balance: payToClowee - totalPaid };
+  };
 
   const filteredSales = sales?.filter(sale =>
     sale.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -56,7 +78,27 @@ export default function Sales() {
             Track coin sales and prize distributions
           </p>
         </div>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowAddForm(true)} className="bg-gradient-primary hover:opacity-90">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Sales
+          </Button>
+        </div>
       </div>
+
+      {/* Add Sales Dialog */}
+      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Add New Sales Record</DialogTitle>
+          <SalesForm
+            onSubmit={(data) => {
+              createSale.mutate(data);
+              setShowAddForm(false);
+            }}
+            onCancel={() => setShowAddForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -149,6 +191,7 @@ export default function Sales() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Invoice No</TableHead>
               <TableHead>Machine</TableHead>
               <TableHead>Franchise</TableHead>
               <TableHead>Sales Date</TableHead>
@@ -156,15 +199,22 @@ export default function Sales() {
               <TableHead>Sales Amount</TableHead>
               <TableHead>Prize Out</TableHead>
               <TableHead>Prize Cost</TableHead>
-              <TableHead>Net Revenue</TableHead>
+              <TableHead>Pay To Clowee</TableHead>
+              <TableHead>Payment Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedSales.map((sale) => {
               const netRevenue = sale.sales_amount - sale.prize_out_cost;
+              const paymentInfo = getPaymentStatus(sale);
               return (
                 <TableRow key={sale.id}>
+                  <TableCell>
+                    <div className="font-mono text-sm font-medium text-primary">
+                      {sale.invoice_number || `CLW-${new Date(sale.sales_date).getDate().toString().padStart(2, '0')}-${(new Date(sale.sales_date).getMonth() + 1).toString().padStart(2, '0')}-M`}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
@@ -197,8 +247,38 @@ export default function Sales() {
                   <TableCell className="text-warning font-medium">
                     ৳{sale.prize_out_cost.toLocaleString()}
                   </TableCell>
-                  <TableCell className={`font-medium ${netRevenue >= 0 ? 'text-success' : 'text-destructive'}`}>
-                    ৳{netRevenue.toLocaleString()}
+                  <TableCell className="text-primary font-medium">
+                    ৳{(sale.pay_to_clowee || 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <Badge 
+                      className={
+                        paymentInfo.status === 'Paid' 
+                          ? 'bg-success text-success-foreground' 
+                          : paymentInfo.status === 'Overpaid'
+                          ? 'bg-blue-500 text-white'
+                          : paymentInfo.status === 'Partial'
+                          ? 'bg-warning text-warning-foreground'
+                          : 'bg-destructive text-destructive-foreground'
+                      }
+                    >
+                      {paymentInfo.status}
+                    </Badge>
+                    {paymentInfo.totalPaid > 0 && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Paid: ৳{paymentInfo.totalPaid.toLocaleString()}
+                      </div>
+                    )}
+                    {paymentInfo.balance > 0 && (
+                      <div className="text-xs text-destructive mt-1">
+                        Due: ৳{paymentInfo.balance.toLocaleString()}
+                      </div>
+                    )}
+                    {paymentInfo.status === 'Overpaid' && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        Overpaid: ৳{(paymentInfo.totalPaid - Number(sale.pay_to_clowee || 0)).toLocaleString()}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -206,13 +286,24 @@ export default function Sales() {
                         variant="outline" 
                         size="sm"
                         onClick={() => setViewingSale(sale)}
+                        title="View Details"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
+                        onClick={() => setPrintingSale(sale)}
+                        title="Print Invoice"
+                        className="border-primary text-primary hover:bg-primary/10"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
                         onClick={() => setEditingSale(sale)}
+                        title="Edit"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -225,6 +316,7 @@ export default function Sales() {
                             deleteSale.mutate(sale.id);
                           }
                         }}
+                        title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -313,6 +405,65 @@ export default function Sales() {
                 </div>
               </div>
               
+              {/* Calculation Flow */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Calculation Breakdown</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sales Amount (Gross):</span>
+                    <span className="font-medium">৳{viewingSale.sales_amount.toLocaleString()}</span>
+                  </div>
+                  {viewingSale.vat_amount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">VAT ({viewingSale.franchises?.vat_percentage || 0}%):</span>
+                      <span className="text-destructive">-৳{viewingSale.vat_amount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Net Sales (After VAT):</span>
+                    <span className="font-medium">৳{(viewingSale.net_sales_amount || (viewingSale.sales_amount - (viewingSale.vat_amount || 0))).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Prize Cost (Deducted):</span>
+                    <span className="text-destructive">-৳{viewingSale.prize_out_cost.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-muted-foreground">Clowee Profit ({viewingSale.franchises?.clowee_share || 40}%):</span>
+                    <span className="font-medium text-success">৳{(viewingSale.clowee_profit || 0).toLocaleString()}</span>
+                  </div>
+                  {viewingSale.franchises?.electricity_cost > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Electricity Cost:</span>
+                      <span className="text-destructive">-৳{viewingSale.franchises.electricity_cost.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-2 font-bold">
+                    <span className="text-primary">Pay To Clowee:</span>
+                    <span className="text-primary text-lg">৳{(viewingSale.pay_to_clowee || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {(viewingSale.vat_amount > 0 || viewingSale.franchises?.electricity_cost > 0) && (
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-3">Additional Charges</h4>
+                  <div className="space-y-2">
+                    {viewingSale.vat_amount > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">VAT ({viewingSale.franchises?.vat_percentage || 0}%):</span>
+                        <span className="text-destructive">৳{viewingSale.vat_amount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {viewingSale.franchises?.electricity_cost > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Electricity Cost:</span>
+                        <span className="text-warning">৳{viewingSale.franchises.electricity_cost.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {(viewingSale.coin_adjustment || viewingSale.prize_adjustment || viewingSale.adjustment_notes) && (
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-3">Adjustments</h4>
@@ -365,6 +516,14 @@ export default function Sales() {
             updateSale.mutate({ id: editingSale.id, ...data });
             setEditingSale(null);
           }}
+        />
+      )}
+      
+      {/* Print Invoice Modal */}
+      {printingSale && (
+        <InvoicePrint
+          sale={printingSale}
+          onClose={() => setPrintingSale(null)}
         />
       )}
     </div>

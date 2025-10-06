@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 import { 
   Building2, 
   Plus, 
@@ -14,11 +14,14 @@ import {
   Download,
   MapPin,
   DollarSign,
-  Loader2
+  Loader2,
+  RefreshCw
 } from "lucide-react";
 import { useFranchises, useCreateFranchise, useUpdateFranchise, useDeleteFranchise } from "@/hooks/useFranchises";
 import { FranchiseForm } from "@/components/forms/FranchiseForm";
 import { FranchiseDetailsModal } from "@/components/FranchiseDetailsModal";
+import { cleanupPlaceholderFiles } from "@/utils/cleanupPlaceholderFiles";
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function Franchises() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,6 +33,18 @@ export default function Franchises() {
   const createFranchise = useCreateFranchise();
   const updateFranchise = useUpdateFranchise();
   const deleteFranchise = useDeleteFranchise();
+  const queryClient = useQueryClient();
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+
+  const handleCleanupFiles = async () => {
+    setIsCleaningUp(true);
+    try {
+      await cleanupPlaceholderFiles();
+      queryClient.invalidateQueries({ queryKey: ['franchises'] });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
 
   const filteredFranchises = franchises?.filter(franchise =>
     franchise.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -47,16 +62,19 @@ export default function Franchises() {
             Manage franchise partners and their gaming operations
           </p>
         </div>
+        <Button 
+          className="bg-gradient-primary hover:opacity-90 shadow-neon"
+          onClick={() => setShowAddForm(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Franchise
+        </Button>
         <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Franchise
-            </Button>
-          </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Add New Franchise</DialogTitle>
             <FranchiseForm
               onSubmit={(data) => {
+                console.log('Form submitted with data:', data);
                 createFranchise.mutate(data);
                 setShowAddForm(false);
               }}
@@ -117,6 +135,19 @@ export default function Franchises() {
             <Button variant="outline" className="border-border hover:bg-secondary/50">
               Export Data
               <Download className="h-4 w-4 ml-2" />
+            </Button>
+            <Button 
+              variant="outline" 
+              className="border-border hover:bg-secondary/50"
+              onClick={handleCleanupFiles}
+              disabled={isCleaningUp}
+            >
+              {isCleaningUp ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Cleanup Files
             </Button>
           </div>
         </CardContent>
@@ -220,6 +251,7 @@ export default function Franchises() {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogTitle className="sr-only">Edit Franchise</DialogTitle>
                     <FranchiseForm
                       initialData={franchise}
                       onSubmit={(data) => {

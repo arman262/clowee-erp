@@ -7,12 +7,12 @@ export function useUsers() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await db
+      const data = await db
         .from("users")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .execute();
 
-      
       setUsers(data || []);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -22,18 +22,17 @@ export function useUsers() {
   };
 
   const addUser = async (userData: { name: string; email: string; password: string; role: string }) => {
-    const { data, error } = await db
+    const { data } = await db
       .from("users")
-      .insert([{
+      .insert({
         name: userData.name,
         email: userData.email,
         password_hash: userData.password, // Store plain text for now
         role: userData.role
-      }])
+      })
       .select()
       .single();
 
-    
     setUsers(prev => [data, ...prev]);
     return data;
   };
@@ -49,24 +48,23 @@ export function useUsers() {
       updateData.password_hash = userData.password; // Store plain text for now
     }
 
-    const { data, error } = await db
+    const { data } = await db
       .from("users")
       .update(updateData)
       .eq("id", id)
       .select()
       .single();
 
-    
     setUsers(prev => prev.map(user => user.id === id ? data : user));
   };
 
   const deleteUser = async (id: string) => {
-    const { error } = await db
+    await db
       .from("users")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .execute();
 
-    
     setUsers(prev => prev.filter(user => user.id !== id));
   };
 

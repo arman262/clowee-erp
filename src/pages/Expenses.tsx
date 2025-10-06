@@ -15,7 +15,7 @@ import {
   Loader2
 } from "lucide-react";
 import { ExpenseForm } from "@/components/forms/ExpenseForm";
-import { useMachineExpenses, useCreateMachineExpense, useDeleteMachineExpense } from "@/hooks/useMachineExpenses";
+import { useMachineExpenses, useCreateMachineExpense, useUpdateMachineExpense, useDeleteMachineExpense } from "@/hooks/useMachineExpenses";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function Expenses() {
@@ -28,6 +28,7 @@ export default function Expenses() {
 
   const { data: expenses, isLoading } = useMachineExpenses();
   const createExpense = useCreateMachineExpense();
+  const updateExpense = useUpdateMachineExpense();
   const deleteExpense = useDeleteMachineExpense();
 
   const filteredExpenses = expenses?.filter((expense: any) =>
@@ -189,13 +190,27 @@ export default function Expenses() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setEditingExpense(expense)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <Dialog open={editingExpense?.id === expense.id} onOpenChange={(open) => !open && setEditingExpense(null)}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setEditingExpense(expense)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <ExpenseForm
+                            initialData={expense}
+                            onSubmit={(data) => {
+                              updateExpense.mutate({ id: expense.id, ...data });
+                              setEditingExpense(null);
+                            }}
+                            onCancel={() => setEditingExpense(null)}
+                          />
+                        </DialogContent>
+                      </Dialog>
                       <Button 
                         variant="outline" 
                         size="sm" 

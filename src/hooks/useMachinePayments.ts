@@ -6,6 +6,7 @@ type MachinePayment = {
   id: string;
   machine_id?: string;
   bank_id?: string;
+  invoice_id?: string;
   payment_date: string;
   amount: number;
   remarks?: string;
@@ -16,11 +17,53 @@ export function useMachinePayments() {
   return useQuery({
     queryKey: ["machine_payments"],
     queryFn: async () => {
-      return await db
-        .from("machine_payments")
-        .select("*")
-        .order("payment_date", { ascending: false })
-        .execute();
+      // Fetch payments, machines, banks, and sales separately
+      const [payments, machines, banks, sales] = await Promise.all([
+        db.from("machine_payments").select("*").order("payment_date", { ascending: false }).execute(),
+        db.from("machines").select("*").execute(),
+        db.from("banks").select("*").execute(),
+        db.from("sales").select("*").execute()
+      ]);
+
+      // Create lookup maps
+      const machineMap = new Map();
+      machines?.forEach(machine => {
+        machineMap.set(machine.id, machine);
+      });
+
+      const bankMap = new Map();
+      banks?.forEach(bank => {
+        bankMap.set(bank.id, bank);
+      });
+
+      const salesMap = new Map();
+      sales?.forEach(sale => {
+        salesMap.set(sale.id, sale);
+      });
+
+      // Join payments with machine, bank, and sales data
+      const paymentsWithDetails = (payments || []).map(payment => {
+        // Find matching sale by invoice_id or machine_id and payment_date
+        let matchingSale = null;
+        if (payment.invoice_id) {
+          matchingSale = sales?.find(sale => sale.id === payment.invoice_id);
+        } else {
+          // Fallback to old matching logic
+          matchingSale = sales?.find(sale => 
+            sale.machine_id === payment.machine_id && 
+            sale.sales_date === payment.payment_date
+          );
+        }
+        
+        return {
+          ...payment,
+          machines: payment.machine_id ? machineMap.get(payment.machine_id) : null,
+          banks: payment.bank_id ? bankMap.get(payment.bank_id) : null,
+          sales: matchingSale || null
+        };
+      });
+
+      return paymentsWithDetails;
     },
   });
 }
@@ -30,17 +73,59 @@ export function useCreateMachinePayment() {
 
   return useMutation({
     mutationFn: async (data: Omit<MachinePayment, 'id' | 'created_at'>) => {
-      const result = await db
-        .from("machine_payments")
-        .insert(data)
-        .select()
-        .single();
+      console.log('Creating payment with data:', data);
+      try {
+        const result = await db
+          .from("machine_payments")
+          .insert(data)
+          .select()
+          .single();
 
-      
-      return result;
+        // Update sales payment status if invoice_id is provided
+        if (data.invoice_id) {
+          try {
+            // Get the sale to check pay_to_clowee amount
+            const sale = await db.from('sales').select('*').eq('id', data.invoice_id).single();
+            if (sale.data) {
+              // Calculate total payments for this invoice including the new payment
+              const allPayments = await db.from('machine_payments').select('*').eq('invoice_id', data.invoice_id).execute();
+              const existingTotal = (allPayments || []).reduce((sum, payment) => sum + (payment.amount || 0), 0);
+              const totalPaid = existingTotal + (data.amount || 0);
+              
+              console.log(`Invoice ${data.invoice_id}: existing=${existingTotal}, new=${data.amount}, total=${totalPaid}, payToClowee=${sale.data.pay_to_clowee}`);
+              
+              // Update payment status
+              let paymentStatus = 'Due';
+              const payToClowee = sale.data.pay_to_clowee || 0;
+              if (payToClowee > 0) {
+                if (totalPaid >= payToClowee) {
+                  paymentStatus = 'Paid';
+                } else if (totalPaid > 0) {
+                  paymentStatus = 'Partial';
+                }
+              } else if (totalPaid > 0) {
+                paymentStatus = 'Paid';
+              }
+              
+              console.log(`Updating payment status to: ${paymentStatus}`);
+              await db.from('sales').update({ payment_status: paymentStatus }).eq('id', data.invoice_id).execute();
+            }
+          } catch (statusUpdateError) {
+            console.warn('Failed to update payment status, but payment was created:', statusUpdateError);
+            // Don't throw error here - payment was successful
+          }
+        }
+
+        console.log('Payment creation result:', result);
+        return result;
+      } catch (error) {
+        console.error('Payment creation error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["machine_payments"] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Payment added successfully");
     },
     onError: (error) => {
@@ -67,6 +152,7 @@ export function useUpdateMachinePayment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["machine_payments"] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Payment updated successfully");
     },
     onError: (error) => {
@@ -91,6 +177,7 @@ export function useDeleteMachinePayment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["machine_payments"] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Payment deleted successfully");
     },
     onError: (error) => {

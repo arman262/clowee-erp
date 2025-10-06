@@ -34,17 +34,16 @@ export function useCreateAttachment() {
 
   return useMutation({
     mutationFn: async (data: Omit<Attachment, 'id' | 'uploaded_at'>) => {
-      const attachment = await db
+      const { data: attachment } = await db
         .from("attachments")
         .insert(data)
         .select()
         .single();
 
-      
       return attachment;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["attachments", data.franchise_id] });
+    onSuccess: (attachment) => {
+      queryClient.invalidateQueries({ queryKey: ["attachments", attachment.franchise_id] });
     },
   });
 }

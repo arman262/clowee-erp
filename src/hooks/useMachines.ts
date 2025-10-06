@@ -21,11 +21,21 @@ export const useMachines = () => {
   return useQuery({
     queryKey: ['machines'],
     queryFn: async () => {
-      return await db
-        .from('machines')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .execute() || [];
+      // Fetch machines and franchises separately
+      const [machines, franchises] = await Promise.all([
+        db.from('machines').select('*').order('created_at', { ascending: false }).execute(),
+        db.from('franchises').select('*').execute()
+      ]);
+      
+      // Join the data client-side
+      const machinesWithFranchises = (machines || []).map((machine: any) => ({
+        ...machine,
+        franchises: machine.franchise_id 
+          ? franchises?.find((f: any) => f.id === machine.franchise_id) || null
+          : null
+      }));
+      
+      return machinesWithFranchises;
     }
   });
 };

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMachines } from "@/hooks/useMachines";
 import { useFranchises } from "@/hooks/useFranchises";
-import { useMachineCounters } from "@/hooks/useMachineCounters";
+import { useCombinedCounterReadings } from "@/hooks/useCombinedCounterReadings";
 import { useCreateSale, useSales } from "@/hooks/useSales";
 import { Loader2, Calculator, Coins, Gift } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
@@ -30,15 +30,20 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
     prizeOutCost: number;
     currentReading: any;
     previousReading: any;
+    initialReading: any;
     adjustedCoinSales: number;
     adjustedPrizeOut: number;
     adjustedSalesAmount: number;
     adjustedPrizeCost: number;
+    vatAmount: number;
+    netSalesAmount: number;
+    cloweeProfit: number;
+    payToClowee: number;
   } | null>(null);
 
   const { data: machines } = useMachines();
   const { data: franchises } = useFranchises();
-  const { data: counterReadings } = useMachineCounters();
+  const { data: counterReadings } = useCombinedCounterReadings();
   const { data: existingSales } = useSales();
   const createSale = useCreateSale();
 
@@ -46,12 +51,22 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
   const franchiseData = franchises?.find(f => f.id === selectedMachineData?.franchise_id);
 
   const calculateSales = () => {
+    console.log('Calculate button clicked');
+    console.log('Data check:', { 
+      selectedMachine, 
+      selectedDate, 
+      franchiseData: !!franchiseData,
+      counterReadings: counterReadings?.length || 0
+    });
+    
     if (!selectedMachine || !selectedDate || !franchiseData) {
       console.log('Missing required data:', { selectedMachine, selectedDate, franchiseData });
+      alert('Please select both machine and date before calculating.');
       return;
     }
 
-    const machineReadings = counterReadings?.filter(r => r.machine_id === selectedMachine) || [];
+    const machineReadings = counterReadings?.filter(r => r.machine_id === selectedMachine && r.type === 'reading') || [];
+    const initialReading = counterReadings?.find(r => r.machine_id === selectedMachine && r.type === 'initial');
     const sortedReadings = machineReadings.sort((a, b) => new Date(a.reading_date).getTime() - new Date(b.reading_date).getTime());
     
     // Find the latest reading on or before the selected date
@@ -61,6 +76,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
 
     if (!currentReading) {
       console.log('No counter reading found for selected date');
+      console.log('Available readings:', sortedReadings.map(r => ({ date: r.reading_date, coin: r.coin_counter })));
       alert('No counter reading found for the selected date. Please add a counter reading first.');
       return;
     }
@@ -70,8 +86,8 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
       .filter(r => new Date(r.reading_date) < new Date(currentReading.reading_date))
       .pop();
 
-    let previousCoinCounter = selectedMachineData?.initial_coin_counter || 0;
-    let previousPrizeCounter = selectedMachineData?.initial_prize_counter || 0;
+    let previousCoinCounter = initialReading?.coin_counter || selectedMachineData?.initial_coin_counter || 0;
+    let previousPrizeCounter = initialReading?.prize_counter || selectedMachineData?.initial_prize_counter || 0;
 
     if (previousReading) {
       previousCoinCounter = previousReading.coin_counter;
@@ -92,6 +108,17 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
     const adjustedSalesAmount = adjustedCoinSales * franchiseData.coin_price;
     const adjustedPrizeCost = adjustedPrizeOut * franchiseData.doll_price;
     
+    // Calculate VAT
+    const vatAmount = adjustedSalesAmount * (franchiseData.vat_percentage || 0) / 100;
+    
+    // Calculate Clowee profit: (sales - vat - prize cost) * clowee_share%
+    const netAfterVatAndPrize = adjustedSalesAmount - vatAmount - adjustedPrizeCost;
+    const cloweeProfit = netAfterVatAndPrize * (franchiseData.clowee_share || 40) / 100;
+    
+    // Calculate pay to Clowee
+    const electricityCost = franchiseData.electricity_cost || 0;
+    const payToClowee = cloweeProfit + adjustedPrizeCost - electricityCost;
+    
     console.log('Calculation results:', {
       coinSales,
       prizeOut,
@@ -108,10 +135,15 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
       prizeOutCost,
       currentReading,
       previousReading,
+      initialReading,
       adjustedCoinSales,
       adjustedPrizeOut,
       adjustedSalesAmount,
-      adjustedPrizeCost
+      adjustedPrizeCost,
+      vatAmount,
+      netSalesAmount: adjustedSalesAmount - vatAmount,
+      cloweeProfit,
+      payToClowee
     });
   };
 
@@ -154,6 +186,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
   const handleSubmit = async () => {
     if (!calculations || !selectedMachine || !selectedDate || !franchiseData) {
       console.log('Missing required data for submission');
+      alert('Please fill in all required fields and calculate sales first.');
       return;
     }
 
@@ -173,16 +206,26 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
         sales_amount: Math.round(Math.max(0, calculations.adjustedSalesAmount) * 100) / 100,
         prize_out_quantity: Math.round(Math.max(0, calculations.adjustedPrizeOut)),
         prize_out_cost: Math.round(Math.max(0, calculations.adjustedPrizeCost) * 100) / 100,
-        // coin_adjustment: parseInt(coinAdjustment) || 0,
-        // prize_adjustment: parseInt(prizeAdjustment) || 0,
-        // adjustment_notes: adjustmentNotes?.trim() || null
+        coin_adjustment: parseInt(coinAdjustment) || 0,
+        prize_adjustment: parseInt(prizeAdjustment) || 0,
+        adjustment_notes: adjustmentNotes?.trim() || null,
+        vat_amount: Math.round(calculations.vatAmount * 100) / 100,
+        net_sales_amount: Math.round(calculations.netSalesAmount * 100) / 100,
+        clowee_profit: Math.round(calculations.cloweeProfit * 100) / 100,
+        pay_to_clowee: Math.round(calculations.payToClowee * 100) / 100
       };
       
       console.log('Saving sales data:', salesData);
       
       // Validate data before sending
       if (salesData.coin_sales < 0 || salesData.prize_out_quantity < 0) {
-        throw new Error('Sales values cannot be negative');
+        alert('Sales values cannot be negative. Please check your calculations.');
+        return;
+      }
+      
+      if (salesData.sales_amount <= 0) {
+        alert('Sales amount must be greater than zero.');
+        return;
       }
       
       await createSale.mutateAsync(salesData);
@@ -197,7 +240,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating sale:", error);
-      // Error is already handled by the mutation's onError
+      alert(`Failed to save sales data: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -302,14 +345,14 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                   <div className="bg-secondary/30 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <Coins className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-muted-foreground">Raw Coin Sales</span>
+                      <span className="text-sm text-muted-foreground">Coin Sales</span>
                     </div>
                     <p className="text-lg font-semibold text-foreground">
-                      {calculations.coinSales.toLocaleString()} coins
+                      {calculations.adjustedCoinSales.toLocaleString()} coins
                     </p>
                     {(parseInt(coinAdjustment) || 0) > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        Adjusted: {calculations.adjustedCoinSales.toLocaleString()} coins
+                      <p className="text-xs text-muted-foreground">
+                        Raw: {calculations.coinSales.toLocaleString()} | Adj: -{parseInt(coinAdjustment)}
                       </p>
                     )}
                   </div>
@@ -320,23 +363,34 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                     <p className="text-lg font-semibold text-success">
                       ৳{calculations.adjustedSalesAmount.toLocaleString()}
                     </p>
-                    {(parseInt(coinAdjustment) || 0) > 0 && (
-                      <p className="text-sm text-muted-foreground line-through">
-                        Raw: ৳{calculations.salesAmount.toLocaleString()}
-                      </p>
-                    )}
+                  </div>
+                  <div className="bg-secondary/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm text-muted-foreground">VAT Amount</span>
+                    </div>
+                    <p className="text-lg font-semibold text-destructive">
+                      ৳{calculations.vatAmount.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-secondary/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm text-muted-foreground">Net Sales</span>
+                    </div>
+                    <p className="text-lg font-semibold text-success">
+                      ৳{calculations.netSalesAmount.toLocaleString()}
+                    </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <Gift className="h-4 w-4 text-accent" />
-                      <span className="text-sm text-muted-foreground">Raw Prize Out</span>
+                      <span className="text-sm text-muted-foreground">Prize Out</span>
                     </div>
                     <p className="text-lg font-semibold text-foreground">
-                      {calculations.prizeOut.toLocaleString()} pcs
+                      {calculations.adjustedPrizeOut.toLocaleString()} pcs
                     </p>
                     {(parseInt(prizeAdjustment) || 0) > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        Adjusted: {calculations.adjustedPrizeOut.toLocaleString()} pcs
+                      <p className="text-xs text-muted-foreground">
+                        Raw: {calculations.prizeOut.toLocaleString()} | Adj: -{parseInt(prizeAdjustment)}
                       </p>
                     )}
                   </div>
@@ -347,11 +401,23 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                     <p className="text-lg font-semibold text-warning">
                       ৳{calculations.adjustedPrizeCost.toLocaleString()}
                     </p>
-                    {(parseInt(prizeAdjustment) || 0) > 0 && (
-                      <p className="text-sm text-muted-foreground line-through">
-                        Raw: ৳{calculations.prizeOutCost.toLocaleString()}
-                      </p>
-                    )}
+                  </div>
+                  <div className="bg-secondary/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm text-muted-foreground">Clowee Profit</span>
+                    </div>
+                    <p className="text-lg font-semibold text-primary">
+                      ৳{calculations.cloweeProfit.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-gradient-primary/20 border border-primary/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Calculator className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-primary">Pay To Clowee</span>
+                    </div>
+                    <p className="text-xl font-bold text-primary">
+                      ৳{calculations.payToClowee.toLocaleString()}
+                    </p>
                   </div>
                 </div>
 
@@ -363,15 +429,15 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <div className="text-sm space-y-1">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Date:</span>
-                          <span>{calculations.previousReading ? formatDate(calculations.previousReading.reading_date) : 'Initial'}</span>
+                          <span>{calculations.previousReading ? formatDate(calculations.previousReading.reading_date) : (calculations.initialReading ? formatDate(calculations.initialReading.reading_date) : 'Initial')}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Coin:</span>
-                          <span>{calculations.previousReading ? calculations.previousReading.coin_counter : selectedMachineData?.initial_coin_counter || 0}</span>
+                          <span>{calculations.previousReading ? calculations.previousReading.coin_counter : (calculations.initialReading?.coin_counter || selectedMachineData?.initial_coin_counter || 0)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Prize:</span>
-                          <span>{calculations.previousReading ? calculations.previousReading.prize_counter : selectedMachineData?.initial_prize_counter || 0}</span>
+                          <span>{calculations.previousReading ? calculations.previousReading.prize_counter : (calculations.initialReading?.prize_counter || selectedMachineData?.initial_prize_counter || 0)}</span>
                         </div>
                       </div>
                     </div>

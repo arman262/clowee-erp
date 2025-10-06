@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { 
   Landmark, 
@@ -253,6 +253,62 @@ export default function Banks() {
           </div>
         </div>
       )}
+
+      {/* View Bank Dialog */}
+      <Dialog open={!!viewingBank} onOpenChange={(open) => !open && setViewingBank(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bank Details</DialogTitle>
+          </DialogHeader>
+          {viewingBank && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Bank Name</label>
+                <p className="text-foreground">{viewingBank.bank_name}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Account Number</label>
+                <p className="text-foreground font-mono">{viewingBank.account_number}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Account Holder</label>
+                <p className="text-foreground">{viewingBank.account_holder_name}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Branch</label>
+                <p className="text-foreground">{viewingBank.branch_name}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Status</label>
+                <p className="text-foreground">
+                  <Badge className={viewingBank.is_active ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}>
+                    {viewingBank.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Bank Dialog */}
+      <Dialog open={!!editingBank} onOpenChange={(open) => !open && setEditingBank(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Bank</DialogTitle>
+          </DialogHeader>
+          {editingBank && (
+            <BankForm
+              initialData={editingBank}
+              onSubmit={(data) => {
+                updateBank.mutate({ id: editingBank.id, ...data });
+                setEditingBank(null);
+              }}
+              onCancel={() => setEditingBank(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

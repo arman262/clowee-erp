@@ -2,30 +2,132 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/integrations/postgres/client";
 import { toast } from "sonner";
 
+type Sale = {
+  id: string;
+  machine_id?: string;
+  franchise_id?: string;
+  sales_date: string;
+  coin_sales: number;
+  sales_amount: number;
+  prize_out_quantity: number;
+  prize_out_cost: number;
+  created_at?: string;
+};
+
 export function useSales() {
   return useQuery({
     queryKey: ["sales"],
     queryFn: async () => {
-      const { data, error } = await db
-        .from("sales")
-        .select(`
-          *,
-          franchises (
-            id,
-            name,
-            coin_price,
-            doll_price
-          ),
-          machines (
-            id,
-            machine_name,
-            machine_number
-          )
-        `)
-        .order("sales_date", { ascending: false });
+      // Fetch sales, machines, franchises, banks, and payments separately
+      const [sales, machines, franchises, banks, payments] = await Promise.all([
+        db.from("sales").select("*").order("sales_date", { ascending: false }).execute(),
+        db.from("machines").select("*").execute(),
+        db.from("franchises").select("*").execute(),
+        db.from("banks").select("*").execute(),
+        db.from("machine_payments").select("*").execute()
+      ]);
 
+      // Create lookup maps
+      const machineMap = new Map();
+      machines?.forEach(machine => {
+        machineMap.set(machine.id, machine);
+      });
+
+      const bankMap = new Map();
+      banks?.forEach(bank => {
+        bankMap.set(bank.id, bank);
+      });
+
+      const franchiseMap = new Map();
+      franchises?.forEach(franchise => {
+        const franchiseWithBank = {
+          ...franchise,
+          banks: franchise.payment_bank_id ? bankMap.get(franchise.payment_bank_id) : null
+        };
+        franchiseMap.set(franchise.id, franchiseWithBank);
+      });
+
+      // Calculate payment totals for each sale by invoice_id or fallback to machine/date
+      const paymentMap = new Map();
+      payments?.forEach(payment => {
+        if (payment.invoice_id) {
+          // Use invoice_id as key
+          const currentTotal = paymentMap.get(payment.invoice_id) || 0;
+          paymentMap.set(payment.invoice_id, currentTotal + (payment.amount || 0));
+        } else if (payment.machine_id && payment.payment_date) {
+          // Fallback to old logic for legacy payments
+          const normalizedDate = new Date(payment.payment_date).toISOString().split('T')[0];
+          const key = `${payment.machine_id}_${normalizedDate}`;
+          const currentTotal = paymentMap.get(key) || 0;
+          paymentMap.set(key, currentTotal + (payment.amount || 0));
+        }
+      });
       
-      return data;
+
+
+      // Join sales with machine, franchise, and payment data
+      const salesWithDetails = (sales || []).map(sale => {
+        const machine = sale.machine_id ? machineMap.get(sale.machine_id) : null;
+        const franchise = machine?.franchise_id ? franchiseMap.get(machine.franchise_id) : null;
+        
+        // Generate invoice number if not exists
+        let invoiceNumber = sale.invoice_number;
+        if (!invoiceNumber) {
+          const saleDate = new Date(sale.sales_date);
+          const day = saleDate.getDate().toString().padStart(2, '0');
+          const month = (saleDate.getMonth() + 1).toString().padStart(2, '0');
+          const paymentDuration = franchise?.payment_duration || 'Monthly';
+          
+          let durationCode = 'M';
+          if (paymentDuration === 'Weekly') durationCode = 'W';
+          else if (paymentDuration === 'Bi-weekly') durationCode = 'BW';
+          else if (paymentDuration === 'Half Monthly') durationCode = 'HM';
+          else if (paymentDuration === 'Quarterly') durationCode = 'Q';
+          
+          invoiceNumber = `CLW-${day}-${month}-${durationCode}`;
+        }
+        
+        // Match payments by invoice_id first, then fallback to machine/date
+        let totalPaid = paymentMap.get(sale.id) || 0;
+        if (totalPaid === 0) {
+          // Fallback to old matching logic
+          const normalizedSalesDate = new Date(sale.sales_date).toISOString().split('T')[0];
+          const paymentKey = `${sale.machine_id}_${normalizedSalesDate}`;
+          totalPaid = paymentMap.get(paymentKey) || 0;
+        }
+        
+        const payToClowee = sale.pay_to_clowee || 0;
+        
+
+        
+        // Calculate payment status based on pay_to_clowee amount
+        let paymentStatus = 'Due';
+        if (payToClowee > 0) {
+          if (totalPaid >= payToClowee) {
+            paymentStatus = 'Paid';
+          } else if (totalPaid > 0) {
+            paymentStatus = 'Partial';
+          }
+        } else if (totalPaid > 0) {
+          // If no pay_to_clowee amount but has payments, mark as paid
+          paymentStatus = 'Paid';
+        }
+        
+
+        
+        return {
+          ...sale,
+          invoice_number: invoiceNumber,
+          machines: machine,
+          franchises: franchise,
+          total_paid: totalPaid,
+          clowee_share_amount: sale.clowee_profit || 0,
+          payment_status: paymentStatus,
+
+        };
+      });
+
+      return salesWithDetails;
     },
   });
 }
@@ -34,28 +136,40 @@ export function useCreateSale() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: TablesInsert<"sales">) => {
-      console.log('Attempting to insert sales data:', data);
-      const { data: result, error } = await db
+    mutationFn: async (data: Omit<Sale, 'id' | 'created_at'>) => {
+      // Generate invoice number
+      const saleDate = new Date(data.sales_date);
+      const day = saleDate.getDate().toString().padStart(2, '0');
+      const month = (saleDate.getMonth() + 1).toString().padStart(2, '0');
+      
+      // Get franchise to determine payment duration
+      const franchise = await db.from('franchises').select('payment_duration').eq('id', data.franchise_id).single();
+      const paymentDuration = franchise?.payment_duration || 'Monthly';
+      
+      // Generate payment duration short form
+      let durationCode = 'M'; // Monthly
+      if (paymentDuration === 'Weekly') durationCode = 'W';
+      else if (paymentDuration === 'Bi-weekly') durationCode = 'BW';
+      else if (paymentDuration === 'Half Monthly') durationCode = 'HM';
+      else if (paymentDuration === 'Quarterly') durationCode = 'Q';
+      
+      const invoiceNumber = `CLW-${day}-${month}-${durationCode}`;
+      
+      const { data: result } = await db
         .from("sales")
-        .insert(data)
+        .insert({ ...data, invoice_number: invoiceNumber, payment_status: 'Due' })
         .select()
         .single();
-
-      if (error) {
-        console.error('Supabase error details:', error);
-        throw error;
-      }
+      
       return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
-      toast.success("Sales data saved successfully");
+      toast.success("Sales record added successfully");
     },
     onError: (error: any) => {
       console.error("Error creating sale:", error);
-      const errorMessage = error?.message || 'Unknown error';
-      toast.error(`Failed to save sales data: ${errorMessage}`);
+      toast.error("Failed to add sales record");
     },
   });
 }
@@ -64,7 +178,7 @@ export function useUpdateSale() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string } & TablesUpdate<"sales">) => {
+    mutationFn: async ({ id, ...data }: { id: string } & Partial<Sale>) => {
       const { data: result, error } = await db
         .from("sales")
         .update(data)
@@ -72,7 +186,7 @@ export function useUpdateSale() {
         .select()
         .single();
 
-      
+      if (error) throw error;
       return result;
     },
     onSuccess: () => {
@@ -91,12 +205,11 @@ export function useDeleteSale() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await db
+      await db
         .from("sales")
         .delete()
-        .eq("id", id);
-
-      
+        .eq("id", id)
+        .execute();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });

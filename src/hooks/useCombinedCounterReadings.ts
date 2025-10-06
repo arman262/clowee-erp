@@ -5,25 +5,33 @@ export const useCombinedCounterReadings = () => {
   return useQuery({
     queryKey: ['combined_counter_readings'],
     queryFn: async () => {
-      // Get machines with initial counters
-      const machines = await db
-        .from('machines')
-        .select('*')
-        .order('installation_date', { ascending: false })
-        .execute();
+      // Fetch all data separately
+      const [machines, readings, franchises] = await Promise.all([
+        db.from('machines').select('*').order('installation_date', { ascending: false }).execute(),
+        db.from('machine_counters').select('*').order('reading_date', { ascending: false }).execute(),
+        db.from('franchises').select('*').execute()
+      ]);
 
-      // Get counter readings
-      const readings = await db
-        .from('machine_counters')
-        .select('*')
-        .order('reading_date', { ascending: false })
-        .execute();
+      // Create franchise lookup map
+      const franchiseMap = new Map();
+      franchises?.forEach(franchise => {
+        franchiseMap.set(franchise.id, franchise);
+      });
 
-      // Combine data: initial readings + actual readings
+      // Create machine lookup map with franchise data
+      const machineMap = new Map();
+      machines?.forEach(machine => {
+        machineMap.set(machine.id, {
+          ...machine,
+          franchises: machine.franchise_id ? franchiseMap.get(machine.franchise_id) : null
+        });
+      });
+
       const combinedData = [];
 
       // Add initial readings from machines
       machines?.forEach(machine => {
+        const franchise = machine.franchise_id ? franchiseMap.get(machine.franchise_id) : null;
         combinedData.push({
           id: `initial-${machine.id}`,
           machine_id: machine.id,
@@ -36,16 +44,22 @@ export const useCombinedCounterReadings = () => {
           machines: {
             machine_name: machine.machine_name,
             machine_number: machine.machine_number,
-            franchises: machine.franchises
+            franchises: franchise
           }
         });
       });
 
-      // Add actual readings
+      // Add actual readings with machine and franchise data
       readings?.forEach(reading => {
+        const machine = machineMap.get(reading.machine_id);
         combinedData.push({
           ...reading,
-          type: 'reading'
+          type: 'reading',
+          machines: machine ? {
+            machine_name: machine.machine_name,
+            machine_number: machine.machine_number,
+            franchises: machine.franchises
+          } : null
         });
       });
 

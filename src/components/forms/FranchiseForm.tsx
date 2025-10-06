@@ -6,14 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUpload } from "@/components/ui/file-upload";
+import { useBanks } from "@/hooks/useBanks";
 
 interface FranchiseFormProps {
-  onSubmit: (data: TablesInsert<'franchises'>) => void;
+  onSubmit: (data: any) => void;
   onCancel: () => void;
-  initialData?: Partial<TablesInsert<'franchises'>>;
+  initialData?: any;
 }
 
 export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseFormProps) {
+  const { data: banks } = useBanks();
+  
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     coin_price: initialData?.coin_price || 5,
@@ -26,6 +29,7 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
     maintenance_percentage: initialData?.maintenance_percentage || null,
     security_deposit_type: initialData?.security_deposit_type || "",
     security_deposit_notes: initialData?.security_deposit_notes || "",
+    payment_bank_id: initialData?.payment_bank_id || "",
     agreement_copy: initialData?.agreement_copy || "",
     trade_nid_copy: initialData?.trade_nid_copy || []
   });
@@ -57,20 +61,17 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
             
             <div className="space-y-2">
               <Label htmlFor="payment_duration">Payment Duration*</Label>
-              <Select 
+              <select 
                 value={formData.payment_duration} 
-                onValueChange={(value) => setFormData({ ...formData, payment_duration: value })}
+                onChange={(e) => setFormData({ ...formData, payment_duration: e.target.value })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Weekly">Weekly</SelectItem>
-                  <SelectItem value="Bi-weekly">Bi-weekly</SelectItem>
-                  <SelectItem value="Monthly">Monthly</SelectItem>
-                  <SelectItem value="Quarterly">Quarterly</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="Weekly">Weekly</option>
+                <option value="Bi-weekly">Bi-weekly</option>
+                <option value="Half Monthly">Half Monthly</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+              </select>
             </div>
           </div>
 
@@ -181,22 +182,36 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="payment_bank_id">Payment Bank Details</Label>
+            <select 
+              value={formData.payment_bank_id} 
+              onChange={(e) => setFormData({ ...formData, payment_bank_id: e.target.value })}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">No Bank Selected</option>
+              {banks?.filter(bank => bank.is_active).map((bank) => (
+                <option key={bank.id} value={bank.id}>
+                  {bank.bank_name} - {bank.account_number} ({bank.account_holder_name})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FileUpload
               label="Agreement Copy (Optional)"
               accept=".pdf"
-              multiple={false}
               value={formData.agreement_copy || ''}
-              onChange={(file) => setFormData({ ...formData, agreement_copy: file as string })}
+              onChange={(file) => setFormData({ ...formData, agreement_copy: file })}
               fileType="agreement_copy"
             />
             
             <FileUpload
               label="Trade & NID Copy (Multiple files)"
               accept=".pdf,.jpg,.jpeg,.png"
-              multiple={true}
               value={formData.trade_nid_copy || []}
-              onChange={(files) => setFormData({ ...formData, trade_nid_copy: files as string[] })}
+              onChange={(files) => setFormData({ ...formData, trade_nid_copy: files })}
               fileType="trade_nid_copy"
             />
           </div>

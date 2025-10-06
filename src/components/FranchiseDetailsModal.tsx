@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Download, Eye, Building2, DollarSign, Calendar, Percent } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
+import { toast } from "sonner";
 
 interface FranchiseDetailsModalProps {
-  franchise: Tables<'franchises'> | null;
+  franchise: any | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -19,18 +20,55 @@ export function FranchiseDetailsModal({ franchise, open, onOpenChange }: Franchi
 
   const handleViewFile = (url: string) => {
     console.log('Viewing file:', url);
-    // For PDF viewing, open in new tab with proper headers
-    const newWindow = window.open();
-    if (newWindow) {
-      newWindow.location.href = url;
+    
+    // Check if URL is valid (not a placeholder or file protocol)
+    if (url.startsWith('placeholder://') || url.startsWith('file://') || !url.startsWith('http')) {
+      toast.error('Cannot view file: Invalid or placeholder URL');
+      return;
     }
+    
+    // Check if file exists before opening
+    fetch(url, { method: 'HEAD' })
+      .then(response => {
+        if (response.ok) {
+          // File exists, open in new tab
+          const newWindow = window.open();
+          if (newWindow) {
+            newWindow.location.href = url;
+          }
+        } else if (response.status === 404) {
+          toast.error('File not found on server');
+        } else {
+          toast.error(`Cannot view file: ${response.status}`);
+        }
+      })
+      .catch(() => {
+        toast.error('Cannot view file: Network error');
+      });
   };
 
   const handleDownloadFile = async (url: string, filename?: string) => {
     console.log('Downloading file:', url);
+    
+    // Check if URL is valid (not a placeholder or file protocol)
+    if (url.startsWith('placeholder://') || url.startsWith('file://') || !url.startsWith('http')) {
+      toast.error('Cannot download file: Invalid or placeholder URL');
+      return;
+    }
+    
     try {
       // Fetch the file and create blob for download
       const response = await fetch(url);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.error('File not found on server');
+        } else {
+          toast.error(`Failed to download file: ${response.status}`);
+        }
+        return;
+      }
+      
       const blob = await response.blob();
       
       const downloadUrl = window.URL.createObjectURL(blob);
@@ -45,12 +83,7 @@ export function FranchiseDetailsModal({ franchise, open, onOpenChange }: Franchi
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Download failed:', error);
-      // Fallback: try direct download
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename || 'file.pdf';
-      a.target = '_blank';
-      a.click();
+      toast.error('Failed to download file: Network error');
     }
   };
 
@@ -174,6 +207,34 @@ export function FranchiseDetailsModal({ franchise, open, onOpenChange }: Franchi
             </>
           )}
 
+          {/* Payment Bank Details */}
+          {franchise.banks && (
+            <>
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Payment Bank Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-muted-foreground">Bank Name</span>
+                    <p className="font-medium">{franchise.banks.bank_name}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Account Number</span>
+                    <p className="font-medium font-mono">{franchise.banks.account_number}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Account Holder</span>
+                    <p className="font-medium">{franchise.banks.account_holder_name}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground">Branch</span>
+                    <p className="font-medium">{franchise.banks.branch_name}</p>
+                  </div>
+                </div>
+              </div>
+              <Separator />
+            </>
+          )}
+
           {/* Attachments */}
           <div>
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
@@ -187,11 +248,11 @@ export function FranchiseDetailsModal({ franchise, open, onOpenChange }: Franchi
                 <h4 className="font-medium mb-2">Agreement Copy</h4>
                 {agreementFiles.length > 0 ? (
                   <div className="space-y-2">
-                    {agreementFiles.map((url, index) => (
+                    {agreementFiles.filter(url => url).map((url, index) => (
                       <div key={index} className="flex items-center gap-2 p-3 border rounded-lg bg-secondary/20">
                         <FileText className="h-4 w-4 text-primary" />
                         <span className="flex-1 text-sm">
-                          {url.split('/').pop() || 'Agreement Document'}
+                          {url ? (url.split('/').pop() || 'Agreement Document') : 'Agreement Document'}
                         </span>
                         <Button
                           variant="ghost"
@@ -230,11 +291,11 @@ export function FranchiseDetailsModal({ franchise, open, onOpenChange }: Franchi
                 <h4 className="font-medium mb-2">Trade & NID Copy</h4>
                 {tradeNidFiles.length > 0 ? (
                   <div className="space-y-2">
-                    {tradeNidFiles.map((url, index) => (
+                    {tradeNidFiles.filter(url => url).map((url, index) => (
                       <div key={index} className="flex items-center gap-2 p-3 border rounded-lg bg-secondary/20">
                         <FileText className="h-4 w-4 text-primary" />
                         <span className="flex-1 text-sm">
-                          {url.split('/').pop() || `Trade/NID Document ${index + 1}`}
+                          {url ? (url.split('/').pop() || `Trade/NID Document ${index + 1}`) : `Trade/NID Document ${index + 1}`}
                         </span>
                         <Button
                           variant="ghost"

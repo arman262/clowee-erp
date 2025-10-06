@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 import { 
   CreditCard, 
   Plus, 
@@ -16,7 +16,7 @@ import {
   Building
 } from "lucide-react";
 import { PaymentForm } from "@/components/forms/PaymentForm";
-import { useMachinePayments, useCreateMachinePayment, useDeleteMachinePayment } from "@/hooks/useMachinePayments";
+import { useMachinePayments, useCreateMachinePayment, useUpdateMachinePayment, useDeleteMachinePayment } from "@/hooks/useMachinePayments";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function Payments() {
@@ -29,6 +29,7 @@ export default function Payments() {
 
   const { data: payments, isLoading } = useMachinePayments();
   const createPayment = useCreateMachinePayment();
+  const updatePayment = useUpdateMachinePayment();
   const deletePayment = useDeleteMachinePayment();
 
   const filteredPayments = payments?.filter((payment: any) =>
@@ -60,6 +61,7 @@ export default function Payments() {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Add New Payment</DialogTitle>
             <PaymentForm
               onSubmit={(data) => {
                 createPayment.mutate(data);
@@ -154,6 +156,7 @@ export default function Payments() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Invoice No</TableHead>
               <TableHead>Machine</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Amount</TableHead>
@@ -172,6 +175,11 @@ export default function Payments() {
             ) : (
               paginatedPayments.map((payment: any) => (
                 <TableRow key={payment.id}>
+                  <TableCell>
+                    <div className="font-mono text-sm font-medium text-primary">
+                      {payment.sales?.invoice_number || (payment.sales ? `CLW-${new Date(payment.sales.sales_date).getDate().toString().padStart(2, '0')}-${(new Date(payment.sales.sales_date).getMonth() + 1).toString().padStart(2, '0')}-M` : 'N/A')}
+                    </div>
+                  </TableCell>
                   <TableCell>{payment.machines?.machine_name}</TableCell>
                   <TableCell>{formatDate(payment.payment_date)}</TableCell>
                   <TableCell className="text-success font-medium">৳{payment.amount.toLocaleString()}</TableCell>
@@ -186,13 +194,28 @@ export default function Payments() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setEditingPayment(payment)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <Dialog open={editingPayment?.id === payment.id} onOpenChange={(open) => !open && setEditingPayment(null)}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setEditingPayment(payment)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogTitle className="sr-only">Edit Payment</DialogTitle>
+                          <PaymentForm
+                            initialData={payment}
+                            onSubmit={(data) => {
+                              updatePayment.mutate({ id: payment.id, ...data });
+                              setEditingPayment(null);
+                            }}
+                            onCancel={() => setEditingPayment(null)}
+                          />
+                        </DialogContent>
+                      </Dialog>
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -285,29 +308,7 @@ export default function Payments() {
         </div>
       )}
       
-      {/* Edit Payment Modal */}
-      {editingPayment && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditingPayment(null)}>
-          <Card className="bg-gradient-card border-border shadow-card max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle>Edit Payment</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-4 text-muted-foreground">
-                Edit form will be implemented with proper form components
-              </div>
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" onClick={() => setEditingPayment(null)} className="flex-1">
-                  Cancel
-                </Button>
-                <Button className="flex-1">
-                  Update
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
     </div>
   );
 }

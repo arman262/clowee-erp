@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Cpu, 
@@ -66,6 +66,7 @@ export default function Machines() {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Add New Machine</DialogTitle>
             <MachineForm
               onSubmit={(data) => {
                 createMachine.mutate(data);
@@ -208,6 +209,7 @@ export default function Machines() {
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <DialogTitle className="sr-only">Edit Machine</DialogTitle>
                         <MachineForm
                           initialData={machine}
                           onSubmit={(data) => {

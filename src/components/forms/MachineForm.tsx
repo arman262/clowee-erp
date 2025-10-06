@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFranchises } from "@/hooks/useFranchises";
 
 interface MachineFormProps {
-  onSubmit: (data: TablesInsert<'machines'>) => void;
+  onSubmit: (data: any) => void;
   onCancel: () => void;
-  initialData?: Partial<TablesInsert<'machines'>>;
+  initialData?: any;
 }
 
 export function MachineForm({ onSubmit, onCancel, initialData }: MachineFormProps) {
@@ -20,7 +20,7 @@ export function MachineForm({ onSubmit, onCancel, initialData }: MachineFormProp
     machine_number: initialData?.machine_number || "",
     esp_id: initialData?.esp_id || "",
     branch_location: initialData?.branch_location || "",
-    installation_date: initialData?.installation_date || new Date().toISOString().split('T')[0],
+    installation_date: initialData?.installation_date ? new Date(initialData.installation_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     franchise_id: initialData?.franchise_id || "",
     initial_coin_counter: initialData?.initial_coin_counter || 0,
     initial_prize_counter: initialData?.initial_prize_counter || 0,
@@ -82,6 +82,7 @@ export function MachineForm({ onSubmit, onCancel, initialData }: MachineFormProp
                 value={formData.installation_date}
                 onChange={(e) => setFormData({ ...formData, installation_date: e.target.value })}
                 required
+                className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:invert"
               />
             </div>
           </div>

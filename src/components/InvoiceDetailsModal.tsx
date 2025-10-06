@@ -5,7 +5,7 @@ import { FileText, DollarSign, Calendar, Building2, Cpu } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 
 interface InvoiceDetailsModalProps {
-  invoice: (Tables<'invoices'> & { 
+  invoice: (any & { 
     franchises?: { name: string } | null;
     machines?: { machine_name: string; machine_number: string } | null;
   }) | null;

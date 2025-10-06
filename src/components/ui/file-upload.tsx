@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, X, FileText, Download, Eye, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface FileUploadProps {
   label: string;
@@ -25,9 +26,27 @@ export function FileUpload({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const uploadFile = async (file: File) => {
-    // Simple file handling - return file name as placeholder
-    // In a real implementation, you would upload to your file storage service
-    return `file://${file.name}`;
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const response = await fetch('http://202.59.208.112:3008/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        return result.url;
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(`Failed to upload ${file.name}: ${error.message}`);
+      throw error; // Re-throw to handle in calling function
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,34 +62,49 @@ export function FileUpload({
 
     setUploading(true);
     try {
-      const fileNames = files.map(f => `file://${f.name}`);
+      const uploadPromises = files.map(file => uploadFile(file));
+      const fileUrls = await Promise.all(uploadPromises);
       
-      if (multiple) {
-        const currentFiles = Array.isArray(value) ? value : [];
-        onChange([...currentFiles, ...fileNames]);
+      // Only update if all uploads succeeded
+      if (fileType === 'agreement_copy') {
+        // agreement_copy is a single string field
+        onChange(fileUrls[0]);
+        toast.success('Agreement file uploaded successfully');
       } else {
-        onChange(fileNames[0]);
+        // trade_nid_copy is an array field
+        const currentFiles = Array.isArray(value) ? value : [];
+        onChange([...currentFiles, ...fileUrls]);
+        toast.success(`${files.length} file(s) uploaded successfully`);
       }
+      
+      // Clear selected files after upload
+      setSelectedFiles([]);
     } catch (error) {
-      console.error('File handling error:', error);
+      console.error('File upload error:', error);
+      // Clear selected files on error
+      setSelectedFiles([]);
+      // Don't update the form data if upload failed
     } finally {
       setUploading(false);
+      // Clear the input
+      e.target.value = '';
     }
   };
 
   const removeFile = (index: number) => {
-    if (multiple && Array.isArray(value)) {
-      const newFiles = value.filter((_, i) => i !== index);
+    if (fileType === 'trade_nid_copy' && Array.isArray(value)) {
+      const validFiles = value.filter(url => url && typeof url === 'string' && url.startsWith('http'));
+      const newFiles = validFiles.filter((_, i) => i !== index);
       onChange(newFiles);
     } else {
-      onChange(multiple ? [] : '');
+      onChange('');
     }
   };
 
   // Combine uploaded files and currently selected files for display
-  const uploadedFiles = multiple 
-    ? (Array.isArray(value) ? value : []) 
-    : (value ? [value as string] : []);
+  const uploadedFiles = fileType === 'trade_nid_copy'
+    ? (Array.isArray(value) ? value.filter(url => url && typeof url === 'string' && url.startsWith('http')) : []) 
+    : (value && typeof value === 'string' && value.startsWith('http') ? [value as string] : []);
   
   const displayFiles = [...uploadedFiles];
   
@@ -88,7 +122,7 @@ export function FileUpload({
           <Input
             type="file"
             accept={accept}
-            multiple={multiple}
+            multiple={fileType === 'trade_nid_copy'}
             onChange={handleFileChange}
             disabled={uploading}
             className="hidden"
@@ -100,7 +134,11 @@ export function FileUpload({
             onClick={() => document.getElementById(`file-${fileType}`)?.click()}
             disabled={uploading}
           >
-            <Upload className="h-4 w-4 mr-2" />
+            {uploading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
             {uploading ? 'Uploading...' : 'Upload Files'}
           </Button>
         </div>
@@ -108,9 +146,11 @@ export function FileUpload({
         {displayFiles.length > 0 && (
           <div className="space-y-2">
             {displayFiles.map((url, index) => {
+              if (!url || typeof url !== 'string') return null;
+              
               const isUploading = url.startsWith('uploading://');
               const isPlaceholder = url.startsWith('file://');
-              const fileName = url.split('://')[1] || url.split('/').pop() || 'file';
+              const fileName = url.includes('/') ? url.split('/').pop() || 'file' : url.split('://')[1] || 'file';
               
               return (
                 <div key={index} className="flex items-center gap-2 p-2 border rounded">
@@ -129,7 +169,13 @@ export function FileUpload({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => window.open(url, '_blank')}
+                        onClick={() => {
+                          if (url && url.startsWith('http')) {
+                            window.open(url, '_blank');
+                          } else {
+                            console.warn('Cannot view file with invalid URL:', url);
+                          }
+                        }}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -138,10 +184,14 @@ export function FileUpload({
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = fileName;
-                          a.click();
+                          if (url && url.startsWith('http')) {
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = fileName;
+                            a.click();
+                          } else {
+                            console.warn('Cannot download file with invalid URL:', url);
+                          }
                         }}
                       >
                         <Download className="h-4 w-4" />
@@ -160,7 +210,7 @@ export function FileUpload({
                   )}
                 </div>
               );
-            })}
+            }).filter(Boolean)}
           </div>
         )}
       </div>

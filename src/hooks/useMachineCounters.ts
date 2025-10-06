@@ -2,30 +2,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from "@/integrations/postgres/client";
 import { toast } from 'sonner';
 
-type MachineCounter = Tables<'machine_counters'>;
-type MachineCounterInsert = TablesInsert<'machine_counters'>;
-type MachineCounterUpdate = TablesUpdate<'machine_counters'>;
+type MachineCounter = {
+  id: string;
+  machine_id?: string;
+  reading_date: string;
+  coin_counter: number;
+  prize_counter: number;
+  notes?: string;
+  created_at?: string;
+};
 
 export const useMachineCounters = () => {
   return useQuery({
     queryKey: ['machine_counters'],
     queryFn: async () => {
-      const { data, error } = await db
+      return await db
         .from('machine_counters')
-        .select(`
-          *,
-          machines (
-            machine_name,
-            machine_number,
-            franchises (
-              name
-            )
-          )
-        `)
-        .order('reading_date', { ascending: false });
-      
-      
-      return data;
+        .select('*')
+        .order('reading_date', { ascending: false })
+        .execute() || [];
     }
   });
 };
@@ -34,13 +29,12 @@ export const useCreateMachineCounter = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (counter: MachineCounterInsert) => {
-      const { data, error } = await db
+    mutationFn: async (counter: Omit<MachineCounter, 'id' | 'created_at'>) => {
+      const { data } = await db
         .from('machine_counters')
         .insert(counter)
         .select()
         .single();
-      
       
       return data;
     },
@@ -58,14 +52,13 @@ export const useUpdateMachineCounter = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, ...updates }: MachineCounterUpdate & { id: string }) => {
-      const { data, error } = await db
+    mutationFn: async ({ id, ...updates }: Partial<MachineCounter> & { id: string }) => {
+      const { data } = await db
         .from('machine_counters')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
-      
       
       return data;
     },
@@ -84,12 +77,11 @@ export const useDeleteMachineCounter = () => {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await db
+      await db
         .from('machine_counters')
         .delete()
-        .eq('id', id);
-      
-      
+        .eq('id', id)
+        .execute();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });

@@ -5,7 +5,7 @@ import { Cpu, Building2, MapPin, Calendar, Activity, Zap } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 
 interface MachineDetailsModalProps {
-  machine: (Tables<'machines'> & { franchises?: { name: string } | null }) | null;
+  machine: (any & { franchises?: { name: string } | null }) | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

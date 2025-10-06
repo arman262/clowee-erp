@@ -81,20 +81,7 @@ export function AppSidebar() {
             </div>
           )}
         </div>
-        {!collapsed && (
-          <div className="mt-3 pt-3 border-t border-border">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground truncate">{user?.email}</span>
-              <button
-                onClick={() => signOut()}
-                className="p-1 hover:bg-secondary rounded transition-colors"
-                title="Sign out"
-              >
-                <LogOut className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </div>
-          </div>
-        )}
+
       </SidebarHeader>
 
       <SidebarContent>
