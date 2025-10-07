@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMachines } from "@/hooks/useMachines";
+import { useSales } from "@/hooks/useSales";
 
 interface SalesFormProps {
   onSubmit: (data: any) => void;
@@ -15,6 +16,7 @@ interface SalesFormProps {
 
 export function SalesForm({ onSubmit, onCancel, initialData }: SalesFormProps) {
   const { data: machines } = useMachines();
+  const { data: existingSales } = useSales();
   const [formData, setFormData] = useState({
     machine_id: initialData?.machine_id || "",
     sales_date: initialData?.sales_date ? new Date(initialData.sales_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
@@ -29,7 +31,14 @@ export function SalesForm({ onSubmit, onCancel, initialData }: SalesFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Generate invoice number in new format
+    const currentYear = new Date(formData.sales_date).getFullYear();
+    const yearSales = existingSales?.filter(s => new Date(s.sales_date).getFullYear() === currentYear) || [];
+    const nextNumber = (yearSales.length + 1).toString().padStart(3, '0');
+    const invoiceNumber = `clw/${currentYear}/${nextNumber}`;
+    
+    onSubmit({ ...formData, invoice_number: invoiceNumber });
   };
 
   const netRevenue = formData.sales_amount - formData.prize_out_cost;

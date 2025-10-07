@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,39 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
   const [prizeOut, setPrizeOut] = useState(sale.prize_out_quantity.toString());
   const [coinAdjustment, setCoinAdjustment] = useState("0");
   const [prizeAdjustment, setPrizeAdjustment] = useState("0");
+  const [payToClowee, setPayToClowee] = useState(0);
+
+  // Calculate Pay To Clowee whenever values change
+  useEffect(() => {
+    const coinSalesValue = parseInt(coinSales) || 0;
+    const prizeOutValue = parseInt(prizeOut) || 0;
+    const coinAdjustmentValue = parseInt(coinAdjustment) || 0;
+    const prizeAdjustmentValue = parseInt(prizeAdjustment) || 0;
+
+    const adjustedCoinSales = Math.max(0, coinSalesValue - coinAdjustmentValue);
+    const adjustedPrizeOut = Math.max(0, prizeOutValue - prizeAdjustmentValue);
+
+    const coinPrice = sale.franchises?.coin_price || 0;
+    const dollPrice = sale.franchises?.doll_price || 0;
+    const vatPercentage = sale.franchises?.vat_percentage || 0;
+    const cloweeShare = sale.franchises?.clowee_share || 40;
+    const electricityCost = sale.franchises?.electricity_cost || 0;
+
+    const adjustedSalesAmount = adjustedCoinSales * coinPrice;
+    const adjustedPrizeCost = adjustedPrizeOut * dollPrice;
+    
+    // Calculate VAT
+    const vatAmount = adjustedSalesAmount * vatPercentage / 100;
+    
+    // Calculate Clowee profit: (sales - vat - prize cost) * clowee_share%
+    const netAfterVatAndPrize = adjustedSalesAmount - vatAmount - adjustedPrizeCost;
+    const cloweeProfit = netAfterVatAndPrize * cloweeShare / 100;
+    
+    // Calculate pay to Clowee
+    const calculatedPayToClowee = cloweeProfit + adjustedPrizeCost - electricityCost;
+    
+    setPayToClowee(Math.max(0, calculatedPayToClowee));
+  }, [coinSales, prizeOut, coinAdjustment, prizeAdjustment, sale.franchises]);
 
   const handleUpdate = () => {
     const coinSalesValue = parseInt(coinSales) || 0;
@@ -24,22 +57,33 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
     const coinAdjustmentValue = parseInt(coinAdjustment) || 0;
     const prizeAdjustmentValue = parseInt(prizeAdjustment) || 0;
 
-    // Calculate adjusted values
     const adjustedCoinSales = Math.max(0, coinSalesValue - coinAdjustmentValue);
     const adjustedPrizeOut = Math.max(0, prizeOutValue - prizeAdjustmentValue);
 
-    // Get franchise pricing
     const coinPrice = sale.franchises?.coin_price || 0;
     const dollPrice = sale.franchises?.doll_price || 0;
+    const vatPercentage = sale.franchises?.vat_percentage || 0;
+    const cloweeShare = sale.franchises?.clowee_share || 40;
+    const electricityCost = sale.franchises?.electricity_cost || 0;
 
     const adjustedSalesAmount = adjustedCoinSales * coinPrice;
     const adjustedPrizeCost = adjustedPrizeOut * dollPrice;
+    
+    const vatAmount = adjustedSalesAmount * vatPercentage / 100;
+    const netSalesAmount = adjustedSalesAmount - vatAmount;
+    const netAfterVatAndPrize = adjustedSalesAmount - vatAmount - adjustedPrizeCost;
+    const cloweeProfit = netAfterVatAndPrize * cloweeShare / 100;
+    const calculatedPayToClowee = cloweeProfit + adjustedPrizeCost - electricityCost;
 
     onUpdate({
       coin_sales: adjustedCoinSales,
       sales_amount: adjustedSalesAmount,
       prize_out_quantity: adjustedPrizeOut,
-      prize_out_cost: adjustedPrizeCost
+      prize_out_cost: adjustedPrizeCost,
+      vat_amount: vatAmount,
+      net_sales_amount: netSalesAmount,
+      clowee_profit: cloweeProfit,
+      pay_to_clowee: Math.max(0, calculatedPayToClowee)
     });
   };
 
@@ -101,21 +145,23 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
           </div>
 
           {/* Preview */}
-          {(parseInt(coinAdjustment) > 0 || parseInt(prizeAdjustment) > 0) && (
-            <div className="bg-secondary/20 rounded-lg p-3">
-              <div className="text-sm font-medium mb-2">After Adjustment:</div>
-              <div className="text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span>Coin Sales:</span>
-                  <span>{Math.max(0, parseInt(coinSales) - parseInt(coinAdjustment))} coins</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Prize Out:</span>
-                  <span>{Math.max(0, parseInt(prizeOut) - parseInt(prizeAdjustment))} pcs</span>
-                </div>
+          <div className="bg-secondary/20 rounded-lg p-3">
+            <div className="text-sm font-medium mb-2">Calculation Preview:</div>
+            <div className="text-sm space-y-1">
+              <div className="flex justify-between">
+                <span>Coin Sales:</span>
+                <span>{Math.max(0, parseInt(coinSales) - parseInt(coinAdjustment))} coins</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Prize Out:</span>
+                <span>{Math.max(0, parseInt(prizeOut) - parseInt(prizeAdjustment))} pcs</span>
+              </div>
+              <div className="flex justify-between border-t pt-1 font-medium">
+                <span className="text-primary">Pay To Clowee:</span>
+                <span className="text-primary">৳{payToClowee.toLocaleString()}</span>
               </div>
             </div>
-          )}
+          </div>
           
           <div className="flex gap-3 pt-4">
             <Button variant="outline" onClick={onClose} className="flex-1">

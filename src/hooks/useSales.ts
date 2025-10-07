@@ -73,18 +73,7 @@ export function useSales() {
         // Generate invoice number if not exists
         let invoiceNumber = sale.invoice_number;
         if (!invoiceNumber) {
-          const saleDate = new Date(sale.sales_date);
-          const day = saleDate.getDate().toString().padStart(2, '0');
-          const month = (saleDate.getMonth() + 1).toString().padStart(2, '0');
-          const paymentDuration = franchise?.payment_duration || 'Monthly';
-          
-          let durationCode = 'M';
-          if (paymentDuration === 'Weekly') durationCode = 'W';
-          else if (paymentDuration === 'Bi-weekly') durationCode = 'BW';
-          else if (paymentDuration === 'Half Monthly') durationCode = 'HM';
-          else if (paymentDuration === 'Quarterly') durationCode = 'Q';
-          
-          invoiceNumber = `CLW-${day}-${month}-${durationCode}`;
+          invoiceNumber = `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`;
         }
         
         // Match payments by invoice_id first, then fallback to machine/date
@@ -137,25 +126,23 @@ export function useCreateSale() {
 
   return useMutation({
     mutationFn: async (data: Omit<Sale, 'id' | 'created_at'>) => {
-      // Generate invoice number
-      const saleDate = new Date(data.sales_date);
-      const day = saleDate.getDate().toString().padStart(2, '0');
-      const month = (saleDate.getMonth() + 1).toString().padStart(2, '0');
+      // Generate invoice number in new format
+      const currentYear = new Date(data.sales_date).getFullYear();
       
-      // Get franchise to determine payment duration
-      const franchise = await db.from('franchises').select('payment_duration').eq('id', data.franchise_id).single();
-      const paymentDuration = franchise?.payment_duration || 'Monthly';
+      // Get existing sales for the year to determine next number
+      const { data: yearSales } = await db
+        .from('sales')
+        .select('id')
+        .execute();
       
-      // Generate payment duration short form
-      let durationCode = 'M'; // Monthly
-      if (paymentDuration === 'Weekly') durationCode = 'W';
-      else if (paymentDuration === 'Bi-weekly') durationCode = 'BW';
-      else if (paymentDuration === 'Half Monthly') durationCode = 'HM';
-      else if (paymentDuration === 'Quarterly') durationCode = 'Q';
+      const currentYearSales = yearSales?.filter(s => 
+        new Date(s.created_at || s.sales_date).getFullYear() === currentYear
+      ) || [];
       
-      const invoiceNumber = `CLW-${day}-${month}-${durationCode}`;
+      const nextNumber = (currentYearSales.length + 1).toString().padStart(3, '0');
+      const invoiceNumber = `clw/${currentYear}/${nextNumber}`;
       
-      const { data: result } = await db
+      const result = await db
         .from("sales")
         .insert({ ...data, invoice_number: invoiceNumber, payment_status: 'Due' })
         .select()

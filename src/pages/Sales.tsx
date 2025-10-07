@@ -136,7 +136,7 @@ export default function Sales() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-secondary rounded-lg flex items-center justify-center">
-                <Gift className="h-5 w-5 text-primary-foreground" />
+                <Gift className="h-5 w-5 text-primary-white" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-accent">
@@ -151,7 +151,7 @@ export default function Sales() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-warning rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-primary-foreground" />
+                <TrendingUp className="h-5 w-5 text-primary-white" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-warning">
@@ -212,7 +212,7 @@ export default function Sales() {
                 <TableRow key={sale.id}>
                   <TableCell>
                     <div className="font-mono text-sm font-medium text-primary">
-                      {sale.invoice_number || `CLW-${new Date(sale.sales_date).getDate().toString().padStart(2, '0')}-${(new Date(sale.sales_date).getMonth() + 1).toString().padStart(2, '0')}-M`}
+                      {sale.invoice_number || `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`}
                     </div>
                   </TableCell>
                   <TableCell>

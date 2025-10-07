@@ -1,7 +1,8 @@
 import { formatDate } from "@/lib/dateUtils";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, X } from "lucide-react";
+import { Printer, X, Download } from "lucide-react";
+import { useMachinePayments } from "@/hooks/useMachinePayments";
 
 interface InvoicePrintProps {
   sale: any;
@@ -9,33 +10,67 @@ interface InvoicePrintProps {
 }
 
 export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
+  const { data: payments } = useMachinePayments();
+
+  // Calculate dynamic payment status (modified for invoice)
+  const getPaymentStatus = (sale: any) => {
+    const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
+    const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const payToClowee = Number(sale.pay_to_clowee || 0);
+    
+    if (totalPaid === 0) return { status: 'Due', totalPaid, balance: payToClowee };
+    if (totalPaid >= payToClowee) return { status: 'Paid', totalPaid, balance: 0 };
+    return { status: 'Partial', totalPaid, balance: payToClowee - totalPaid };
+  };
+
+  const paymentInfo = getPaymentStatus(sale);
+
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Invoice - ${sale.invoice_number || 'CLW-' + new Date(sale.sales_date).getDate().toString().padStart(2, '0') + '-' + (new Date(sale.sales_date).getMonth() + 1).toString().padStart(2, '0') + '-M'}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-              .text-center { text-align: center; }
-              .text-right { text-align: right; }
-              .font-bold { font-weight: bold; }
-              .bg-gray-100 { background-color: #f5f5f5; }
-              .text-red-600 { color: #dc2626; }
-              .text-green-600 { color: #16a34a; }
-            </style>
-          </head>
-          <body>
-            ${document.querySelector('#invoice-content')?.innerHTML || ''}
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
-      printWindow.close();
+    window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      // Dynamic import of html2canvas and jspdf
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf')
+      ]);
+
+      const element = document.getElementById('invoice-content');
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const imgWidth = 210;
+      const pageHeight = 295;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const invoiceNumber = sale.invoice_number || `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`;
+      pdf.save(`invoice-${invoiceNumber}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Fallback to print dialog
+      window.print();
     }
   };
 
@@ -53,6 +88,10 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
               <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
                 <Printer className="h-4 w-4 mr-2" />
                 Print Invoice
+              </Button>
+              <Button onClick={handleDownloadPDF} className="bg-green-600 hover:bg-green-700">
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
               </Button>
               <Button onClick={onClose} variant="outline">
                 <X className="h-4 w-4 mr-2" />
@@ -92,8 +131,8 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
               <h3 className="text-lg font-semibold mb-2 text-black">Invoice Details</h3>
               <div className="space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-black text-sm">Invoice ID:</span>
-                  <span className="font-medium text-black text-sm">INV-{sale.id.slice(0, 8).toUpperCase()}</span>
+                  <span className="text-black text-sm">Invoice Number:</span>
+                  <span className="font-medium text-black text-sm">{sale.invoice_number || `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-black text-sm">Sales Date:</span>
@@ -247,36 +286,37 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-black font-medium">Total Amount Due:</span>
-                    <span className="text-black font-bold">৳{Number(sale.pay_to_clowee || 0).toFixed(2)}</span>
+                    <span className="text-black font-bold">৳{Number(sale.pay_to_clowee || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-black font-medium">Amount Paid:</span>
-                    <span className="text-green-600 font-bold">৳{Number(sale.total_paid || 0).toFixed(2)}</span>
+                    <span className="text-green-600 font-bold">৳{paymentInfo.totalPaid.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm border-t pt-2">
                     <span className="text-black font-medium">Balance Due:</span>
-                    <span className={`font-bold ${(sale.pay_to_clowee || 0) - (sale.total_paid || 0) <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ৳{Math.max(0, Number(sale.pay_to_clowee || 0) - Number(sale.total_paid || 0)).toFixed(2)}
+                    <span className={`font-bold ${paymentInfo.balance <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ৳{paymentInfo.balance.toLocaleString()}
                     </span>
                   </div>
+
                 </div>
                 <div className="flex items-center justify-center">
                   <div className={`px-4 py-2 rounded-lg text-center ${
-                    sale.payment_status === 'Paid' 
+                    paymentInfo.status === 'Paid' 
                       ? 'bg-green-100 border border-green-500' 
-                      : sale.payment_status === 'Partial'
+                      : paymentInfo.status === 'Partial'
                       ? 'bg-yellow-100 border border-yellow-500'
                       : 'bg-red-100 border border-red-500'
                   }`}>
                     <span className={`font-bold text-lg ${
-                      sale.payment_status === 'Paid' 
+                      paymentInfo.status === 'Paid' 
                         ? 'text-green-700' 
-                        : sale.payment_status === 'Partial'
+                        : paymentInfo.status === 'Partial'
                         ? 'text-yellow-700'
                         : 'text-red-700'
                     }`}>
-                      {sale.payment_status === 'Paid' ? 'FULLY PAID' : 
-                       sale.payment_status === 'Partial' ? 'PARTIALLY PAID' : 'PAYMENT DUE'}
+                      {paymentInfo.status === 'Paid' ? 'FULLY PAID' : 
+                       paymentInfo.status === 'Partial' ? 'PARTIALLY PAID' : 'PAYMENT DUE'}
                     </span>
                   </div>
                 </div>
@@ -296,25 +336,21 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
 
           {/* Bank Details */}
           {sale.franchises?.banks && (
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-4 text-black">Payment Bank Details</h3>
-              <div className="bg-gray-100 border border-black p-4 rounded">
-                <div className="grid grid-cols-2 gap-4">
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold mb-1 text-black">Payment Method Bank Details</h2>
+              <div className="bg-gray-100 border border-black p-3 rounded">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-sm text-black font-medium">Bank Name:</p>
-                    <p className="text-black">{sale.franchises.banks.bank_name}</p>
+                    <p className="text-sm text-black">Bank Name: {sale.franchises.banks.bank_name}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-black font-medium">Account Number:</p>
-                    <p className="text-black font-mono">{sale.franchises.banks.account_number}</p>
+                    <p className="text-sm text-black">Branch: {sale.franchises.banks.branch_name}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-black font-medium">Account Holder:</p>
-                    <p className="text-black">{sale.franchises.banks.account_holder_name}</p>
+                    <p className="text-sm text-black">Account Holder: {sale.franchises.banks.account_holder_name}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-black font-medium">Branch:</p>
-                    <p className="text-black">{sale.franchises.banks.branch_name}</p>
+                    <p className="text-sm text-black">Account Number: {sale.franchises.banks.account_number}</p>
                   </div>
                 </div>
               </div>

@@ -21,6 +21,14 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
   const { data: banks } = useBanks();
   const { data: sales } = useSales();
   const { data: payments } = useMachinePayments();
+
+  // Filter to show only due invoices
+  const dueInvoices = sales?.filter(sale => {
+    const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
+    const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const payToClowee = Number(sale.pay_to_clowee || 0);
+    return totalPaid < payToClowee;
+  }) || [];
   const [formData, setFormData] = useState({
     machine_id: initialData?.machine_id || "",
     bank_id: initialData?.bank_id || "",
@@ -62,19 +70,24 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder={sales ? "Select Invoice" : "Loading invoices..."} />
+                <SelectValue placeholder={sales ? "Select Due Invoice" : "Loading invoices..."} />
               </SelectTrigger>
               <SelectContent>
                 {!sales ? (
                   <SelectItem value="loading" disabled>Loading invoices...</SelectItem>
-                ) : sales.length === 0 ? (
-                  <SelectItem value="no-data" disabled>No invoices available</SelectItem>
+                ) : dueInvoices.length === 0 ? (
+                  <SelectItem value="no-data" disabled>No due invoices available</SelectItem>
                 ) : (
-                  sales.map((sale) => (
-                    <SelectItem key={sale.id} value={sale.id}>
-                      {sale.invoice_number || `CLW-${new Date(sale.sales_date).getDate().toString().padStart(2, '0')}-${(new Date(sale.sales_date).getMonth() + 1).toString().padStart(2, '0')}-M`} - {sale.machines?.machine_name} (৳{sale.sales_amount.toLocaleString()})
-                    </SelectItem>
-                  ))
+                  dueInvoices.map((sale) => {
+                    const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
+                    const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                    const balance = Number(sale.pay_to_clowee || 0) - totalPaid;
+                    return (
+                      <SelectItem key={sale.id} value={sale.id}>
+                        {sale.invoice_number || `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`} - {sale.machines?.machine_name} (Due: ৳{balance.toLocaleString()})
+                      </SelectItem>
+                    );
+                  })
                 )}
               </SelectContent>
             </Select>
@@ -171,10 +184,12 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
           {formData.invoice_id && (() => {
             const selectedSale = sales?.find(s => s.id === formData.invoice_id);
             const existingPayments = payments?.filter(p => p.invoice_id === formData.invoice_id) || [];
-            const totalPaid = existingPayments.reduce((sum, p) => sum + p.amount, 0);
-            const payToClowee = selectedSale?.pay_to_clowee || 0;
+            const totalPaid = existingPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+            const payToClowee = Number(selectedSale?.pay_to_clowee || 0);
             const remainingDue = Math.max(0, payToClowee - totalPaid);
-            const newTotal = totalPaid + formData.amount;
+            const currentPayment = Number(formData.amount || 0);
+            const newTotal = totalPaid + currentPayment;
+            const balanceAfterPayment = Math.max(0, payToClowee - newTotal);
             
             return (
               <div className="bg-secondary/20 rounded-lg p-3 space-y-2">
@@ -182,24 +197,24 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Total Amount Due:</span>
-                    <span className="font-medium">৳{Number(payToClowee || 0).toFixed(2)}</span>
+                    <span className="font-medium">৳{payToClowee.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Already Paid:</span>
-                    <span className="text-success">৳{Number(totalPaid || 0).toFixed(2)}</span>
+                    <span className="text-success">৳{totalPaid.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Remaining Due:</span>
-                    <span className="text-destructive">৳{Number(remainingDue || 0).toFixed(2)}</span>
+                    <span className="text-destructive">৳{remainingDue.toLocaleString()}</span>
                   </div>
                   <div className="border-t pt-1 flex justify-between font-medium">
                     <span>Current Payment:</span>
-                    <span className="text-primary">৳{Number(formData.amount || 0).toFixed(2)}</span>
+                    <span className="text-primary">৳{currentPayment.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between font-bold">
                     <span>After Payment:</span>
-                    <span className={newTotal >= payToClowee ? 'text-success' : 'text-warning'}>
-                      {newTotal >= payToClowee ? 'Fully Paid' : `Due: ৳${Math.max(0, Number(payToClowee || 0) - newTotal).toFixed(2)}`}
+                    <span className={balanceAfterPayment === 0 ? 'text-success' : 'text-warning'}>
+                      {balanceAfterPayment === 0 ? 'Fully Paid' : `Due: ৳${balanceAfterPayment.toLocaleString()}`}
                     </span>
                   </div>
                 </div>

@@ -198,10 +198,17 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
     }
 
     try {
+      // Generate invoice number in new format
+      const currentYear = new Date(selectedDate).getFullYear();
+      const yearSales = existingSales?.filter(s => new Date(s.sales_date).getFullYear() === currentYear) || [];
+      const nextNumber = (yearSales.length + 1).toString().padStart(3, '0');
+      const invoiceNumber = `clw/${currentYear}/${nextNumber}`;
+
       const salesData = {
         machine_id: selectedMachine,
         franchise_id: franchiseData.id,
         sales_date: selectedDate,
+        invoice_number: invoiceNumber,
         coin_sales: Math.round(Math.max(0, calculations.adjustedCoinSales)),
         sales_amount: Math.round(Math.max(0, calculations.adjustedSalesAmount) * 100) / 100,
         prize_out_quantity: Math.round(Math.max(0, calculations.adjustedPrizeOut)),

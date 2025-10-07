@@ -177,7 +177,7 @@ export default function Payments() {
                 <TableRow key={payment.id}>
                   <TableCell>
                     <div className="font-mono text-sm font-medium text-primary">
-                      {payment.sales?.invoice_number || (payment.sales ? `CLW-${new Date(payment.sales.sales_date).getDate().toString().padStart(2, '0')}-${(new Date(payment.sales.sales_date).getMonth() + 1).toString().padStart(2, '0')}-M` : 'N/A')}
+                      {payment.sales?.invoice_number || (payment.sales ? `clw/${new Date(payment.sales.sales_date).getFullYear()}/${payment.sales.id.slice(-3).padStart(3, '0')}` : 'N/A')}
                     </div>
                   </TableCell>
                   <TableCell>{payment.machines?.machine_name}</TableCell>
