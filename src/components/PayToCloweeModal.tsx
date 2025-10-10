@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMachines } from "@/hooks/useMachines";
 import { useFranchises } from "@/hooks/useFranchises";
-import { useCombinedCounterReadings } from "@/hooks/useCombinedCounterReadings";
+import { useFranchiseAgreements, getEffectiveAgreement } from "@/hooks/useFranchiseAgreements";
+import { useMachineCounters } from "@/hooks/useMachineCounters";
 import { useCreateSale, useSales } from "@/hooks/useSales";
 import { Loader2, Calculator, Coins, Gift } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
@@ -37,18 +38,32 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
     adjustedPrizeCost: number;
     vatAmount: number;
     netSalesAmount: number;
+    netRevenue: number;
     cloweeProfit: number;
+    franchiseProfit: number;
     payToClowee: number;
   } | null>(null);
 
   const { data: machines } = useMachines();
   const { data: franchises } = useFranchises();
-  const { data: counterReadings } = useCombinedCounterReadings();
+  const { data: counterReadings } = useMachineCounters();
   const { data: existingSales } = useSales();
   const createSale = useCreateSale();
 
   const selectedMachineData = machines?.find(m => m.id === selectedMachine);
+  const { data: agreements } = useFranchiseAgreements(selectedMachineData?.franchise_id || '');
   const franchiseData = franchises?.find(f => f.id === selectedMachineData?.franchise_id);
+  
+  // Get agreement effective for the selected date
+  const getEffectiveAgreementForDate = (agreements: any[], date: string) => {
+    if (!agreements || !date) return null;
+    return agreements
+      .filter(a => new Date(a.effective_date) <= new Date(date))
+      .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime())[0];
+  };
+  
+  const effectiveAgreement = selectedDate && agreements ? getEffectiveAgreementForDate(agreements, selectedDate) : null;
+  const agreementToUse = effectiveAgreement || franchiseData;
 
   const calculateSales = () => {
     console.log('Calculate button clicked');
@@ -59,14 +74,14 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
       counterReadings: counterReadings?.length || 0
     });
     
-    if (!selectedMachine || !selectedDate || !franchiseData) {
+    if (!selectedMachine || !selectedDate || !agreementToUse) {
       console.log('Missing required data:', { selectedMachine, selectedDate, franchiseData });
       alert('Please select both machine and date before calculating.');
       return;
     }
 
-    const machineReadings = counterReadings?.filter(r => r.machine_id === selectedMachine && r.type === 'reading') || [];
-    const initialReading = counterReadings?.find(r => r.machine_id === selectedMachine && r.type === 'initial');
+    const machineReadings = counterReadings?.filter(r => r.machine_id === selectedMachine) || [];
+    const initialReading = null; // No initial readings in machine_counters table
     const sortedReadings = machineReadings.sort((a, b) => new Date(a.reading_date).getTime() - new Date(b.reading_date).getTime());
     
     // Find the latest reading on or before the selected date
@@ -103,20 +118,23 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
     const adjustedCoinSales = Math.max(0, coinSales - coinAdjustmentValue);
     const adjustedPrizeOut = Math.max(0, prizeOut - prizeAdjustmentValue);
     
-    const salesAmount = coinSales * franchiseData.coin_price;
-    const prizeOutCost = prizeOut * franchiseData.doll_price;
-    const adjustedSalesAmount = adjustedCoinSales * franchiseData.coin_price;
-    const adjustedPrizeCost = adjustedPrizeOut * franchiseData.doll_price;
+    const salesAmount = coinSales * agreementToUse.coin_price;
+    const prizeOutCost = prizeOut * agreementToUse.doll_price;
+    const adjustedSalesAmount = adjustedCoinSales * agreementToUse.coin_price;
+    const adjustedPrizeCost = adjustedPrizeOut * agreementToUse.doll_price;
     
     // Calculate VAT
-    const vatAmount = adjustedSalesAmount * (franchiseData.vat_percentage || 0) / 100;
+    const vatAmount = adjustedSalesAmount * (agreementToUse.vat_percentage || 0) / 100;
     
-    // Calculate Clowee profit: (sales - vat - prize cost) * clowee_share%
-    const netAfterVatAndPrize = adjustedSalesAmount - vatAmount - adjustedPrizeCost;
-    const cloweeProfit = netAfterVatAndPrize * (franchiseData.clowee_share || 40) / 100;
+    // Calculate net revenue after VAT and prize cost
+    const netRevenue = adjustedSalesAmount - vatAmount - adjustedPrizeCost;
+    
+    // Calculate profit shares
+    const cloweeProfit = netRevenue * (agreementToUse.clowee_share || 40) / 100;
+    const franchiseProfit = netRevenue * (agreementToUse.franchise_share || 60) / 100;
     
     // Calculate pay to Clowee
-    const electricityCost = franchiseData.electricity_cost || 0;
+    const electricityCost = agreementToUse.electricity_cost || 0;
     const payToClowee = cloweeProfit + adjustedPrizeCost - electricityCost;
     
     console.log('Calculation results:', {
@@ -142,7 +160,9 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
       adjustedPrizeCost,
       vatAmount,
       netSalesAmount: adjustedSalesAmount - vatAmount,
+      netRevenue,
       cloweeProfit,
+      franchiseProfit,
       payToClowee
     });
   };
@@ -370,6 +390,9 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                     <p className="text-lg font-semibold text-success">
                       ৳{calculations.adjustedSalesAmount.toLocaleString()}
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      {calculations.adjustedCoinSales.toLocaleString()} × ৳{agreementToUse?.coin_price || 0}
+                    </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
@@ -408,6 +431,17 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                     <p className="text-lg font-semibold text-warning">
                       ৳{calculations.adjustedPrizeCost.toLocaleString()}
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      {calculations.adjustedPrizeOut.toLocaleString()} × ৳{agreementToUse?.doll_price || 0}
+                    </p>
+                  </div>
+                  <div className="bg-secondary/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm text-muted-foreground">Net Revenue</span>
+                    </div>
+                    <p className="text-lg font-semibold text-info">
+                      ৳{calculations.netRevenue.toLocaleString()}
+                    </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
@@ -417,10 +451,29 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       ৳{calculations.cloweeProfit.toLocaleString()}
                     </p>
                   </div>
-                  <div className="bg-gradient-primary/20 border border-primary/30 rounded-lg p-3">
+                  <div className="bg-secondary/30 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm text-muted-foreground">Franchise Profit</span>
+                    </div>
+                    <p className="text-lg font-semibold text-accent">
+                      ৳{calculations.franchiseProfit.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-secondary/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm text-muted-foreground">Electricity Cost</span>
+                    </div>
+                    <p className="text-lg font-semibold text-destructive">
+                      ৳{(agreementToUse?.electricity_cost || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-gradient-primary/20 border border-primary/30 rounded-lg p-3 col-span-2">
+                    <div className="flex items-center gap-2 mb-2">
                       <Calculator className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium text-primary">Pay To Clowee</span>
+                      <span className="text-sm font-medium text-primary">Pay To Clowee Calculation</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      Clowee Profit + Prize Cost - Electricity Cost
                     </div>
                     <p className="text-xl font-bold text-primary">
                       ৳{calculations.payToClowee.toLocaleString()}

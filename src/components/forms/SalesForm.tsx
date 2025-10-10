@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMachines } from "@/hooks/useMachines";
 import { useSales } from "@/hooks/useSales";
+import { getCurrentBangladeshDate } from "@/lib/dateUtils";
 
 interface SalesFormProps {
   onSubmit: (data: any) => void;
@@ -19,7 +20,7 @@ export function SalesForm({ onSubmit, onCancel, initialData }: SalesFormProps) {
   const { data: existingSales } = useSales();
   const [formData, setFormData] = useState({
     machine_id: initialData?.machine_id || "",
-    sales_date: initialData?.sales_date ? new Date(initialData.sales_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    sales_date: initialData?.sales_date ? new Date(initialData.sales_date).toISOString().split('T')[0] : getCurrentBangladeshDate(),
     coin_sales: initialData?.coin_sales || 0,
     sales_amount: initialData?.sales_amount || 0,
     prize_out_quantity: initialData?.prize_out_quantity || 0,

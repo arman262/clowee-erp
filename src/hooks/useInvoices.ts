@@ -26,11 +26,11 @@ export const useInvoices = () => {
   return useQuery({
     queryKey: ['invoices'],
     queryFn: async () => {
-      return await db
+      const { data } = await db
         .from('invoices')
         .select('*')
-        .order('created_at', { ascending: false })
-        .execute() || [];
+        .order('created_at', { ascending: false });
+      return data || [];
     }
   });
 };

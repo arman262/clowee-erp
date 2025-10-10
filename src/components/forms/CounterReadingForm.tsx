@@ -9,9 +9,9 @@ import { useMachines } from "@/hooks/useMachines";
 import { useMachineCounters } from "@/hooks/useMachineCounters";
 
 interface CounterReadingFormProps {
-  onSubmit: (data: TablesInsert<'machine_counters'>) => void;
+  onSubmit: (data: any) => void;
   onCancel: () => void;
-  initialData?: Partial<TablesInsert<'machine_counters'>>;
+  initialData?: any;
 }
 
 export function CounterReadingForm({ onSubmit, onCancel, initialData }: CounterReadingFormProps) {

@@ -20,22 +20,41 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useSales, useCreateSale, useDeleteSale, useUpdateSale } from "@/hooks/useSales";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
+import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
 import { EditSalesModal } from "@/components/EditSalesModal";
 import { SalesForm } from "@/components/forms/SalesForm";
 import { InvoicePrint } from "@/components/InvoicePrint";
+import { TablePager } from "@/components/TablePager";
 import { formatDate } from "@/lib/dateUtils";
+import { formatCurrency, formatNumber } from "@/lib/numberUtils";
 
 export default function Sales() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingSale, setViewingSale] = useState<any | null>(null);
   const [editingSale, setEditingSale] = useState<any | null>(null);
   const [printingSale, setPrintingSale] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const { data: sales, isLoading } = useSales();
   const { data: payments } = useMachinePayments();
+  const { data: agreements } = useFranchiseAgreements();
+
+  // Get agreement values for a specific sale
+  const getAgreementValueForSale = (sale: any, field: string) => {
+    const franchiseAgreements = agreements?.filter(a => a.franchise_id === sale.franchise_id) || [];
+    const effectiveAgreement = franchiseAgreements
+      .filter(a => new Date(a.effective_date) <= new Date(sale.sales_date))
+      .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime())[0];
+    
+    if (effectiveAgreement) {
+      return effectiveAgreement[field];
+    }
+    return sale.franchises?.[field];
+  };
   const createSale = useCreateSale();
   const deleteSale = useDeleteSale();
   const updateSale = useUpdateSale();
@@ -51,20 +70,51 @@ export default function Sales() {
     return { status: 'Partial', totalPaid, balance: payToClowee - totalPaid };
   };
 
-  const filteredSales = sales?.filter(sale =>
-    sale.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sale.machines?.machine_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sale.franchises?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredSales = sales?.filter(sale => {
+    const matchesSearch = sale.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sale.machines?.machine_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sale.franchises?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Apply date filter if any date is selected
+    if (fromDate || toDate) {
+      if (!sale.sales_date) return false;
+      try {
+        const saleDate = new Date(sale.sales_date).toISOString().split('T')[0];
+        let matchesDateRange = true;
+        
+        if (fromDate && toDate) {
+          matchesDateRange = saleDate >= fromDate && saleDate <= toDate;
+        } else if (fromDate) {
+          matchesDateRange = saleDate >= fromDate;
+        } else if (toDate) {
+          matchesDateRange = saleDate <= toDate;
+        }
+        
+        return matchesSearch && matchesDateRange;
+      } catch (error) {
+        return false;
+      }
+    }
+    
+    return matchesSearch;
+  }) || [];
 
-  const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedSales = filteredSales.slice(startIndex, startIndex + itemsPerPage);
+  // Summary calculations - use all sales when no date filter, filtered sales when date filter applied
+  const summaryData = (fromDate || toDate) ? filteredSales : (sales || []);
+  
+  const dateRangeStats = {
+    totalSales: summaryData.length,
+    totalSalesAmount: summaryData.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0),
+    totalCoinSales: summaryData.reduce((sum, sale) => sum + (sale.coin_sales || 0), 0),
+    totalPrizeOut: summaryData.reduce((sum, sale) => sum + (sale.prize_out_quantity || 0), 0),
+    totalPrizeCost: summaryData.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0),
+    totalPayToClowee: summaryData.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0)
+  };
 
-  const totalSalesAmount = sales?.reduce((sum, sale) => sum + sale.sales_amount, 0) || 0;
-  const totalPrizeCost = sales?.reduce((sum, sale) => sum + sale.prize_out_cost, 0) || 0;
-  const totalCoinSales = sales?.reduce((sum, sale) => sum + sale.coin_sales, 0) || 0;
-  const totalPrizeOut = sales?.reduce((sum, sale) => sum + sale.prize_out_quantity, 0) || 0;
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const paginatedSales = filteredSales.slice(startIndex, startIndex + rowsPerPage);
+
+
 
   return (
     <div className="space-y-6">
@@ -100,81 +150,93 @@ export default function Sales() {
         </DialogContent>
       </Dialog>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4">
+      {/* Sales Summary */}
+      <Card className="bg-gradient-glass border-border shadow-card">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">
+            Sales Summary - {(fromDate || toDate) ? (fromDate === toDate ? formatDate(fromDate) : `${formatDate(fromDate)} to ${formatDate(toDate)}`) : 'All Sales'} ({summaryData.length} records)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
                 <TrendingUp className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-success">
-                  ৳{totalSalesAmount.toLocaleString()}
+                  ৳{formatCurrency(dateRangeStats.totalSalesAmount)}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Sales</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center">
                 <Coins className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-primary">
-                  {totalCoinSales.toLocaleString()}
+                  {formatNumber(dateRangeStats.totalCoinSales)}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Coins</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-secondary rounded-lg flex items-center justify-center">
                 <Gift className="h-5 w-5 text-primary-white" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-accent">
-                  {totalPrizeOut.toLocaleString()}
+                  {formatNumber(dateRangeStats.totalPrizeOut)}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Prizes</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-warning rounded-lg flex items-center justify-center">
                 <TrendingUp className="h-5 w-5 text-primary-white" />
               </div>
               <div>
                 <div className="text-2xl font-bold text-warning">
-                  ৳{totalPrizeCost.toLocaleString()}
+                  ৳{formatCurrency(dateRangeStats.totalPayToClowee)}
                 </div>
-                <div className="text-sm text-muted-foreground">Prize Cost</div>
+                <div className="text-sm text-muted-foreground">Pay To Clowee</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Search and Filters */}
       <Card className="bg-gradient-card border-border shadow-card">
         <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search sales by machine name or franchise..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-secondary/30 border-border"
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search sales by machine name or franchise..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-secondary/30 border-border"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">From:</span>
+              <Input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="w-40 bg-secondary/30 border-border"
+              />
+              <span className="text-sm text-muted-foreground">To:</span>
+              <Input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="w-40 bg-secondary/30 border-border"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -236,19 +298,19 @@ export default function Sales() {
                     </div>
                   </TableCell>
                   <TableCell className="text-primary font-medium">
-                    {sale.coin_sales.toLocaleString()} coins
+                    {formatNumber(sale.coin_sales)} coins
                   </TableCell>
                   <TableCell className="text-success font-medium">
-                    ৳{sale.sales_amount.toLocaleString()}
+                    ৳{formatCurrency(sale.sales_amount)}
                   </TableCell>
                   <TableCell className="text-accent font-medium">
-                    {sale.prize_out_quantity.toLocaleString()} pcs
+                    {formatNumber(sale.prize_out_quantity)} pcs
                   </TableCell>
                   <TableCell className="text-warning font-medium">
-                    ৳{sale.prize_out_cost.toLocaleString()}
+                    ৳{formatCurrency(sale.prize_out_cost)}
                   </TableCell>
                   <TableCell className="text-primary font-medium">
-                    ৳{(sale.pay_to_clowee || 0).toLocaleString()}
+                    ৳{formatCurrency(sale.pay_to_clowee || 0)}
                   </TableCell>
                   <TableCell>
                     <Badge 
@@ -266,17 +328,17 @@ export default function Sales() {
                     </Badge>
                     {paymentInfo.totalPaid > 0 && (
                       <div className="text-xs text-muted-foreground mt-1">
-                        Paid: ৳{paymentInfo.totalPaid.toLocaleString()}
+                        Paid: ৳{formatCurrency(paymentInfo.totalPaid)}
                       </div>
                     )}
                     {paymentInfo.balance > 0 && (
                       <div className="text-xs text-destructive mt-1">
-                        Due: ৳{paymentInfo.balance.toLocaleString()}
+                        Due: ৳{formatCurrency(paymentInfo.balance)}
                       </div>
                     )}
                     {paymentInfo.status === 'Overpaid' && (
                       <div className="text-xs text-blue-600 mt-1">
-                        Overpaid: ৳{(paymentInfo.totalPaid - Number(sale.pay_to_clowee || 0)).toLocaleString()}
+                        Overpaid: ৳{formatCurrency(paymentInfo.totalPaid - Number(sale.pay_to_clowee || 0))}
                       </div>
                     )}
                   </TableCell>
@@ -330,34 +392,13 @@ export default function Sales() {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredSales.length)} of {filteredSales.length} results
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <span className="flex items-center px-3 text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePager
+        totalRows={filteredSales.length}
+        rowsPerPage={rowsPerPage}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        onRowsPerPageChange={setRowsPerPage}
+      />
       
       {/* Sales Details Modal */}
       {viewingSale && (

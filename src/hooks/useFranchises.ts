@@ -49,9 +49,34 @@ export const useCreateFranchise = () => {
   
   return useMutation({
     mutationFn: async (franchise: Omit<Franchise, 'id' | 'created_at' | 'updated_at'>) => {
+      // Generate UUID manually
+      const generateUUID = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c == 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+      
+      // Clean up empty strings that should be null for UUID fields
+      const cleanedFranchise = {
+        ...franchise,
+        payment_bank_id: franchise.payment_bank_id || null,
+        agreement_copy: franchise.agreement_copy || null,
+        security_deposit_type: franchise.security_deposit_type || null,
+        security_deposit_notes: franchise.security_deposit_notes || null
+      };
+      
+      const franchiseData = {
+        id: generateUUID(),
+        ...cleanedFranchise,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
       const { data } = await db
         .from('franchises')
-        .insert(franchise)
+        .insert(franchiseData)
         .select()
         .single();
       
@@ -72,9 +97,19 @@ export const useUpdateFranchise = () => {
   
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Franchise> & { id: string }) => {
+      // Clean up empty strings that should be null for UUID fields
+      const cleanedUpdates = {
+        ...updates,
+        payment_bank_id: updates.payment_bank_id || null,
+        agreement_copy: updates.agreement_copy || null,
+        security_deposit_type: updates.security_deposit_type || null,
+        security_deposit_notes: updates.security_deposit_notes || null,
+        updated_at: new Date().toISOString()
+      };
+      
       const { data } = await db
         .from('franchises')
-        .update(updates)
+        .update(cleanedUpdates)
         .eq('id', id)
         .select()
         .single();

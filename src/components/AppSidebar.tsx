@@ -13,6 +13,7 @@ import {
   Receipt,
   CreditCard,
   Landmark,
+  Tag,
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +43,7 @@ const mainItems = [
 const financeItems = [
   { title: "Accounting", url: "/accounting", icon: DollarSign },
   { title: "Expenses", url: "/expenses", icon: Receipt },
+  { title: "Expense Categories", url: "/expense-categories", icon: Tag },
   { title: "Payments", url: "/payments", icon: CreditCard },
   { title: "Banks", url: "/banks", icon: Landmark },
   { title: "Inventory", url: "/inventory", icon: Package },

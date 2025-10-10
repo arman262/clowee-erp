@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { PaymentForm } from "@/components/forms/PaymentForm";
 import { useMachinePayments, useCreateMachinePayment, useUpdateMachinePayment, useDeleteMachinePayment } from "@/hooks/useMachinePayments";
+import { TablePager } from "@/components/TablePager";
+import { usePagination } from "@/hooks/usePagination";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function Payments() {
@@ -24,8 +26,6 @@ export default function Payments() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingPayment, setViewingPayment] = useState<any | null>(null);
   const [editingPayment, setEditingPayment] = useState<any | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   const { data: payments, isLoading } = useMachinePayments();
   const createPayment = useCreateMachinePayment();
@@ -37,9 +37,15 @@ export default function Payments() {
     payment.banks?.bank_name?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
-  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedPayments = filteredPayments.slice(startIndex, startIndex + itemsPerPage);
+  const {
+    currentPage,
+    rowsPerPage,
+    totalRows,
+    paginatedData: paginatedPayments,
+    handlePageChange,
+    handleRowsPerPageChange,
+    getSerialNumber,
+  } = usePagination({ data: filteredPayments });
 
   return (
     <div className="space-y-6">
@@ -156,6 +162,7 @@ export default function Payments() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">#</TableHead>
               <TableHead>Invoice No</TableHead>
               <TableHead>Machine</TableHead>
               <TableHead>Date</TableHead>
@@ -168,13 +175,16 @@ export default function Payments() {
           <TableBody>
             {paginatedPayments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No payments found
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedPayments.map((payment: any) => (
+              paginatedPayments.map((payment: any, index: number) => (
                 <TableRow key={payment.id}>
+                  <TableCell className="font-medium text-muted-foreground">
+                    {getSerialNumber(index)}
+                  </TableCell>
                   <TableCell>
                     <div className="font-mono text-sm font-medium text-primary">
                       {payment.sales?.invoice_number || (payment.sales ? `clw/${new Date(payment.sales.sales_date).getFullYear()}/${payment.sales.id.slice(-3).padStart(3, '0')}` : 'N/A')}
@@ -238,34 +248,13 @@ export default function Payments() {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredPayments.length)} of {filteredPayments.length} results
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <span className="flex items-center px-3 text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePager
+        totalRows={totalRows}
+        rowsPerPage={rowsPerPage}
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        onRowsPerPageChange={handleRowsPerPageChange}
+      />
       
       {/* View Payment Modal */}
       {viewingPayment && (

@@ -16,11 +16,12 @@ export const useMachineCounters = () => {
   return useQuery({
     queryKey: ['machine_counters'],
     queryFn: async () => {
-      return await db
+      const data = await db
         .from('machine_counters')
         .select('*')
         .order('reading_date', { ascending: false })
-        .execute() || [];
+        .execute();
+      return data || [];
     }
   });
 };
@@ -40,6 +41,7 @@ export const useCreateMachineCounter = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
+      queryClient.invalidateQueries({ queryKey: ['combined_counter_readings'] });
       toast.success('Counter reading recorded successfully');
     },
     onError: (error) => {
@@ -64,6 +66,7 @@ export const useUpdateMachineCounter = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
+      queryClient.invalidateQueries({ queryKey: ['combined_counter_readings'] });
       toast.success('Counter reading updated successfully');
     },
     onError: (error) => {
@@ -85,6 +88,7 @@ export const useDeleteMachineCounter = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
+      queryClient.invalidateQueries({ queryKey: ['combined_counter_readings'] });
       toast.success('Counter reading deleted successfully');
     },
     onError: (error) => {

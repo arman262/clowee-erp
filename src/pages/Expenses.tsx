@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { 
   Receipt, 
   Plus, 
@@ -16,29 +16,51 @@ import {
 } from "lucide-react";
 import { ExpenseForm } from "@/components/forms/ExpenseForm";
 import { useMachineExpenses, useCreateMachineExpense, useUpdateMachineExpense, useDeleteMachineExpense } from "@/hooks/useMachineExpenses";
+import { TablePager } from "@/components/TablePager";
+import { usePagination } from "@/hooks/usePagination";
 import { formatDate } from "@/lib/dateUtils";
+import { formatCurrency, formatNumber } from "@/lib/numberUtils";
 
 export default function Expenses() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingExpense, setViewingExpense] = useState<any | null>(null);
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   const { data: expenses, isLoading } = useMachineExpenses();
   const createExpense = useCreateMachineExpense();
   const updateExpense = useUpdateMachineExpense();
   const deleteExpense = useDeleteMachineExpense();
 
-  const filteredExpenses = expenses?.filter((expense: any) =>
-    expense.expense_details?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    expense.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredExpenses = expenses?.filter((expense: any) => {
+    const matchesSearch = expense.expense_details?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesDate = !dateFilter || expense.expense_date?.split('T')[0] === dateFilter;
+    return matchesSearch && matchesDate;
+  }) || [];
 
-  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedExpenses = filteredExpenses.slice(startIndex, startIndex + itemsPerPage);
+  // Today's summary calculations
+  const todayExpenses = expenses?.filter((expense: any) => 
+    expense.expense_date?.split('T')[0] === dateFilter
+  ) || [];
+  
+  const todayStats = {
+    totalExpenses: todayExpenses.length,
+    totalAmount: todayExpenses.reduce((sum, exp) => sum + (exp.total_amount || 0), 0),
+    avgAmount: todayExpenses.length > 0 ? todayExpenses.reduce((sum, exp) => sum + (exp.total_amount || 0), 0) / todayExpenses.length : 0,
+    categories: [...new Set(todayExpenses.map(exp => exp.expense_categories?.category_name).filter(Boolean))].length
+  };
+
+  const {
+    currentPage,
+    rowsPerPage,
+    totalRows,
+    paginatedData: paginatedExpenses,
+    handlePageChange,
+    handleRowsPerPageChange,
+    getSerialNumber,
+  } = usePagination({ data: filteredExpenses });
 
   return (
     <div className="space-y-6">
@@ -52,92 +74,84 @@ export default function Expenses() {
             Track and manage machine-related expenses
           </p>
         </div>
-        <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Expense
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <ExpenseForm
-              onSubmit={(data) => {
-                createExpense.mutate(data);
-                setShowAddForm(false);
-              }}
-              onCancel={() => setShowAddForm(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button 
+          className="bg-gradient-primary hover:opacity-90 shadow-neon"
+          onClick={() => setShowAddForm(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Expense
+        </Button>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4">
+      {/* Today Summary */}
+      <Card className="bg-gradient-glass border-border shadow-card">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Today Summary - {formatDate(dateFilter)}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
                 <Receipt className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-primary">0</div>
+                <div className="text-2xl font-bold text-primary">{todayStats.totalExpenses}</div>
                 <div className="text-sm text-muted-foreground">Total Expenses</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center">
                 <Receipt className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-success">৳0</div>
+                <div className="text-2xl font-bold text-success">৳{formatCurrency(todayStats.totalAmount)}</div>
                 <div className="text-sm text-muted-foreground">Total Amount</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-secondary rounded-lg flex items-center justify-center">
                 <Calendar className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-accent">0</div>
-                <div className="text-sm text-muted-foreground">This Month</div>
+                <div className="text-2xl font-bold text-accent">৳{formatCurrency(todayStats.avgAmount)}</div>
+                <div className="text-sm text-muted-foreground">Avg Amount</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-glass border-border shadow-card">
-          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-warning rounded-lg flex items-center justify-center">
                 <Receipt className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-warning">৳0</div>
-                <div className="text-sm text-muted-foreground">Avg/Month</div>
+                <div className="text-2xl font-bold text-warning">{todayStats.categories}</div>
+                <div className="text-sm text-muted-foreground">Categories Used</div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <Card className="bg-gradient-card border-border shadow-card">
         <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search expenses by details or machine..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-secondary/30 border-border"
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search expenses by details or machine..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-secondary/30 border-border"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-40 bg-secondary/30 border-border"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -154,6 +168,8 @@ export default function Expenses() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">#</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Machine</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Details</TableHead>
@@ -167,20 +183,24 @@ export default function Expenses() {
           <TableBody>
             {paginatedExpenses.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   No expenses found
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedExpenses.map((expense: any) => (
+              paginatedExpenses.map((expense: any, index: number) => (
                 <TableRow key={expense.id}>
+                  <TableCell className="font-medium text-muted-foreground">
+                    {getSerialNumber(index)}
+                  </TableCell>
+                  <TableCell>{expense.expense_categories?.category_name || '-'}</TableCell>
                   <TableCell>{expense.machines?.machine_name}</TableCell>
                   <TableCell>{formatDate(expense.expense_date)}</TableCell>
                   <TableCell>{expense.expense_details}</TableCell>
                   <TableCell>{expense.unique_id || '-'}</TableCell>
                   <TableCell>{expense.quantity}</TableCell>
-                  <TableCell>৳{expense.item_price.toLocaleString()}</TableCell>
-                  <TableCell>৳{expense.total_amount.toLocaleString()}</TableCell>
+                  <TableCell>৳{formatCurrency(expense.item_price)}</TableCell>
+                  <TableCell>৳{formatCurrency(expense.total_amount)}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button 
@@ -201,6 +221,8 @@ export default function Expenses() {
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogTitle className="sr-only">Edit Expense</DialogTitle>
+                          <DialogDescription className="sr-only">Edit expense record</DialogDescription>
                           <ExpenseForm
                             initialData={expense}
                             onSubmit={(data) => {
@@ -233,35 +255,29 @@ export default function Expenses() {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredExpenses.length)} of {filteredExpenses.length} results
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <span className="flex items-center px-3 text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePager
+        totalRows={totalRows}
+        rowsPerPage={rowsPerPage}
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        onRowsPerPageChange={handleRowsPerPageChange}
+      />
       
+      {/* Add Expense Modal */}
+      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Add New Expense</DialogTitle>
+          <DialogDescription className="sr-only">Add a new expense record</DialogDescription>
+          <ExpenseForm
+            onSubmit={(data) => {
+              createExpense.mutate(data);
+              setShowAddForm(false);
+            }}
+            onCancel={() => setShowAddForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* View Expense Modal */}
       {viewingExpense && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setViewingExpense(null)}>
@@ -292,12 +308,12 @@ export default function Expenses() {
                 </div>
                 <div className="space-y-2">
                   <div className="text-sm text-muted-foreground">Item Price</div>
-                  <div className="font-medium">৳{viewingExpense.item_price.toLocaleString()}</div>
+                  <div className="font-medium">৳{formatCurrency(viewingExpense.item_price)}</div>
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="text-sm text-muted-foreground">Total Amount</div>
-                <div className="text-lg font-bold text-success">৳{viewingExpense.total_amount.toLocaleString()}</div>
+                <div className="text-lg font-bold text-success">৳{formatCurrency(viewingExpense.total_amount)}</div>
               </div>
               <div className="flex justify-end pt-4">
                 <Button onClick={() => setViewingExpense(null)}>Close</Button>
@@ -307,29 +323,7 @@ export default function Expenses() {
         </div>
       )}
       
-      {/* Edit Expense Modal */}
-      {editingExpense && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditingExpense(null)}>
-          <Card className="bg-gradient-card border-border shadow-card max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle>Edit Expense</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-4 text-muted-foreground">
-                Edit form will be implemented with proper form components
-              </div>
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" onClick={() => setEditingExpense(null)} className="flex-1">
-                  Cancel
-                </Button>
-                <Button className="flex-1">
-                  Update
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
     </div>
   );
 }

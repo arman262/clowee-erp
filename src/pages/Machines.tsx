@@ -21,6 +21,8 @@ import {
 import { useMachines, useCreateMachine, useUpdateMachine, useDeleteMachine } from "@/hooks/useMachines";
 import { MachineForm } from "@/components/forms/MachineForm";
 import { MachineDetailsModal } from "@/components/MachineDetailsModal";
+import { TablePager } from "@/components/TablePager";
+import { usePagination } from "@/hooks/usePagination";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function Machines() {
@@ -28,8 +30,6 @@ export default function Machines() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMachine, setEditingMachine] = useState<any | null>(null);
   const [viewingMachine, setViewingMachine] = useState<any | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   const { data: machines, isLoading } = useMachines();
   const createMachine = useCreateMachine();
@@ -42,9 +42,15 @@ export default function Machines() {
     (machine.franchises?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
-  const totalPages = Math.ceil(filteredMachines.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedMachines = filteredMachines.slice(startIndex, startIndex + itemsPerPage);
+  const {
+    currentPage,
+    rowsPerPage,
+    totalRows,
+    paginatedData: paginatedMachines,
+    handlePageChange,
+    handleRowsPerPageChange,
+    getSerialNumber,
+  } = usePagination({ data: filteredMachines });
 
   return (
     <div className="space-y-6">
@@ -147,6 +153,7 @@ export default function Machines() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">#</TableHead>
               <TableHead>Machine</TableHead>
               <TableHead>Franchise</TableHead>
               <TableHead>Location</TableHead>
@@ -158,8 +165,11 @@ export default function Machines() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedMachines.map((machine) => (
+            {paginatedMachines.map((machine, index) => (
               <TableRow key={machine.id}>
+                <TableCell className="font-medium text-muted-foreground">
+                  {getSerialNumber(index)}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-gradient-accent rounded-lg flex items-center justify-center">
@@ -241,34 +251,13 @@ export default function Machines() {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredMachines.length)} of {filteredMachines.length} results
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <span className="flex items-center px-3 text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePager
+        totalRows={totalRows}
+        rowsPerPage={rowsPerPage}
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        onRowsPerPageChange={handleRowsPerPageChange}
+      />
       
       {/* Machine Details Modal */}
       <MachineDetailsModal

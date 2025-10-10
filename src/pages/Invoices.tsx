@@ -20,7 +20,8 @@ import { useInvoices, useCreateInvoice, useUpdateInvoice, useDeleteInvoice } fro
 import { InvoiceForm } from "@/components/forms/InvoiceForm";
 import { InvoiceDetailsModal } from "@/components/InvoiceDetailsModal";
 import { formatDate } from "@/lib/dateUtils";
-import Franchises from "./Franchises"
+import { TablePager } from "@/components/TablePager";
+import { usePagination } from "@/hooks/usePagination";
 
 export default function Invoices() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,6 +39,15 @@ export default function Invoices() {
     invoice.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     invoice.machines?.machine_number?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  const {
+    currentPage,
+    rowsPerPage,
+    totalRows,
+    paginatedData: paginatedInvoices,
+    handlePageChange,
+    handleRowsPerPageChange,
+  } = usePagination({ data: filteredInvoices, initialRowsPerPage: 6 });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -107,9 +117,29 @@ export default function Invoices() {
         </div>
       )}
 
+      {/* No Data State */}
+      {!isLoading && (!invoices || invoices.length === 0) && (
+        <Card className="bg-gradient-card border-border shadow-card">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Invoices Found</h3>
+              <p className="text-muted-foreground mb-4">
+                No invoices have been created yet. Create your first invoice to get started.
+              </p>
+              <Button onClick={() => setShowAddForm(true)} className="bg-gradient-primary hover:opacity-90">
+                <Plus className="h-4 w-4 mr-2" />
+                Create First Invoice
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Invoices Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredInvoices.map((invoice) => (
+      {!isLoading && invoices && invoices.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {paginatedInvoices.map((invoice: any) => (
           <Card key={invoice.id} className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
             <CardHeader className="pb-4">
               <div className="flex items-start justify-between">
@@ -122,7 +152,7 @@ export default function Invoices() {
                       Invoice #{invoice.id.slice(0, 8)}
                     </CardTitle>
                     <CardDescription>
-                      {invoice.franchises?.name} • {invoice.machines?.machine_name}
+                      Franchise • Machine
                     </CardDescription>
                   </div>
                 </div>
@@ -141,7 +171,7 @@ export default function Invoices() {
                     <span className="text-sm text-muted-foreground">Total Sales</span>
                   </div>
                   <p className="text-lg font-semibold text-foreground">
-                    ৳{invoice.total_sales.toLocaleString()}
+                    ৳{invoice.total_sales?.toLocaleString() || 0}
                   </p>
                 </div>
                 <div className="bg-secondary/30 rounded-lg p-3">
@@ -149,7 +179,7 @@ export default function Invoices() {
                     <span className="text-sm text-muted-foreground">Net Profit</span>
                   </div>
                   <p className="text-lg font-semibold text-accent">
-                    ৳{invoice.net_profit.toLocaleString()}
+                    ৳{invoice.net_profit?.toLocaleString() || 0}
                   </p>
                 </div>
               </div>
@@ -158,15 +188,15 @@ export default function Invoices() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Franchise Share:</span>
-                  <span className="text-foreground">৳{invoice.franchise_share_amount.toLocaleString()}</span>
+                  <span className="text-foreground">৳{invoice.franchise_share_amount?.toLocaleString() || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Clowee Share:</span>
-                  <span className="text-foreground">৳{invoice.clowee_share_amount.toLocaleString()}</span>
+                  <span className="text-foreground">৳{invoice.clowee_share_amount?.toLocaleString() || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Pay to Clowee(Doll Cost + Profit Share):</span>
-                  <span className="text-warning font-semibold">৳{invoice.pay_to_clowee + invoice.total_prize_cost}</span>
+                  <span className="text-warning font-semibold">৳{(invoice.pay_to_clowee || 0) + (invoice.total_prize_cost || 0)}</span>
                 </div>
               </div>
 
@@ -233,8 +263,20 @@ export default function Invoices() {
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+      
+      {/* Pagination */}
+      {filteredInvoices.length > 0 && (
+        <TablePager
+          totalRows={totalRows}
+          rowsPerPage={rowsPerPage}
+          currentPage={currentPage}
+          onPageChange={handlePageChange}
+          onRowsPerPageChange={handleRowsPerPageChange}
+        />
+      )}
       
       {/* Invoice Details Modal */}
       <InvoiceDetailsModal

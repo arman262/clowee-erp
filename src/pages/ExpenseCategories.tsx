@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Landmark, 
+  Tag, 
   Plus, 
   Search, 
   Eye, 
@@ -14,36 +14,36 @@ import {
   Trash2,
   Loader2
 } from "lucide-react";
-import { BankForm } from "@/components/forms/BankForm";
-import { useBanks, useCreateBank, useUpdateBank, useDeleteBank } from "@/hooks/useBanks";
+import { ExpenseCategoryForm } from "@/components/forms/ExpenseCategoryForm";
+import { useExpenseCategories, useCreateExpenseCategory, useUpdateExpenseCategory, useDeleteExpenseCategory } from "@/hooks/useExpenseCategories";
 import { TablePager } from "@/components/TablePager";
 import { usePagination } from "@/hooks/usePagination";
 
-export default function Banks() {
+export default function ExpenseCategories() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [viewingBank, setViewingBank] = useState<any | null>(null);
-  const [editingBank, setEditingBank] = useState<any | null>(null);
+  const [viewingCategory, setViewingCategory] = useState<any | null>(null);
+  const [editingCategory, setEditingCategory] = useState<any | null>(null);
 
-  const { data: banks, isLoading } = useBanks();
-  const createBank = useCreateBank();
-  const updateBank = useUpdateBank();
-  const deleteBank = useDeleteBank();
+  const { data: categories, isLoading } = useExpenseCategories();
+  const createCategory = useCreateExpenseCategory();
+  const updateCategory = useUpdateExpenseCategory();
+  const deleteCategory = useDeleteExpenseCategory();
 
-  const filteredBanks = banks?.filter((bank: any) =>
-    bank.bank_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bank.account_holder_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCategories = categories?.filter((category: any) =>
+    category.category_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    category.description?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
   const {
     currentPage,
     rowsPerPage,
     totalRows,
-    paginatedData: paginatedBanks,
+    paginatedData: paginatedCategories,
     handlePageChange,
     handleRowsPerPageChange,
     getSerialNumber,
-  } = usePagination({ data: filteredBanks });
+  } = usePagination({ data: filteredCategories });
 
   return (
     <div className="space-y-6">
@@ -51,23 +51,24 @@ export default function Banks() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            Bank Management
+            Expense Categories
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage bank accounts and payment methods
+            Manage expense categories for better organization
           </p>
         </div>
         <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
               <Plus className="h-4 w-4 mr-2" />
-              Add Bank
+              Add Category
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <BankForm
+            <DialogTitle className="sr-only">Add New Expense Category</DialogTitle>
+            <ExpenseCategoryForm
               onSubmit={(data) => {
-                createBank.mutate(data);
+                createCategory.mutate(data);
                 setShowAddForm(false);
               }}
               onCancel={() => setShowAddForm(false)}
@@ -82,11 +83,11 @@ export default function Banks() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <Landmark className="h-5 w-5 text-primary-foreground" />
+                <Tag className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-primary">0</div>
-                <div className="text-sm text-muted-foreground">Total Banks</div>
+                <div className="text-2xl font-bold text-primary">{categories?.length || 0}</div>
+                <div className="text-sm text-muted-foreground">Total Categories</div>
               </div>
             </div>
           </CardContent>
@@ -95,11 +96,13 @@ export default function Banks() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center">
-                <Landmark className="h-5 w-5 text-primary-foreground" />
+                <Tag className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-success">0</div>
-                <div className="text-sm text-muted-foreground">Active Banks</div>
+                <div className="text-2xl font-bold text-success">
+                  {categories?.filter(c => c.is_active).length || 0}
+                </div>
+                <div className="text-sm text-muted-foreground">Active Categories</div>
               </div>
             </div>
           </CardContent>
@@ -108,10 +111,12 @@ export default function Banks() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-secondary rounded-lg flex items-center justify-center">
-                <Landmark className="h-5 w-5 text-primary-foreground" />
+                <Tag className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-warning">0</div>
+                <div className="text-2xl font-bold text-warning">
+                  {categories?.filter(c => !c.is_active).length || 0}
+                </div>
                 <div className="text-sm text-muted-foreground">Inactive</div>
               </div>
             </div>
@@ -121,11 +126,11 @@ export default function Banks() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-warning rounded-lg flex items-center justify-center">
-                <Landmark className="h-5 w-5 text-primary-foreground" />
+                <Tag className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-accent">0</div>
-                <div className="text-sm text-muted-foreground">Accounts</div>
+                <div className="text-2xl font-bold text-accent">--</div>
+                <div className="text-sm text-muted-foreground">Most Used</div>
               </div>
             </div>
           </CardContent>
@@ -138,7 +143,7 @@ export default function Banks() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search banks by name or account holder..."
+              placeholder="Search categories by name or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-secondary/30 border-border"
@@ -154,47 +159,47 @@ export default function Banks() {
         </div>
       )}
 
-      {/* Banks Table */}
+      {/* Categories Table */}
       <Card className="bg-gradient-card border-border shadow-card">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-16">#</TableHead>
-              <TableHead>Bank Name</TableHead>
-              <TableHead>Account Number</TableHead>
-              <TableHead>Account Holder</TableHead>
-              <TableHead>Branch</TableHead>
+              <TableHead>Category Name</TableHead>
+              <TableHead>Description</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedBanks.length === 0 ? (
+            {paginatedCategories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  No banks found
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  No expense categories found
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedBanks.map((bank: any, index: number) => (
-                <TableRow key={bank.id}>
+              paginatedCategories.map((category: any, index: number) => (
+                <TableRow key={category.id}>
                   <TableCell className="font-medium text-muted-foreground">
                     {getSerialNumber(index)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                        <Landmark className="h-4 w-4 text-white" />
+                        <Tag className="h-4 w-4 text-white" />
                       </div>
-                      <span className="font-medium">{bank.bank_name}</span>
+                      <span className="font-medium">{category.category_name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono">{bank.account_number}</TableCell>
-                  <TableCell>{bank.account_holder_name}</TableCell>
-                  <TableCell>{bank.branch_name}</TableCell>
                   <TableCell>
-                    <Badge className={bank.is_active ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}>
-                      {bank.is_active ? 'Active' : 'Inactive'}
+                    <div className="max-w-xs truncate" title={category.description || ''}>
+                      {category.description || '-'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={category.is_active ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}>
+                      {category.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -202,14 +207,14 @@ export default function Banks() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => setViewingBank(bank)}
+                        onClick={() => setViewingCategory(category)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => setEditingBank(bank)}
+                        onClick={() => setEditingCategory(category)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -218,8 +223,8 @@ export default function Banks() {
                         size="sm" 
                         className="border-destructive text-destructive hover:bg-destructive/10"
                         onClick={() => {
-                          if (confirm('Are you sure you want to delete this bank?')) {
-                            deleteBank.mutate(bank.id);
+                          if (confirm('Are you sure you want to delete this category?')) {
+                            deleteCategory.mutate(category.id);
                           }
                         }}
                       >
@@ -243,35 +248,27 @@ export default function Banks() {
         onRowsPerPageChange={handleRowsPerPageChange}
       />
 
-      {/* View Bank Dialog */}
-      <Dialog open={!!viewingBank} onOpenChange={(open) => !open && setViewingBank(null)}>
+      {/* View Category Dialog */}
+      <Dialog open={!!viewingCategory} onOpenChange={(open) => !open && setViewingCategory(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Bank Details</DialogTitle>
+            <DialogTitle>Category Details</DialogTitle>
           </DialogHeader>
-          {viewingBank && (
+          {viewingCategory && (
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Bank Name</label>
-                <p className="text-foreground">{viewingBank.bank_name}</p>
+                <label className="text-sm font-medium text-muted-foreground">Category Name</label>
+                <p className="text-foreground">{viewingCategory.category_name}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Account Number</label>
-                <p className="text-foreground font-mono">{viewingBank.account_number}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Account Holder</label>
-                <p className="text-foreground">{viewingBank.account_holder_name}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Branch</label>
-                <p className="text-foreground">{viewingBank.branch_name}</p>
+                <label className="text-sm font-medium text-muted-foreground">Description</label>
+                <p className="text-foreground">{viewingCategory.description || 'No description'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Status</label>
                 <p className="text-foreground">
-                  <Badge className={viewingBank.is_active ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}>
-                    {viewingBank.is_active ? 'Active' : 'Inactive'}
+                  <Badge className={viewingCategory.is_active ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}>
+                    {viewingCategory.is_active ? 'Active' : 'Inactive'}
                   </Badge>
                 </p>
               </div>
@@ -280,20 +277,20 @@ export default function Banks() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Bank Dialog */}
-      <Dialog open={!!editingBank} onOpenChange={(open) => !open && setEditingBank(null)}>
+      {/* Edit Category Dialog */}
+      <Dialog open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Bank</DialogTitle>
+            <DialogTitle>Edit Category</DialogTitle>
           </DialogHeader>
-          {editingBank && (
-            <BankForm
-              initialData={editingBank}
+          {editingCategory && (
+            <ExpenseCategoryForm
+              initialData={editingCategory}
               onSubmit={(data) => {
-                updateBank.mutate({ id: editingBank.id, ...data });
-                setEditingBank(null);
+                updateCategory.mutate({ id: editingCategory.id, ...data });
+                setEditingCategory(null);
               }}
-              onCancel={() => setEditingBank(null)}
+              onCancel={() => setEditingCategory(null)}
             />
           )}
         </DialogContent>

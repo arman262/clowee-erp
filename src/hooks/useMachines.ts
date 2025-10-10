@@ -51,10 +51,22 @@ export const useCreateMachine = () => {
         .select()
         .single();
       
+      // Create initial counter reading with installation date
+      if (data && (machine.initial_coin_counter > 0 || machine.initial_prize_counter > 0)) {
+        await db.from('machine_counters').insert({
+          machine_id: data.id,
+          reading_date: machine.installation_date,
+          coin_counter: machine.initial_coin_counter,
+          prize_counter: machine.initial_prize_counter,
+          notes: 'Initial counter values from machine installation'
+        });
+      }
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machines'] });
+      queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
       toast.success('Machine created successfully');
     },
     onError: (error) => {
@@ -92,14 +104,19 @@ export const useDeleteMachine = () => {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await db
-        .from('machines')
-        .delete()
-        .eq('id', id)
-        .execute();
+      // Delete related records first
+      await db.from('invoices').delete().eq('machine_id', id).execute();
+      await db.from('machine_counters').delete().eq('machine_id', id).execute();
+      await db.from('machine_payments').delete().eq('machine_id', id).execute();
+      
+      // Then delete the machine
+      await db.from('machines').delete().eq('id', id).execute();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machines'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
+      queryClient.invalidateQueries({ queryKey: ['machine_payments'] });
       toast.success('Machine deleted successfully');
     },
     onError: (error) => {

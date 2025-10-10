@@ -6,9 +6,11 @@ type MachineExpense = {
   id: string;
   machine_id?: string;
   expense_date: string;
-  category: string;
-  amount: number;
-  description?: string;
+  expense_details: string;
+  unique_id?: string;
+  quantity: number;
+  item_price: number;
+  total_amount: number;
   created_at?: string;
 };
 
@@ -16,25 +18,32 @@ export function useMachineExpenses() {
   return useQuery({
     queryKey: ["machine_expenses"],
     queryFn: async () => {
-      // Fetch expenses and machines separately
-      const [expenses, machines] = await Promise.all([
+      // Fetch expenses, machines, and categories separately
+      const [expenses, machines, categories] = await Promise.all([
         db.from("machine_expenses").select("*").order("expense_date", { ascending: false }).execute(),
-        db.from("machines").select("*").execute()
+        db.from("machines").select("*").execute(),
+        db.from("expense_categories").select("*").execute()
       ]);
 
-      // Create machine lookup map
+      // Create lookup maps
       const machineMap = new Map();
       machines?.forEach(machine => {
         machineMap.set(machine.id, machine);
       });
 
-      // Join expenses with machine data
-      const expensesWithMachines = (expenses || []).map(expense => ({
+      const categoryMap = new Map();
+      categories?.forEach(category => {
+        categoryMap.set(category.id, category);
+      });
+
+      // Join expenses with machine and category data
+      const expensesWithDetails = (expenses || []).map(expense => ({
         ...expense,
-        machines: expense.machine_id ? machineMap.get(expense.machine_id) : null
+        machines: expense.machine_id ? machineMap.get(expense.machine_id) : null,
+        expense_categories: expense.category_id ? categoryMap.get(expense.category_id) : null
       }));
 
-      return expensesWithMachines;
+      return expensesWithDetails;
     },
   });
 }

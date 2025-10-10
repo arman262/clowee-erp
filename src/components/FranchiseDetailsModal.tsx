@@ -1,10 +1,13 @@
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Download, Eye, Building2, DollarSign, Calendar, Percent } from "lucide-react";
+import { FileText, Download, Eye, Building2, DollarSign, Calendar, Percent, Plus, History, Edit, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { toast } from "sonner";
+import { FranchiseAgreementModal } from "@/components/FranchiseAgreementModal";
+import { useFranchiseAgreements, useDeleteFranchiseAgreement } from "@/hooks/useFranchiseAgreements";
 
 interface FranchiseDetailsModalProps {
   franchise: any | null;
@@ -13,6 +16,19 @@ interface FranchiseDetailsModalProps {
 }
 
 export function FranchiseDetailsModal({ franchise, open, onOpenChange }: FranchiseDetailsModalProps) {
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [editingAgreement, setEditingAgreement] = useState<any | null>(null);
+  const { data: agreements, isLoading: agreementsLoading } = useFranchiseAgreements(franchise?.id);
+  const deleteAgreement = useDeleteFranchiseAgreement();
+  
+  // Debug log to check data
+  useEffect(() => {
+    if (agreements) {
+      console.log('Agreement data:', agreements);
+      console.log('Number of agreements:', agreements.length);
+    }
+  }, [agreements]);
+  
   if (!franchise) return null;
 
   const agreementFiles = franchise.agreement_copy ? [franchise.agreement_copy] : [];
@@ -133,10 +149,17 @@ export function FranchiseDetailsModal({ franchise, open, onOpenChange }: Franchi
 
           {/* Pricing Information */}
           <div>
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Pricing & Costs
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Pricing & Costs
+              </h3>
+              {agreements && agreements.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  Effective: {formatDate(agreements[0].effective_date)}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-secondary/30 rounded-lg p-3">
                 <span className="text-sm text-muted-foreground">Coin Price</span>
@@ -235,6 +258,129 @@ export function FranchiseDetailsModal({ franchise, open, onOpenChange }: Franchi
             </>
           )}
 
+          {/* Agreement History */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Agreement History
+              </h3>
+              <Button 
+                onClick={() => setShowAgreementModal(true)}
+                className="bg-gradient-primary hover:opacity-90"
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Agreement
+              </Button>
+            </div>
+            
+            {agreementsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <span className="ml-2 text-sm text-muted-foreground">Loading agreement history...</span>
+              </div>
+            ) : agreements && agreements.length > 0 ? (
+              <div className="space-y-3">
+                <div className="text-sm text-muted-foreground mb-2">
+                  Showing {agreements.length} agreement{agreements.length > 1 ? 's' : ''} (sorted by most recent)
+                </div>
+                {agreements.map((agreement, index) => (
+                  <div key={agreement.id || index} className={`p-4 border rounded-lg ${
+                    index === 0 ? 'bg-primary/10 border-primary/30' : 'bg-secondary/20'
+                  }`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">
+                          Agreement #{agreements.length - index}
+                        </span>
+                        {index === 0 && (
+                          <span className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {formatDate(agreement.effective_date || agreement.created_at)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingAgreement(agreement)}
+                          title="Edit Agreement"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to delete this agreement?')) {
+                              deleteAgreement.mutate(agreement.id);
+                            }
+                          }}
+                          title="Delete Agreement"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <span className="text-sm text-muted-foreground">Coin Price</span>
+                        <p className="font-medium">৳{Number(agreement.coin_price || 0).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground">Doll Price</span>
+                        <p className="font-medium">৳{Number(agreement.doll_price || 0).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground">Share Split</span>
+                        <p className="font-medium">{Number(agreement.franchise_share || 0)}% / {Number(agreement.clowee_share || 0)}%</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground">VAT %</span>
+                        <p className="font-medium">{Number(agreement.vat_percentage || 0)}%</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3">
+                      <div>
+                        <span className="text-sm text-muted-foreground">Electricity Cost</span>
+                        <p className="font-medium">৳{Number(agreement.electricity_cost || 0).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground">Payment Duration</span>
+                        <p className="font-medium">{agreement.payment_duration || 'Monthly'}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground">Created</span>
+                        <p className="font-medium">{formatDate(agreement.created_at)}</p>
+                      </div>
+                    </div>
+                    
+                    {agreement.notes && (
+                      <div className="mt-3 p-2 bg-secondary/30 rounded">
+                        <span className="text-sm text-muted-foreground">Notes:</span>
+                        <p className="text-sm mt-1">{agreement.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-muted-foreground">No agreement history available</p>
+                <p className="text-xs text-muted-foreground mt-1">Create a new agreement to start tracking changes</p>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
           {/* Attachments */}
           <div>
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
@@ -331,6 +477,19 @@ export function FranchiseDetailsModal({ franchise, open, onOpenChange }: Franchi
             </div>
           </div>
         </div>
+        
+        {/* Agreement Modal */}
+        <FranchiseAgreementModal
+          franchise={franchise}
+          open={showAgreementModal || !!editingAgreement}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowAgreementModal(false);
+              setEditingAgreement(null);
+            }
+          }}
+          initialData={editingAgreement}
+        />
       </DialogContent>
     </Dialog>
   );

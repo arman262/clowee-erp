@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { 
   Building2, 
   Cpu, 
@@ -9,53 +11,18 @@ import {
   Users,
   Plus,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Calendar,
+  Receipt,
+  CreditCard
 } from "lucide-react";
+import { useSales } from "@/hooks/useSales";
+import { useMachines } from "@/hooks/useMachines";
+import { useMachineExpenses } from "@/hooks/useMachineExpenses";
+import { useMachinePayments } from "@/hooks/useMachinePayments";
+import { formatCurrency, formatNumber } from "@/lib/numberUtils";
 
-const statsCards = [
-  {
-    title: "Active Franchises",
-    value: "12",
-    change: "+2 this month",
-    icon: Building2,
-    trend: "up"
-  },
-  {
-    title: "Total Machines",
-    value: "48",
-    change: "+5 this month", 
-    icon: Cpu,
-    trend: "up"
-  },
-  {
-    title: "Monthly Sales",
-    value: "৳145,250",
-    change: "+12.5% from last month",
-    icon: DollarSign,
-    trend: "up"
-  },
-  {
-    title: "Monthly Profit",
-    value: "৳89,430",
-    change: "+8.2% from last month",
-    icon: TrendingUp,
-    trend: "up"
-  },
-  {
-    title: "Total Expenses",
-    value: "৳35,820",
-    change: "-5.1% from last month",
-    icon: ArrowDownRight,
-    trend: "down"
-  },
-  {
-    title: "Inventory Value",
-    value: "৳67,890",
-    change: "+3.4% from last month",
-    icon: Package,
-    trend: "up"
-  }
-];
+
 
 const quickActions = [
   {
@@ -85,6 +52,53 @@ const quickActions = [
 ];
 
 export default function Dashboard() {
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  
+  const { data: sales } = useSales();
+  const { data: machines } = useMachines();
+  const { data: expenses } = useMachineExpenses();
+  const { data: payments } = useMachinePayments();
+
+  // Date calculations
+  const today = new Date().toISOString().split('T')[0];
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const lastMonth = new Date(currentYear, currentMonth - 1);
+  const secondHalfLastMonth = new Date(currentYear, currentMonth - 1, 16);
+  const endLastMonth = new Date(currentYear, currentMonth, 0);
+  
+  // Filter functions
+  const todaySales = sales?.filter(sale => sale.sales_date?.split('T')[0] === today) || [];
+  const secondHalfSales = sales?.filter(sale => {
+    const saleDate = new Date(sale.sales_date);
+    return saleDate >= secondHalfLastMonth && saleDate <= endLastMonth;
+  }) || [];
+  const lastMonthSales = sales?.filter(sale => {
+    const saleDate = new Date(sale.sales_date);
+    return saleDate.getMonth() === lastMonth.getMonth() && saleDate.getFullYear() === lastMonth.getFullYear();
+  }) || [];
+  const thisYearSales = sales?.filter(sale => {
+    const saleDate = new Date(sale.sales_date);
+    return saleDate.getFullYear() === currentYear;
+  }) || [];
+  const lastMonthExpenses = expenses?.filter(expense => {
+    const expenseDate = new Date(expense.expense_date);
+    return expenseDate.getMonth() === lastMonth.getMonth() && expenseDate.getFullYear() === lastMonth.getFullYear();
+  }) || [];
+  const thisMonthPayments = payments?.filter(payment => {
+    const paymentDate = new Date(payment.payment_date);
+    return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
+  }) || [];
+
+  // Calculations
+  const activeMachines = machines?.filter(machine => machine.is_active !== false) || [];
+  const todayTotal = todaySales.reduce((sum, sale) => sum + (sale.sales_amount || 0), 0);
+  const secondHalfTotal = secondHalfSales.reduce((sum, sale) => sum + (sale.sales_amount || 0), 0);
+  const lastMonthTotal = lastMonthSales.reduce((sum, sale) => sum + (sale.sales_amount || 0), 0);
+  const thisYearTotal = thisYearSales.reduce((sum, sale) => sum + (sale.sales_amount || 0), 0);
+  const lastMonthExpenseTotal = lastMonthExpenses.reduce((sum, expense) => sum + (expense.total_amount || 0), 0);
+  const thisMonthPaymentTotal = thisMonthPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
   return (
     <div className="space-y-8">
       {/* Page Header */}
@@ -97,39 +111,160 @@ export default function Dashboard() {
             Monitor your franchise performance and key metrics
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
-          <Plus className="h-4 w-4 mr-2" />
-          Quick Add
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-40 bg-secondary/30 border-border"
+            />
+          </div>
+          <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
+            <Plus className="h-4 w-4 mr-2" />
+            Quick Add
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {statsCards.map((stat, index) => (
-          <Card key={index} className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">
-                {stat.value}
-              </div>
-              <div className={`flex items-center text-sm ${
-                stat.trend === 'up' ? 'text-accent' : 'text-warning'
-              }`}>
-                {stat.trend === 'up' ? (
-                  <ArrowUpRight className="h-4 w-4 mr-1" />
-                ) : (
-                  <ArrowDownRight className="h-4 w-4 mr-1" />
-                )}
-                {stat.change}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Active Machines
+            </CardTitle>
+            <Cpu className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground mb-1">
+              {activeMachines.length}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Total active machines
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Today Sales
+            </CardTitle>
+            <DollarSign className="h-5 w-5 text-success" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-success mb-1">
+              ৳{formatCurrency(todayTotal)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {todaySales.length} transactions today
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              2nd Half Last Month
+            </CardTitle>
+            <TrendingUp className="h-5 w-5 text-accent" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-accent mb-1">
+              ৳{formatCurrency(secondHalfTotal)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {lastMonth.toLocaleDateString('en-US', { month: 'short' })} 16-{endLastMonth.getDate()}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Last Month Sales
+            </CardTitle>
+            <TrendingUp className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary mb-1">
+              ৳{formatCurrency(lastMonthTotal)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {lastMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              This Year Sales
+            </CardTitle>
+            <TrendingUp className="h-5 w-5 text-success" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-success mb-1">
+              ৳{formatCurrency(thisYearTotal)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Year {currentYear}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Last Month Expenses
+            </CardTitle>
+            <Receipt className="h-5 w-5 text-warning" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-warning mb-1">
+              ৳{formatCurrency(lastMonthExpenseTotal)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {lastMonth.toLocaleDateString('en-US', { month: 'long' })} expenses
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              This Month Payments
+            </CardTitle>
+            <CreditCard className="h-5 w-5 text-accent" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-accent mb-1">
+              ৳{formatCurrency(thisMonthPaymentTotal)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {new Date().toLocaleDateString('en-US', { month: 'long' })} payments
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Inventory Value
+            </CardTitle>
+            <Package className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary mb-1">
+              ৳67,890
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Current inventory value
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Quick Actions */}

@@ -13,6 +13,7 @@ import CounterReadings from "./pages/CounterReadings";
 import Sales from "./pages/Sales";
 import Invoices from "./pages/Invoices";
 import Expenses from "./pages/Expenses";
+import ExpenseCategories from "./pages/ExpenseCategories";
 import Payments from "./pages/Payments";
 import Banks from "./pages/Banks";
 import Users from "./pages/Users";
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
+        <Route path="/expense-categories" element={<ProtectedRoute><ExpenseCategories /></ProtectedRoute>} />
         <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
         <Route path="/banks" element={<ProtectedRoute><Banks /></ProtectedRoute>} />
         <Route path="/accounting" element={<ProtectedRoute><div className="p-8 text-center text-muted-foreground">Accounting - Coming Soon</div></ProtectedRoute>} />

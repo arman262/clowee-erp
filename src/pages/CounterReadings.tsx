@@ -17,36 +17,95 @@ import {
   Calculator
 } from "lucide-react";
 import { useMachineCounters, useCreateMachineCounter, useUpdateMachineCounter, useDeleteMachineCounter } from "@/hooks/useMachineCounters";
-import { useCombinedCounterReadings } from "@/hooks/useCombinedCounterReadings";
+import { useMachines } from "@/hooks/useMachines";
+import { useFranchises } from "@/hooks/useFranchises";
+
 import { CounterReadingForm } from "@/components/forms/CounterReadingForm";
 import { CounterReadingDetailsModal } from "@/components/CounterReadingDetailsModal";
 import { PayToCloweeModal } from "@/components/PayToCloweeModal";
+import { TablePager } from "@/components/TablePager";
+import { usePagination } from "@/hooks/usePagination";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function CounterReadings() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPayToClowee, setShowPayToClowee] = useState(false);
   const [editingReading, setEditingReading] = useState<any | null>(null);
   const [viewingReading, setViewingReading] = useState<any | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
-  const { data: combinedReadings, isLoading } = useCombinedCounterReadings();
+  const { data: readings, isLoading, error } = useMachineCounters();
+  const { data: machines } = useMachines();
+  const { data: franchises } = useFranchises();
   const createReading = useCreateMachineCounter();
   const updateReading = useUpdateMachineCounter();
   const deleteReading = useDeleteMachineCounter();
 
-  const filteredReadings = combinedReadings?.filter(reading =>
-    reading.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    reading.machines?.machine_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    reading.machines?.franchises?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  // Combine readings with machine and franchise data, plus initial values
+  const enrichedReadings = [];
+  
+  // Add initial counter values from machines table
+  machines?.forEach(machine => {
+    const franchise = franchises?.find(f => f.id === machine.franchise_id);
+    if (machine.initial_coin_counter !== undefined || machine.initial_prize_counter !== undefined) {
+      enrichedReadings.push({
+        id: `initial-${machine.id}`,
+        machine_id: machine.id,
+        reading_date: machine.installation_date || machine.created_at || new Date().toISOString(),
+        coin_counter: machine.initial_coin_counter || 0,
+        prize_counter: machine.initial_prize_counter || 0,
+        notes: 'Initial counter values',
+        machine_name: machine.machine_name || 'Unknown Machine',
+        machine_number: machine.machine_number || 'N/A',
+        franchise_name: franchise?.name || 'No Franchise',
+        is_initial: true
+      });
+    }
+  });
+  
+  // Add actual readings
+  readings?.forEach(reading => {
+    const machine = machines?.find(m => m.id === reading.machine_id);
+    const franchise = franchises?.find(f => f.id === machine?.franchise_id);
+    enrichedReadings.push({
+      ...reading,
+      machine_name: machine?.machine_name || 'Unknown Machine',
+      machine_number: machine?.machine_number || 'N/A',
+      franchise_name: franchise?.name || 'No Franchise',
+      is_initial: false
+    });
+  });
+  
+  // Sort by date descending (newest first)
+  enrichedReadings.sort((a, b) => {
+    return new Date(b.reading_date).getTime() - new Date(a.reading_date).getTime();
+  });
 
-  const totalPages = Math.ceil(filteredReadings.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedReadings = filteredReadings.slice(startIndex, startIndex + itemsPerPage);
+  const filteredReadings = enrichedReadings?.filter(reading => {
+    const matchesSearch = reading.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      reading.machine_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      reading.franchise_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      reading.notes?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const readingDate = new Date(reading.reading_date);
+    const matchesFromDate = !fromDate || readingDate >= new Date(fromDate);
+    const matchesToDate = !toDate || readingDate <= new Date(toDate + 'T23:59:59');
+    
+    return matchesSearch && matchesFromDate && matchesToDate;
+  }) || [];
+
+  const {
+    currentPage,
+    rowsPerPage,
+    totalRows,
+    paginatedData: paginatedReadings,
+    handlePageChange,
+    handleRowsPerPageChange,
+    getSerialNumber,
+  } = usePagination({ data: filteredReadings });
 
   return (
     <div className="space-y-6">
@@ -90,14 +149,34 @@ export default function CounterReadings() {
       {/* Search and Filters */}
       <Card className="bg-gradient-card border-border shadow-card">
         <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search readings by machine name or franchise..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-secondary/30 border-border"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by machine name, franchise, or notes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-secondary/30 border-border"
+              />
+            </div>
+            <div>
+              <Input
+                type="date"
+                placeholder="From Date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="bg-secondary/30 border-border"
+              />
+            </div>
+            <div>
+              <Input
+                type="date"
+                placeholder="To Date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="bg-secondary/30 border-border"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -109,11 +188,45 @@ export default function CounterReadings() {
         </div>
       )}
 
+      {/* Error State */}
+      {error && (
+        <Card className="bg-gradient-card border-border shadow-card">
+          <CardContent className="p-4">
+            <div className="text-center text-destructive">
+              <p>Error loading counter readings: {error.message}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
+      {/* No Data State */}
+      {!isLoading && !error && (!readings || readings.length === 0) && (
+        <Card className="bg-gradient-card border-border shadow-card">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Counter Readings Found</h3>
+              <p className="text-muted-foreground mb-4">
+                No counter readings have been recorded yet. Add your first reading to get started.
+              </p>
+              <Button onClick={() => setShowAddForm(true)} className="bg-gradient-primary hover:opacity-90">
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Reading
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Readings Table */}
-      <Card className="bg-gradient-card border-border shadow-card">
-        <Table>
+      {!isLoading && !error && readings && readings.length > 0 && (
+        <Card className="bg-gradient-card border-border shadow-card">
+          <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">#</TableHead>
               <TableHead>Machine</TableHead>
               <TableHead>Franchise</TableHead>
               <TableHead>Reading Date</TableHead>
@@ -125,130 +238,112 @@ export default function CounterReadings() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedReadings.map((reading) => {
-              const isInitial = reading.type === 'initial';
-              return (
-                <TableRow key={reading.id} className={isInitial ? 'bg-secondary/20' : ''}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        isInitial ? 'bg-gradient-primary' : 'bg-gradient-accent'
-                      }`}>
-                        <Activity className="h-4 w-4 text-white" />
-                      </div>
-                      <div>
-                        <div className="font-medium">{reading.machines?.machine_name || 'Unknown Machine'}</div>
-                        <div className="text-sm text-muted-foreground">{reading.machines?.machine_number}</div>
-                      </div>
+            {paginatedReadings.map((reading, index) => (
+              <TableRow key={reading.id} className={reading.is_initial ? 'bg-secondary/20' : ''}>
+                <TableCell className="font-medium text-muted-foreground">
+                  {getSerialNumber(index)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      reading.is_initial ? 'bg-gradient-primary' : 'bg-gradient-accent'
+                    }`}>
+                      <Activity className="h-4 w-4 text-white" />
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Cpu className="h-4 w-4 text-primary" />
-                      <span>{reading.machines?.franchises?.name || 'No Franchise'}</span>
+                    <div>
+                      <div className="font-medium">{reading.machine_name}</div>
+                      <div className="text-sm text-muted-foreground">{reading.machine_number}</div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>{formatDate(reading.reading_date)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-primary font-medium">{reading.coin_counter.toLocaleString()}</TableCell>
-                  <TableCell className="text-accent font-medium">{reading.prize_counter.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge variant={isInitial ? 'default' : 'secondary'} className={isInitial ? 'bg-primary text-primary-foreground' : ''}>
-                      {isInitial ? 'Initial' : 'Reading'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="max-w-32 truncate" title={reading.notes || ''}>
-                      {reading.notes || '-'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setViewingReading(reading)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {!isInitial && (
-                        <>
-                          <Dialog open={editingReading?.id === reading.id} onOpenChange={(open) => !open && setEditingReading(null)}>
-                            <DialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => setEditingReading(reading)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                              <CounterReadingForm
-                                initialData={reading}
-                                onSubmit={(data) => {
-                                  updateReading.mutate({ id: reading.id, ...data });
-                                  setEditingReading(null);
-                                }}
-                                onCancel={() => setEditingReading(null)}
-                              />
-                            </DialogContent>
-                          </Dialog>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="border-destructive text-destructive hover:bg-destructive/10"
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this reading?')) {
-                                deleteReading.mutate(reading.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Cpu className="h-4 w-4 text-primary" />
+                    <span>{reading.franchise_name}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span>{formatDate(reading.reading_date)}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-primary font-medium">{reading.coin_counter.toLocaleString()}</TableCell>
+                <TableCell className="text-accent font-medium">{reading.prize_counter.toLocaleString()}</TableCell>
+                <TableCell>
+                  <Badge variant={reading.is_initial ? 'default' : 'secondary'} className={reading.is_initial ? 'bg-primary text-primary-foreground' : ''}>
+                    {reading.is_initial ? 'Initial' : 'Reading'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="max-w-32 truncate" title={reading.notes || ''}>
+                    {reading.notes || '-'}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setViewingReading(reading)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {!reading.is_initial && (
+                      <>
+                        <Dialog open={editingReading?.id === reading.id} onOpenChange={(open) => !open && setEditingReading(null)}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setEditingReading(reading)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <CounterReadingForm
+                              initialData={reading}
+                              onSubmit={(data) => {
+                                updateReading.mutate({ id: reading.id, ...data });
+                                setEditingReading(null);
+                              }}
+                              onCancel={() => setEditingReading(null)}
+                            />
+                          </DialogContent>
+                        </Dialog>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-destructive text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to delete this reading?')) {
+                              deleteReading.mutate(reading.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
-        </Table>
-      </Card>
+          </Table>
+        </Card>
+      )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredReadings.length)} of {filteredReadings.length} results
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <span className="flex items-center px-3 text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+      {!isLoading && !error && readings && readings.length > 0 && (
+        <TablePager
+          totalRows={totalRows}
+          rowsPerPage={rowsPerPage}
+          currentPage={currentPage}
+          onPageChange={handlePageChange}
+          onRowsPerPageChange={handleRowsPerPageChange}
+        />
       )}
       
       {/* Counter Reading Details Modal */}

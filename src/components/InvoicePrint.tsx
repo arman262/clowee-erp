@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer, X, Download } from "lucide-react";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
+import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
+import Franchises from "@/pages/Franchises";
 
 interface InvoicePrintProps {
   sale: any;
@@ -11,6 +13,23 @@ interface InvoicePrintProps {
 
 export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
   const { data: payments } = useMachinePayments();
+  const { data: agreements } = useFranchiseAgreements(sale.franchise_id);
+
+  // Get agreement values or fallback to franchise values
+  const getAgreementValue = (field: string) => {
+    if (!agreements || agreements.length === 0) {
+      return sale.franchises?.[field];
+    }
+    
+    const latestAgreement = agreements
+      .filter(a => new Date(a.effective_date) <= new Date(sale.sales_date))
+      .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime())[0];
+    
+    if (latestAgreement) {
+      return latestAgreement[field];
+    }
+    return sale.franchises?.[field];
+  };
 
   // Calculate dynamic payment status (modified for invoice)
   const getPaymentStatus = (sale: any) => {
@@ -26,7 +45,43 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
   const paymentInfo = getPaymentStatus(sale);
 
   const handlePrint = () => {
-    window.print();
+    const printContent = document.getElementById('invoice-content');
+    if (!printContent) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice Print</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: bold; }
+            .bg-gray-100 { background-color: #f5f5f5; }
+            .bg-gray-200 { background-color: #e5e5e5; }
+            .text-red-600 { color: #dc2626; }
+            .text-green-600 { color: #16a34a; }
+            .text-green-700 { color: #15803d; }
+            .text-yellow-700 { color: #a16207; }
+            .text-red-700 { color: #b91c1c; }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   };
 
   const handleDownloadPDF = async () => {
@@ -74,7 +129,22 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
     }
   };
 
-  const netRevenue = sale.sales_amount - sale.prize_out_cost;
+  // Calculate amounts based on agreement rates
+  const coinPrice = getAgreementValue('coin_price') || 0;
+  const dollPrice = getAgreementValue('doll_price') || 0;
+  const vatPercentage = getAgreementValue('vat_percentage') || 0;
+  const franchiseShare = getAgreementValue('franchise_share') || 60;
+  const cloweeShare = getAgreementValue('clowee_share') || 40;
+  
+  const calculatedSalesAmount = (sale.coin_sales || 0) * coinPrice;
+  const calculatedPrizeCost = (sale.prize_out_quantity || 0) * dollPrice;
+  const calculatedVatAmount = calculatedSalesAmount * vatPercentage / 100;
+  const calculatedNetSales = calculatedSalesAmount - calculatedVatAmount;
+  const netRevenue = calculatedSalesAmount - calculatedPrizeCost;
+  
+  // Calculate franchise and clowee profits based on agreement rates
+  const calculatedFranchiseProfit = (netRevenue * franchiseShare) / 100;
+  const calculatedCloweeProfit = (netRevenue * cloweeShare) / 100;
 
   return (
     <Dialog open={!!sale} onOpenChange={(open) => !open && onClose()}>
@@ -135,8 +205,36 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                   <span className="font-medium text-black text-sm">{sale.invoice_number || `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-black text-sm">Sales Date:</span>
-                  <span className="font-medium text-black text-sm">{formatDate(sale.sales_date)}</span>
+                  <span className="text-black text-sm">Sales Period:</span>
+                  <span className="font-medium text-black text-sm">
+                    {(() => {
+                      const saleDate = new Date(sale.sales_date);
+                      const paymentDuration = sale.payment_duration || 'Monthly';
+                      
+                      if (paymentDuration === 'Half Monthly') {
+                        const day = saleDate.getDate();
+                        const year = saleDate.getFullYear();
+                        const month = saleDate.getMonth();
+                        
+                        if (day <= 15) {
+                          const startDate = new Date(year, month, 1);
+                          const endDate = new Date(year, month, 15);
+                          return `${startDate.getDate()}${startDate.getDate() === 1 ? 'st' : 'th'} ${startDate.toLocaleString('default', { month: 'short' })} ${year} to 15th ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                        } else {
+                          const startDate = new Date(year, month, 16);
+                          const endDate = new Date(year, month + 1, 0); // Last day of month
+                          return `16th ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                        }
+                      } else {
+                        // Monthly - show full month
+                        const year = saleDate.getFullYear();
+                        const month = saleDate.getMonth();
+                        const startDate = new Date(year, month, 1);
+                        const endDate = new Date(year, month + 1, 0);
+                        return `1st ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                      }
+                    })()} 
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-black text-sm">Invoice Date:</span>
@@ -157,7 +255,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-black text-sm">Payment Duration:</span>
-                  <span className="font-medium text-black text-sm">{sale.franchises?.payment_duration || 'Monthly'}</span>
+                  <span className="font-medium text-black text-sm">{sale.payment_duration || 'Monthly'}</span>
                 </div>
               </div>
             </div>
@@ -174,23 +272,30 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 <span className="text-sm text-black">
                   {(() => {
                     const saleDate = new Date(sale.sales_date);
-                    const paymentDuration = sale.franchises?.payment_duration || 'Monthly';
-                    const month = saleDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+                    const paymentDuration = sale.payment_duration || 'Monthly';
                     
                     if (paymentDuration === 'Half Monthly') {
                       const day = saleDate.getDate();
-                      const half = day <= 15 ? '1st Half (1-15)' : '2nd Half (16-30/31)';
-                      return `${month} - ${half}`;
-                    } else if (paymentDuration === 'Weekly') {
-                      const weekStart = new Date(saleDate);
-                      weekStart.setDate(saleDate.getDate() - saleDate.getDay());
-                      const weekEnd = new Date(weekStart);
-                      weekEnd.setDate(weekStart.getDate() + 6);
-                      return `Week: ${weekStart.getDate()}-${weekEnd.getDate()} ${month}`;
+                      const year = saleDate.getFullYear();
+                      const month = saleDate.getMonth();
+                      
+                      if (day <= 15) {
+                        const startDate = new Date(year, month, 1);
+                        const endDate = new Date(year, month, 15);
+                        return `${startDate.getDate()}${startDate.getDate() === 1 ? 'st' : 'th'} ${startDate.toLocaleString('default', { month: 'short' })} ${year} to 15th ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                      } else {
+                        const startDate = new Date(year, month, 16);
+                        const endDate = new Date(year, month + 1, 0);
+                        return `16th ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                      }
                     } else {
-                      return `${month} (Full Month)`;
+                      const year = saleDate.getFullYear();
+                      const month = saleDate.getMonth();
+                      const startDate = new Date(year, month, 1);
+                      const endDate = new Date(year, month + 1, 0);
+                      return `1st ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
                     }
-                  })()} - {sale.franchises?.payment_duration || 'Monthly'}
+                  })()} 
                 </span>
               </div>
             </div>
@@ -207,71 +312,70 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
               <tbody>
                 <tr>
                   <td className="border border-black px-3 py-2 text-black text-sm">Coin Sales</td>
-                  <td className="border border-black px-3 py-2 text-center text-black text-sm">৳{sale.franchises?.coin_price || 5}/coin</td>
+                  <td className="border border-black px-3 py-2 text-center text-black text-sm">৳{getAgreementValue('coin_price') || 0}/coin</td>
                   <td className="border border-black px-3 py-2 text-right text-black text-sm">{sale.coin_sales?.toLocaleString() || '0'} coins</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-black text-sm">৳{sale.sales_amount?.toLocaleString() || '0'}</td>
-                </tr>
-                <tr>
-                  <td className="border border-black px-3 py-2 text-black text-sm">Prize Out Cost</td>
-                  <td className="border border-black px-3 py-2 text-center text-black text-sm">৳{sale.franchises?.doll_price || 25}/prize</td>
-                  <td className="border border-black px-3 py-2 text-right text-black text-sm">{sale.prize_out_quantity?.toLocaleString() || '0'} pcs</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{sale.prize_out_cost?.toLocaleString() || '0'}</td>
+                  <td className="border border-black px-3 py-2 text-right font-medium text-black text-sm">৳{calculatedSalesAmount.toLocaleString()}</td>
                 </tr>
                 {/* Calculation Flow */}
-                <tr className="bg-gray-100">
-                  <td className="border border-black px-3 py-2 text-black font-medium text-sm" colSpan={3}>Sales Amount (Gross)</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-black text-sm">৳{sale.sales_amount?.toLocaleString() || '0'}</td>
-                </tr>
                 {sale.vat_amount > 0 && (
                   <tr>
-                    <td className="border border-black px-3 py-2 text-black text-sm">VAT ({sale.franchises?.vat_percentage || 0}%)</td>
+                    <td className="border border-black px-3 py-2 text-black text-sm">VAT ({getAgreementValue('vat_percentage') || 0}%)</td>
                     <td className="border border-black px-3 py-2 text-center text-black text-sm">-</td>
                     <td className="border border-black px-3 py-2 text-right text-black text-sm">-</td>
-                    <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{sale.vat_amount?.toLocaleString() || '0'}</td>
+                    <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{calculatedVatAmount.toLocaleString()}</td>
                   </tr>
                 )}
-                <tr className="bg-gray-50">
-                  <td className="border border-black px-3 py-2 text-black font-medium text-sm" colSpan={3}>Net Sales (After VAT)</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-black text-sm">৳{sale.net_sales_amount?.toLocaleString() || (sale.sales_amount - (sale.vat_amount || 0)).toLocaleString()}</td>
-                </tr>
+                {sale.vat_amount > 0 && (
+                  <tr className="bg-gray-50">
+                    <td className="border border-black px-3 py-2 text-black font-medium text-sm" colSpan={3}>Net Sales (After VAT)</td>
+                    <td className="border border-black px-3 py-2 text-right font-medium text-black text-sm">৳{calculatedNetSales.toLocaleString()}</td>
+                  </tr>
+                )}
                 <tr>
-                  <td className="border border-black px-3 py-2 text-black text-sm">Prize Cost (Deducted)</td>
-                  <td className="border border-black px-3 py-2 text-center text-black text-sm">-</td>
-                  <td className="border border-black px-3 py-2 text-right text-black text-sm">-</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{sale.prize_out_cost?.toLocaleString() || '0'}</td>
+                  <td className="border border-black px-3 py-2 text-black text-sm">Prize Out Cost (Deducted)</td>
+                  <td className="border border-black px-3 py-2 text-center text-black text-sm">৳{getAgreementValue('doll_price') || ' '}/prize</td>
+                  <td className="border border-black px-3 py-2 text-right text-black text-sm">{sale.prize_out_quantity?.toLocaleString() || '0'} pcs</td>
+                  <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{calculatedPrizeCost.toLocaleString()}</td>
+                </tr>
+                {getAgreementValue('electricity_cost') > 0 && (
+                  <tr>
+                    <td className="border border-black px-3 py-2 text-black text-sm">Electricity Cost (Deducted)</td>
+                    <td className="border border-black px-3 py-2 text-center text-black text-sm">-</td>
+                    <td className="border border-black px-3 py-2 text-right text-black text-sm">-</td>
+                    <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{getAgreementValue('electricity_cost')?.toLocaleString() || '0'}</td>
+                  </tr>
+                )}
+                  <tr className="bg-gray-100">
+                  <td className="border border-black px-3 py-2 text-black font-medium text-sm" colSpan={3}>{sale.franchises?.name || 'Franchise'} Profit ({franchiseShare}%)</td>
+                  <td className="border border-black px-3 py-2 text-right font-medium text-green-600 text-sm">৳{calculatedFranchiseProfit.toLocaleString()}</td>
                 </tr>
                 <tr className="bg-gray-100">
-                  <td className="border border-black px-3 py-2 text-black font-medium text-sm" colSpan={3}>Clowee Profit ({sale.franchises?.clowee_share || 40}%)</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-green-600 text-sm">৳{sale.clowee_profit?.toLocaleString() || '0'}</td>
+                  <td className="border border-black px-3 py-2 text-black font-medium text-sm" colSpan={3}>Clowee Profit ({cloweeShare}%)</td>
+                  <td className="border border-black px-3 py-2 text-right font-medium text-green-600 text-sm">৳{calculatedCloweeProfit.toLocaleString()}</td>
                 </tr>
-                {sale.franchises?.electricity_cost > 0 && (
-                  <tr>
-                    <td className="border border-black px-3 py-2 text-black text-sm">Electricity Cost</td>
-                    <td className="border border-black px-3 py-2 text-center text-black text-sm">-</td>
-                    <td className="border border-black px-3 py-2 text-right text-black text-sm">-</td>
-                    <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{sale.franchises.electricity_cost.toLocaleString()}</td>
-                  </tr>
-                )}
+
                 <tr className="bg-green-100 font-bold">
-                  <td className="border border-black px-3 py-2 text-black text-sm" colSpan={3}>Pay To Clowee</td>
+                  <td className="border border-black px-3 py-2 text-black text-sm" colSpan={3}>
+                    Pay To Clowee (Clowee Profit + Prize Cost{getAgreementValue('electricity_cost') > 0 ? ` - Electricity Cost ৳${getAgreementValue('electricity_cost')?.toLocaleString() || '0'}` : ''})
+                  </td>
                   <td className="border border-black px-3 py-2 text-right font-bold text-green-700 text-sm">৳{sale.pay_to_clowee?.toLocaleString() || '0'}</td>
                 </tr>
               </tbody>
             </table>
             
             {/* Additional Costs */}
-            {(sale.vat_amount > 0 || sale.franchises?.electricity_cost > 0) && (
+            {(sale.vat_amount > 0 || sale.electricity_cost > 0) && (
               <div className="mt-3 p-2 bg-yellow-50 border border-black rounded">
                 {sale.vat_amount > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-black">VAT ({sale.franchises?.vat_percentage || 0}%):</span>
+                    <span className="text-black">VAT ({sale.vat_percentage || 0}%):</span>
                     <span className="font-medium text-black">৳{sale.vat_amount.toLocaleString()}</span>
                   </div>
                 )}
-                {sale.franchises?.electricity_cost > 0 && (
+                {sale.electricity_cost > 0 && (
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-black">Electricity Cost (Monthly):</span>
-                    <span className="font-medium text-black">৳{sale.franchises.electricity_cost.toLocaleString()}</span>
+                    <span className="font-medium text-black">৳{sale.electricity_cost.toLocaleString()}</span>
                   </div>
                 )}
               </div>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Edit } from "lucide-react";
-import { formatDate } from "@/lib/dateUtils";
+import { formatDate, toBangladeshDate } from "@/lib/dateUtils";
 
 interface EditSalesModalProps {
   sale: any;
@@ -13,6 +13,9 @@ interface EditSalesModalProps {
 }
 
 export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps) {
+  const [salesDate, setSalesDate] = useState(() => {
+    return toBangladeshDate(sale.sales_date) || new Date().toISOString().split('T')[0];
+  });
   const [coinSales, setCoinSales] = useState(sale.coin_sales.toString());
   const [prizeOut, setPrizeOut] = useState(sale.prize_out_quantity.toString());
   const [coinAdjustment, setCoinAdjustment] = useState("0");
@@ -76,6 +79,7 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
     const calculatedPayToClowee = cloweeProfit + adjustedPrizeCost - electricityCost;
 
     onUpdate({
+      sales_date: salesDate,
       coin_sales: adjustedCoinSales,
       sales_amount: adjustedSalesAmount,
       prize_out_quantity: adjustedPrizeOut,
@@ -97,8 +101,13 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="text-sm text-muted-foreground mb-4">
-            {sale.machines?.machine_name} - {formatDate(sale.sales_date)}
+          <div className="space-y-2">
+            <Label>Sales Date</Label>
+            <Input 
+              type="date" 
+              value={salesDate}
+              onChange={(e) => setSalesDate(e.target.value)}
+            />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
