@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Edit } from "lucide-react";
 import { formatDate, toBangladeshDate } from "@/lib/dateUtils";
 
@@ -20,6 +21,7 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
   const [prizeOut, setPrizeOut] = useState(sale.prize_out_quantity.toString());
   const [coinAdjustment, setCoinAdjustment] = useState("0");
   const [prizeAdjustment, setPrizeAdjustment] = useState("0");
+  const [adjustmentNotes, setAdjustmentNotes] = useState(sale.adjustment_notes || "");
   const [payToClowee, setPayToClowee] = useState(0);
 
   // Calculate Pay To Clowee whenever values change
@@ -87,7 +89,8 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
       vat_amount: vatAmount,
       net_sales_amount: netSalesAmount,
       clowee_profit: cloweeProfit,
-      pay_to_clowee: Math.max(0, calculatedPayToClowee)
+      pay_to_clowee: Math.max(0, calculatedPayToClowee),
+      adjustment_notes: adjustmentNotes
     });
   };
 
@@ -150,6 +153,16 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
                   onChange={(e) => setPrizeAdjustment(e.target.value)}
                 />
               </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Additional Notes</Label>
+              <Textarea 
+                placeholder="Add any additional notes or comments..."
+                value={adjustmentNotes}
+                onChange={(e) => setAdjustmentNotes(e.target.value)}
+                rows={3}
+              />
             </div>
           </div>
 

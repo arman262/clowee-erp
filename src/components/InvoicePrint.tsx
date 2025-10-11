@@ -1,7 +1,7 @@
 import { formatDate } from "@/lib/dateUtils";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, X, Download } from "lucide-react";
+import { Printer, X, Download, Image } from "lucide-react";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
 import Franchises from "@/pages/Franchises";
@@ -55,21 +55,144 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Invoice Print</title>
+          <title>${sale.machines?.machine_name || ''}- Invoice: ${sale.invoice_number}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+            @media print {
+              @page { margin: 0.3in; size: A4; }
+              body { -webkit-print-color-adjust: exact; }
+            }
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 0; 
+              padding: 10px;
+              color: #000;
+              background: white;
+              font-size: 11px;
+            }
+            * { box-sizing: border-box; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            .items-center { align-items: center; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
+            .text-left { text-align: left; }
             .font-bold { font-weight: bold; }
-            .bg-gray-100 { background-color: #f5f5f5; }
-            .bg-gray-200 { background-color: #e5e5e5; }
+            .font-medium { font-weight: 500; }
+            .font-semibold { font-weight: 600; }
+            .text-sm { font-size: 0.75rem; }
+            .text-lg { font-size: 0.9rem; }
+            .text-xl { font-size: 1rem; }
+            .text-2xl { font-size: 1.1rem; }
+            .text-base { font-size: 1rem; }
+            .text-3xl { font-size: 1.875rem; }
+            .text-5xl { font-size: 4rem; }
+            .mb-2 { margin-bottom: 0.25rem; }
+            .mb-3 { margin-bottom: 0.4rem; }
+            .mb-4 { margin-bottom: 0.5rem; }
+            .mb-6 { margin-bottom: 0.75rem; }
+            .max-w-4xl { max-width: 56rem; }
+            .mx-auto { margin-left: auto; margin-right: auto; }
+            .mb-8 { margin-bottom: 1rem; }
+            .mt-2 { margin-top: 0.25rem; }
+            .mt-8 { margin-top: 0.5rem; }
+            .p-2 { padding: 0.25rem; }
+            .p-3 { padding: 0.4rem; }
+            .p-4 { padding: 0.5rem; }
+            .p-6 { padding: 1.5rem; }
+            .p-8 { padding: 0.75rem; }
+            .px-3 { padding-left: 0.4rem; padding-right: 0.4rem; }
+            .px-4 { padding-left: 1rem; padding-right: 1rem; }
+            .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+            .py-2 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+            .pt-2 { padding-top: 0.25rem; }
+            .pt-6 { padding-top: 0.5rem; }
+            .border { border: 1px solid #e5e7eb; }
+            .border-t { border-top: 1px solid #e5e7eb; }
+            .border-b { border-bottom: 1px solid #e5e7eb; }
+            .border-t-2 { border-top: 2px solid; }
+            .border-b-2 { border-bottom: 2px solid; }
+            .border-2 { border: 2px solid; }
+            .border-black { border-color: #000; }
+            .border-gray-200 { border-color: #e5e7eb; }
+            .border-blue-600 { border-color: #2563eb; }
+            .border-green-600 { border-color: #16a34a; }
+            .border-red-600 { border-color: #dc2626; }
+            .border-yellow-200 { border-color: #fde047; }
+            .rounded { border-radius: 0.25rem; }
+            .rounded-lg { border-radius: 0.5rem; }
+            .rounded-full { border-radius: 9999px; }
+            .bg-white { background-color: #fff; }
+            .bg-gray-50 { background-color: #f9fafb; }
+            .bg-gray-100 { background-color: #f3f4f6; }
+            .bg-gray-200 { background-color: #e5e7eb; }
+            .bg-gray-300 { background-color: #d1d5db; }
+            .bg-blue-50 { background-color: #eff6ff; }
+            .bg-blue-600 { background-color: #2563eb; }
+            .bg-green-100 { background-color: #dcfce7; }
+            .bg-green-800 { background-color: #166534; }
+            .bg-yellow-50 { background-color: #fefce8; }
+            .bg-yellow-100 { background-color: #fef3c7; }
+            .bg-yellow-200 { background-color: #fde047; }
+            .bg-red-100 { background-color: #fee2e2; }
+            .text-black { color: #000; }
+            .text-gray-500 { color: #6b7280; }
+            .text-gray-600 { color: #4b5563; }
+            .text-gray-700 { color: #374151; }
+            .text-gray-800 { color: #1f2937; }
+            .text-gray-900 { color: #111827; }
+            .text-blue-600 { color: #2563eb; }
+            .text-blue-700 { color: #1d4ed8; }
             .text-red-600 { color: #dc2626; }
+            .text-red-700 { color: #b91c1c; }
+            .text-red-800 { color: #991b1b; }
             .text-green-600 { color: #16a34a; }
             .text-green-700 { color: #15803d; }
+            .text-green-800 { color: #166534; }
             .text-yellow-700 { color: #a16207; }
-            .text-red-700 { color: #b91c1c; }
+            .text-yellow-800 { color: #92400e; }
+            .grid { display: grid; }
+            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .gap-3 { gap: 0.75rem; }
+            .gap-4 { gap: 1rem; }
+            .gap-6 { gap: 1.5rem; }
+            .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .space-y-1 > * + * { margin-top: 0.25rem; }
+            .space-y-2 > * + * { margin-top: 0.5rem; }
+            .space-x-4 > * + * { margin-left: 1rem; }
+            .h-8 { height: 2rem; }
+            .h-12 { height: 3rem; }
+            .h-16 { height: 2.5rem; }
+            .w-auto { width: auto; }
+            .object-contain { object-fit: contain; }
+            table { 
+              border-collapse: collapse; 
+              width: 100%; 
+              margin-bottom: 1rem;
+            }
+            th, td { 
+              border: none; 
+              padding: 4px; 
+              text-align: left;
+              vertical-align: top;
+              font-size: 10px;
+            }
+            th { 
+              background-color: #f9fafb;
+              font-weight: 500;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+            .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+            .divide-y > * + * { border-top: 1px solid #e5e7eb; }
+            .divide-gray-200 > * + * { border-color: #e5e7eb; }
+            .hover\:bg-gray-50:hover { background-color: #f9fafb; }
+            .uppercase { text-transform: uppercase; }
+            .tracking-wider { letter-spacing: 0.05em; }
+            .font-light { font-weight: 300; }
+            .font-mono { font-family: ui-monospace, SFMono-Regular, monospace; }
+            .opacity-60 { opacity: 0.6; }
+            .overflow-hidden { overflow: hidden; }
+            img { max-width: 100%; height: auto; }
           </style>
         </head>
         <body>
@@ -80,8 +203,10 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
     
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
-    printWindow.close();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   const handleDownloadPDF = async () => {
@@ -96,36 +221,93 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
       if (!element) return;
 
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 3,
         useCORS: true,
-        allowTaint: true
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        foreignObjectRendering: false,
+        ignoreElements: (element) => element.tagName === 'IFRAME',
+        onclone: (clonedDoc) => {
+          clonedDoc.querySelectorAll('*').forEach(el => {
+          });
+        }
       });
 
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 1.0);
       const pdf = new jsPDF('p', 'mm', 'a4');
       
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      
       let heightLeft = imgHeight;
       let position = 0;
 
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      heightLeft -= pdfHeight;
 
       while (heightLeft >= 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        heightLeft -= pdfHeight;
       }
 
-      const invoiceNumber = sale.invoice_number || `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`;
+      const invoiceNumber = sale.invoice_number || `clw-${new Date(sale.sales_date).getFullYear()}-001`;
       pdf.save(`invoice-${invoiceNumber}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       // Fallback to print dialog
       window.print();
+    }
+  };
+
+  const handleDownloadJPG = async () => {
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      
+      const element = document.getElementById('invoice-content');
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        scale: 4,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        foreignObjectRendering: false,
+        ignoreElements: (element) => element.tagName === 'IFRAME',
+        letterRendering: true,
+        onclone: (clonedDoc) => {
+          clonedDoc.querySelectorAll('*').forEach(el => {
+            el.style.textRendering = 'geometricPrecision';
+            // Fix alignment for bordered amounts
+            if (el.style.border && el.style.border.includes('2px solid')) {
+              el.style.display = 'flex';
+              el.style.alignItems = 'center';
+              el.style.justifyContent = 'center';
+              el.style.textAlign = 'center';
+              el.style.minHeight = '40px';
+            }
+          });
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const link = document.createElement('a');
+      const invoiceNumber = sale.invoice_number || `clw-${new Date(sale.sales_date).getFullYear()}-001`;
+      
+      link.download = `invoice-${invoiceNumber}.jpg`;
+      link.href = imgData;
+      link.click();
+    } catch (error) {
+      console.error('Error generating JPG:', error);
     }
   };
 
@@ -155,13 +337,17 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Invoice Preview</h2>
             <div className="flex gap-2">
-              <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handlePrint} className="border-2 border-blue-600 text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-lg">
                 <Printer className="h-4 w-4 mr-2" />
                 Print Invoice
               </Button>
-              <Button onClick={handleDownloadPDF} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleDownloadPDF} className="border-2 border-green-600 text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-lg">
                 <Download className="h-4 w-4 mr-2" />
                 Download PDF
+              </Button>
+              <Button onClick={handleDownloadJPG} className="border-2 border-purple-600 text-purple-600 bg-purple-50 hover:bg-purple-100 px-3 py-1 rounded-lg">
+                <Image className="h-4 w-4 mr-2" />
+                Download JPG
               </Button>
               <Button onClick={onClose} variant="outline">
                 <X className="h-4 w-4 mr-2" />
@@ -171,108 +357,45 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
           </div>
 
           {/* Invoice Content */}
-          <div id="invoice-content" className="bg-white border border-gray-300 p-8">
+          <div id="invoice-content" className="bg-white p-6 max-w-4xl mx-auto">
 
-          {/* Header with Logos */}
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center">
-              <img 
-                src="/clowee logo.png" 
-                alt="Clowee Logo" 
-                className="h-16 w-auto object-contain"
-              />
-            </div>
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-black">SALES INVOICE</h1>
-              <p className="text-gray-800 mt-2">Clowee</p>
-            </div>
-            <div className="flex items-center">
-              <img 
-                src="/i3 technologies logo.png" 
-                alt="i3 Technologies Logo" 
-                className="h-16 w-auto object-contain"
-              />
-            </div>
-          </div>
-
-          {/* Invoice Details */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-black">Invoice Details</h3>
-              <div className="space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-black text-sm">Invoice Number:</span>
-                  <span className="font-medium text-black text-sm">{sale.invoice_number || `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-black text-sm">Sales Period:</span>
-                  <span className="font-medium text-black text-sm">
-                    {(() => {
-                      const saleDate = new Date(sale.sales_date);
-                      const paymentDuration = sale.payment_duration || 'Monthly';
-                      
-                      if (paymentDuration === 'Half Monthly') {
-                        const day = saleDate.getDate();
-                        const year = saleDate.getFullYear();
-                        const month = saleDate.getMonth();
-                        
-                        if (day <= 15) {
-                          const startDate = new Date(year, month, 1);
-                          const endDate = new Date(year, month, 15);
-                          return `${startDate.getDate()}${startDate.getDate() === 1 ? 'st' : 'th'} ${startDate.toLocaleString('default', { month: 'short' })} ${year} to 15th ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
-                        } else {
-                          const startDate = new Date(year, month, 16);
-                          const endDate = new Date(year, month + 1, 0); // Last day of month
-                          return `16th ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
-                        }
-                      } else {
-                        // Monthly - show full month
-                        const year = saleDate.getFullYear();
-                        const month = saleDate.getMonth();
-                        const startDate = new Date(year, month, 1);
-                        const endDate = new Date(year, month + 1, 0);
-                        return `1st ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
-                      }
-                    })()} 
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-black text-sm">Invoice Date:</span>
-                  <span className="font-medium text-black text-sm">{formatDate(new Date().toISOString())}</span>
+          {/* Modern Header */}
+          <div className="border-b-2 border-blue-600 pb-4 mb-6">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center space-x-4">
+                <img 
+                  src="/clowee logo.png" 
+                  alt="Clowee Logo" 
+                  className="h-12 w-auto object-contain"
+                />
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">CLOWEE</h1>
+                  <p className="text-sm text-gray-600 mt-0">I3 Technologies</p>
                 </div>
               </div>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-black">Machine & Franchise Details</h3>
-              <div className="space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-black text-sm">Franchise:</span>
-                  <span className="font-medium text-black text-sm">{sale.franchises?.name || 'No Franchise'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-black text-sm">Machine Location:</span>
-                  <span className="font-medium text-black text-sm">{sale.machines?.machine_name || 'Unknown'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-black text-sm">Payment Duration:</span>
-                  <span className="font-medium text-black text-sm">{sale.payment_duration || 'Monthly'}</span>
-                </div>
+              <div className="text-right">
+                <h2 className="text-3xl font-bold text-blue-600 mb-1">INVOICE</h2>
               </div>
             </div>
           </div>
 
-          {/* Sales Summary Table */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2 text-black">Sales Summary</h3>
-            
-            {/* Time Duration */}
-            <div className="mb-3 p-2 bg-gray-100 border border-black rounded">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-black">Billing Period:</span>
-                <span className="text-sm text-black">
+          {/* Invoice Info Cards */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">BILL TO</h3>
+              <div className="text-sm text-gray-900">
+                <p className="font-medium">Franchise: {sale.franchises?.name || 'Franchise Partner'}</p>
+                <p>Branch: {sale.machines?.machine_name || 'Machine Location'}</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">BILLING PERIOD</h3>
+              <div className="text-sm text-gray-900">
+                <p className="font-medium">{sale.franchises?.payment_duration || 'Monthly'}</p>
+                <p className="text-xs">
                   {(() => {
                     const saleDate = new Date(sale.sales_date);
-                    const paymentDuration = sale.payment_duration || 'Monthly';
+                    const paymentDuration = sale.franchises?.payment_duration || 'Monthly';
                     
                     if (paymentDuration === 'Half Monthly') {
                       const day = saleDate.getDate();
@@ -286,191 +409,234 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                       } else {
                         const startDate = new Date(year, month, 16);
                         const endDate = new Date(year, month + 1, 0);
-                        return `16th ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                        return `16th ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : endDate.getDate() === 30 ? 'th' : endDate.getDate() === 29 ? 'th' : endDate.getDate() === 28 ? 'th' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
                       }
                     } else {
                       const year = saleDate.getFullYear();
                       const month = saleDate.getMonth();
                       const startDate = new Date(year, month, 1);
                       const endDate = new Date(year, month + 1, 0);
-                      return `1st ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                      return `1st ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : endDate.getDate() === 30 ? 'th' : endDate.getDate() === 29 ? 'th' : endDate.getDate() === 28 ? 'th' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
                     }
                   })()} 
-                </span>
+                </p>
               </div>
             </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">INVOICE Details</h3>
+              <div className="text-sm text-gray-900">
+                <p className="font-medium">No: {sale.invoice_number || `CLW-${new Date(sale.sales_date).getFullYear()}-001`}</p>
+                <p className="font-medium">Date: {formatDate(sale.sales_date)}</p>
+                </div>
+            </div>
+          </div>
 
-            <table className="w-full border-collapse border border-black">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="border border-black px-3 py-2 text-left text-black font-semibold text-sm">Description</th>
-                  <th className="border border-black px-3 py-2 text-center text-black font-semibold text-sm">Rate</th>
-                  <th className="border border-black px-3 py-2 text-right text-black font-semibold text-sm">Quantity</th>
-                  <th className="border border-black px-3 py-2 text-right text-black font-semibold text-sm">Amount (৳)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border border-black px-3 py-2 text-black text-sm">Coin Sales</td>
-                  <td className="border border-black px-3 py-2 text-center text-black text-sm">৳{getAgreementValue('coin_price') || 0}/coin</td>
-                  <td className="border border-black px-3 py-2 text-right text-black text-sm">{sale.coin_sales?.toLocaleString() || '0'} coins</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-black text-sm">৳{calculatedSalesAmount.toLocaleString()}</td>
-                </tr>
-                {/* Calculation Flow */}
-                {sale.vat_amount > 0 && (
+          {/* Modern Invoice Table */}
+          <div className="mb-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-blue-50 px-4 py-3 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Sales(Profit Sharing) Summary</h3>
+              </div>
+              
+              <table className="w-full">
+                <thead className="bg-gray-50">
                   <tr>
-                    <td className="border border-black px-3 py-2 text-black text-sm">VAT ({getAgreementValue('vat_percentage') || 0}%)</td>
-                    <td className="border border-black px-3 py-2 text-center text-black text-sm">-</td>
-                    <td className="border border-black px-3 py-2 text-right text-black text-sm">-</td>
-                    <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{calculatedVatAmount.toLocaleString()}</td>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Description</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-black uppercase tracking-wider">Rate</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Quantity</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Amount</th>
                   </tr>
-                )}
-                {sale.vat_amount > 0 && (
-                  <tr className="bg-gray-50">
-                    <td className="border border-black px-3 py-2 text-black font-medium text-sm" colSpan={3}>Net Sales (After VAT)</td>
-                    <td className="border border-black px-3 py-2 text-right font-medium text-black text-sm">৳{calculatedNetSales.toLocaleString()}</td>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900">Coin Sales</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{getAgreementValue('coin_price') || 0}/coin</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.coin_sales?.toLocaleString() || '0'} coins</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{calculatedSalesAmount.toLocaleString()}</td>
                   </tr>
-                )}
-                <tr>
-                  <td className="border border-black px-3 py-2 text-black text-sm">Prize Out Cost (Deducted)</td>
-                  <td className="border border-black px-3 py-2 text-center text-black text-sm">৳{getAgreementValue('doll_price') || ' '}/prize</td>
-                  <td className="border border-black px-3 py-2 text-right text-black text-sm">{sale.prize_out_quantity?.toLocaleString() || '0'} pcs</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{calculatedPrizeCost.toLocaleString()}</td>
-                </tr>
-                {getAgreementValue('electricity_cost') > 0 && (
-                  <tr>
-                    <td className="border border-black px-3 py-2 text-black text-sm">Electricity Cost (Deducted)</td>
-                    <td className="border border-black px-3 py-2 text-center text-black text-sm">-</td>
-                    <td className="border border-black px-3 py-2 text-right text-black text-sm">-</td>
-                    <td className="border border-black px-3 py-2 text-right font-medium text-red-600 text-sm">-৳{getAgreementValue('electricity_cost')?.toLocaleString() || '0'}</td>
+                  {sale.vat_amount > 0 && (
+                    <tr className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">VAT ({getAgreementValue('vat_percentage') || 0}%)</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 text-center">-</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 text-right">-</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedVatAmount.toLocaleString()}</td>
+                    </tr>
+                  )}
+                  {sale.vat_amount > 0 && (
+                    <tr className="bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900" colSpan={3}>Net Sales (After VAT)</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{calculatedNetSales.toLocaleString()}</td>
+                    </tr>
+                  )}
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900">Prize Out Cost (Deducted)</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{getAgreementValue('doll_price') || ' '}/doll</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.prize_out_quantity?.toLocaleString() || '0'} pcs</td>
+                    <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedPrizeCost.toLocaleString()}</td>
                   </tr>
-                )}
-                  <tr className="bg-gray-100">
-                  <td className="border border-black px-3 py-2 text-black font-medium text-sm" colSpan={3}>{sale.franchises?.name || 'Franchise'} Profit ({franchiseShare}%)</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-green-600 text-sm">৳{calculatedFranchiseProfit.toLocaleString()}</td>
-                </tr>
-                <tr className="bg-gray-100">
-                  <td className="border border-black px-3 py-2 text-black font-medium text-sm" colSpan={3}>Clowee Profit ({cloweeShare}%)</td>
-                  <td className="border border-black px-3 py-2 text-right font-medium text-green-600 text-sm">৳{calculatedCloweeProfit.toLocaleString()}</td>
-                </tr>
+                  {getAgreementValue('electricity_cost') > 0 && (
+                    <tr className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">Electricity Cost (Deducted)</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 text-center">-</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 text-right">-</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{getAgreementValue('electricity_cost')?.toLocaleString() || '0'}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              
+              {/* Summary Section */}
+              <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-sm font-medium text-blue-700">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost{getAgreementValue('electricity_cost') > 0 ? ' - Electricity Cost' : ''})</span>
+                    <span className="text-sm font-semibold text-blue-700">৳{(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0)).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-sm text-gray-600">{sale.franchises?.name || 'Franchise'} Profit ({franchiseShare}%)</span>
+                    <span className="text-sm font-medium text-green-600">৳{calculatedFranchiseProfit.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-sm text-gray-600">Clowee Profit ({cloweeShare}%)</span>
+                    <span className="text-sm font-medium text-green-600">৳{calculatedCloweeProfit.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 border-t-2 border-blue-600 mt-3">
+                    <span className="text-base font-semibold text-gray-900">Pay To Clowee (Clowee Profit + Prize Cost{getAgreementValue('electricity_cost') > 0 ? ` - Electricity Cost` : ''})</span>
+                    <span 
+                      className="text-3xl font-bold text-blue-600"
+                      style={{
+                        border: '2px solid #2563eb',
+                        backgroundColor: '#eff6ff',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        lineHeight: '1.2'
+                      }}
+                    >
+                      ৳{sale.pay_to_clowee?.toLocaleString() || '0'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                <tr className="bg-green-100 font-bold">
-                  <td className="border border-black px-3 py-2 text-black text-sm" colSpan={3}>
-                    Pay To Clowee (Clowee Profit + Prize Cost{getAgreementValue('electricity_cost') > 0 ? ` - Electricity Cost ৳${getAgreementValue('electricity_cost')?.toLocaleString() || '0'}` : ''})
-                  </td>
-                  <td className="border border-black px-3 py-2 text-right font-bold text-green-700 text-sm">৳{sale.pay_to_clowee?.toLocaleString() || '0'}</td>
-                </tr>
-              </tbody>
-            </table>
+          {/* Payment & Bank Information */}
+          <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-gray-900">Payment Status</h3>
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  paymentInfo.status === 'Paid' 
+                    ? 'bg-green-100 text-green-800' 
+                    : paymentInfo.status === 'Partial'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {paymentInfo.status === 'Paid' ? 'FULLY PAID' : 
+                   paymentInfo.status === 'Partial' ? 'PARTIALLY PAID' : 'PAYMENT DUE'}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Total Amount:</span>
+                  <span className="font-medium text-gray-900">৳{Number(sale.pay_to_clowee || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Amount Paid:</span>
+                  <span className="font-medium text-green-600">৳{paymentInfo.totalPaid.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+                  <span className="font-medium text-gray-900">Balance Due:</span>
+                  <span 
+                    className="text-3xl font-medium"
+                    style={{
+                      border: paymentInfo.balance <= 0 ? '2px solid #16a34a' : '2px solid #dc2626',
+                      backgroundColor: paymentInfo.balance <= 0 ? '#dcfce7' : '#fee2e2',
+                      color: paymentInfo.balance <= 0 ? '#16a34a' : '#dc2626',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      lineHeight: '1.2'
+                    }}
+                  >
+                    ৳{paymentInfo.balance.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
             
-            {/* Additional Costs */}
-            {(sale.vat_amount > 0 || sale.electricity_cost > 0) && (
-              <div className="mt-3 p-2 bg-yellow-50 border border-black rounded">
-                {sale.vat_amount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-black">VAT ({sale.vat_percentage || 0}%):</span>
-                    <span className="font-medium text-black">৳{sale.vat_amount.toLocaleString()}</span>
-                  </div>
-                )}
-                {sale.electricity_cost > 0 && (
-                  <div className="flex justify-between text-sm mt-1">
-                    <span className="text-black">Electricity Cost (Monthly):</span>
-                    <span className="font-medium text-black">৳{sale.electricity_cost.toLocaleString()}</span>
-                  </div>
-                )}
+            {sale.franchises?.banks && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Payment Method Details</h3>
+                <div className="space-y-2 text-sm">
+                  {sale.franchises.banks.bank_name && (
+                    <div>
+                      <span className="text-gray-600">Bank:</span>
+                      <span className="ml-2 font-medium text-gray-900">{sale.franchises.banks.bank_name}</span>
+                    </div>
+                  )}
+                  {sale.franchises.banks.account_holder_name && (
+                    <div>
+                      <span className="text-gray-600">Account Holder:</span>
+                      <span className="ml-2 font-medium text-gray-900">{sale.franchises.banks.account_holder_name}</span>
+                    </div>
+                  )}
+                  {sale.franchises.banks.account_number && (
+                    <div>
+                      <span className="text-gray-600">Account Number:</span>
+                      <span className="ml-2 font-mono text-gray-900">{sale.franchises.banks.account_number}</span>
+                    </div>
+                  )}
+                  {sale.franchises.banks.branch_name && (
+                    <div>
+                      <span className="text-gray-600">Branch:</span>
+                      <span className="ml-2 font-medium text-gray-900">{sale.franchises.banks.branch_name}</span>
+                    </div>
+                  )}
+                  {sale.franchises.banks.routing_number && (
+                    <div>
+                      <span className="text-gray-600">Routing:</span>
+                      <span className="ml-2 font-mono text-gray-900">{sale.franchises.banks.routing_number}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
-
-          {/* Payment Status */}
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold mb-4 text-black">Payment Status</h3>
-            <div className="bg-gray-100 border border-black p-4 rounded">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-black font-medium">Total Amount Due:</span>
-                    <span className="text-black font-bold">৳{Number(sale.pay_to_clowee || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-black font-medium">Amount Paid:</span>
-                    <span className="text-green-600 font-bold">৳{paymentInfo.totalPaid.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm border-t pt-2">
-                    <span className="text-black font-medium">Balance Due:</span>
-                    <span className={`font-bold ${paymentInfo.balance <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ৳{paymentInfo.balance.toLocaleString()}
-                    </span>
-                  </div>
-
-                </div>
-                <div className="flex items-center justify-center">
-                  <div className={`px-4 py-2 rounded-lg text-center ${
-                    paymentInfo.status === 'Paid' 
-                      ? 'bg-green-100 border border-green-500' 
-                      : paymentInfo.status === 'Partial'
-                      ? 'bg-yellow-100 border border-yellow-500'
-                      : 'bg-red-100 border border-red-500'
-                  }`}>
-                    <span className={`font-bold text-lg ${
-                      paymentInfo.status === 'Paid' 
-                        ? 'text-green-700' 
-                        : paymentInfo.status === 'Partial'
-                        ? 'text-yellow-700'
-                        : 'text-red-700'
-                    }`}>
-                      {paymentInfo.status === 'Paid' ? 'FULLY PAID' : 
-                       paymentInfo.status === 'Partial' ? 'PARTIALLY PAID' : 'PAYMENT DUE'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Adjustment Notes */}
+          
           {sale.adjustment_notes && (
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold mb-4 text-black">Notes</h3>
-              <div className="bg-gray-100 border border-black p-4 rounded">
-                <p className="text-black">{sale.adjustment_notes}</p>
+            <div className="mb-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-yellow-800 mb-1">Additional Notes</h4>
+                <p className="text-sm text-yellow-700">{sale.adjustment_notes}</p>
               </div>
             </div>
           )}
 
-          {/* Bank Details */}
-          {sale.franchises?.banks && (
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold mb-1 text-black">Payment Method Bank Details</h2>
-              <div className="bg-gray-100 border border-black p-3 rounded">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-sm text-black">Bank Name: {sale.franchises.banks.bank_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-black">Branch: {sale.franchises.banks.branch_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-black">Account Holder: {sale.franchises.banks.account_holder_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-black">Account Number: {sale.franchises.banks.account_number}</p>
-                  </div>
+          {/* Modern Footer */}
+          <div className="border-t border-gray-200 pt-4 mt-6">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                <img 
+                  src="/i3 technologies logo.png" 
+                  alt="i3 Technologies" 
+                  className="h-8 w-auto object-contain opacity-60"
+                />
+                <div className="text-xs text-gray-500">
+                  <p>Powered by Clowee ERP System</p>
+                  <p>Clowee, I3 Technologies, Mobile: 01325-886868</p>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="border-t border-black pt-6 mt-8">
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-black">
-                <p>This is Clowee ERP Generated invoice.</p>
-                <p>Generated on {formatDate(new Date().toISOString())}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-black">Powered by</p>
-                <p className="font-semibold text-black">Clowee ERP System</p>
+              <div className="text-right text-xs text-gray-500">
+                <p>This is a computer generated invoice</p>
+                <p>No signature required</p>
               </div>
             </div>
           </div>

@@ -45,7 +45,7 @@ export default function Franchises() {
 
   // Helper function to check if franchise has agreements
   const FranchiseActions = ({ franchise }: { franchise: any }) => {
-    const { data: agreements } = useFranchiseAgreements(franchise.id);
+    const { data: agreements } = useFranchiseAgreements(franchise?.id);
     const hasAgreements = agreements && agreements.length > 0;
 
     return (
@@ -76,7 +76,7 @@ export default function Franchises() {
           className="border-destructive text-destructive hover:bg-destructive/10"
           onClick={() => {
             if (confirm('Are you sure you want to delete this franchise?')) {
-              deleteFranchise.mutate(franchise.id);
+              deleteFranchise.mutate(franchise?.id);
             }
           }}
         >

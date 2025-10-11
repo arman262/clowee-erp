@@ -24,6 +24,7 @@ import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
 import { EditSalesModal } from "@/components/EditSalesModal";
 import { SalesForm } from "@/components/forms/SalesForm";
 import { InvoicePrint } from "@/components/InvoicePrint";
+import { PayToCloweeModal } from "@/components/PayToCloweeModal";
 import { TablePager } from "@/components/TablePager";
 import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency, formatNumber } from "@/lib/numberUtils";
@@ -32,7 +33,7 @@ export default function Sales() {
   const [searchQuery, setSearchQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showPayToClowee, setShowPayToClowee] = useState(false);
   const [viewingSale, setViewingSale] = useState<any | null>(null);
   const [editingSale, setEditingSale] = useState<any | null>(null);
   const [printingSale, setPrintingSale] = useState<any | null>(null);
@@ -41,17 +42,20 @@ export default function Sales() {
 
   const { data: sales, isLoading } = useSales();
   const { data: payments } = useMachinePayments();
-  const { data: agreements } = useFranchiseAgreements();
+  // We'll fetch agreements per sale in the function below
 
-  // Get agreement values for a specific sale
-  const getAgreementValueForSale = (sale: any, field: string) => {
-    const franchiseAgreements = agreements?.filter(a => a.franchise_id === sale.franchise_id) || [];
-    const effectiveAgreement = franchiseAgreements
+  // Get agreement values for a specific sale (matching InvoicePrint logic)
+  const getAgreementValueForSale = (sale: any, field: string, agreements?: any[]) => {
+    if (!agreements || agreements.length === 0) {
+      return sale.franchises?.[field];
+    }
+    
+    const latestAgreement = agreements
       .filter(a => new Date(a.effective_date) <= new Date(sale.sales_date))
       .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime())[0];
     
-    if (effectiveAgreement) {
-      return effectiveAgreement[field];
+    if (latestAgreement) {
+      return latestAgreement[field];
     }
     return sale.franchises?.[field];
   };
@@ -129,26 +133,18 @@ export default function Sales() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setShowAddForm(true)} className="bg-gradient-primary hover:opacity-90">
+          <Button onClick={() => setShowPayToClowee(true)} className="bg-gradient-primary hover:opacity-90">
             <Plus className="h-4 w-4 mr-2" />
-            Add Sales
+            Pay to Clowee
           </Button>
         </div>
       </div>
 
-      {/* Add Sales Dialog */}
-      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogTitle className="sr-only">Add New Sales Record</DialogTitle>
-          <SalesForm
-            onSubmit={(data) => {
-              createSale.mutate(data);
-              setShowAddForm(false);
-            }}
-            onCancel={() => setShowAddForm(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Pay to Clowee Modal */}
+      <PayToCloweeModal
+        open={showPayToClowee}
+        onOpenChange={setShowPayToClowee}
+      />
 
       {/* Sales Summary */}
       <Card className="bg-gradient-glass border-border shadow-card">
@@ -274,7 +270,7 @@ export default function Sales() {
                 <TableRow key={sale.id}>
                   <TableCell>
                     <div className="font-mono text-sm font-medium text-primary">
-                      {sale.invoice_number || `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`}
+                      {sale.invoice_number || 'Pending'}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -357,7 +353,7 @@ export default function Sales() {
                         size="sm"
                         onClick={() => setPrintingSale(sale)}
                         title="Print Invoice"
-                        className="border-primary text-primary hover:bg-primary/10"
+                        className="border-2 border-blue-600 text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-lg"
                       >
                         <Printer className="h-4 w-4" />
                       </Button>
@@ -402,150 +398,11 @@ export default function Sales() {
       
       {/* Sales Details Modal */}
       {viewingSale && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setViewingSale(null)}>
-          <Card className="bg-gradient-card border-border shadow-card max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                Sales Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">Machine</div>
-                  <div className="font-medium">{viewingSale.machines?.machine_name} - {viewingSale.machines?.machine_number}</div>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">Franchise</div>
-                  <div className="font-medium">{viewingSale.franchises?.name}</div>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">Sales Date</div>
-                  <div className="font-medium">{formatDate(viewingSale.sales_date)}</div>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">Created</div>
-                  <div className="font-medium">{formatDate(viewingSale.created_at)}</div>
-                </div>
-              </div>
-              
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Sales Summary</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-secondary/30 rounded-lg p-3">
-                    <div className="text-sm text-muted-foreground mb-1">Coin Sales</div>
-                    <div className="text-lg font-semibold text-primary">{viewingSale.coin_sales.toLocaleString()} coins</div>
-                    <div className="text-sm text-success">৳{viewingSale.sales_amount.toLocaleString()}</div>
-                  </div>
-                  <div className="bg-secondary/30 rounded-lg p-3">
-                    <div className="text-sm text-muted-foreground mb-1">Prize Out</div>
-                    <div className="text-lg font-semibold text-accent">{viewingSale.prize_out_quantity.toLocaleString()} pcs</div>
-                    <div className="text-sm text-warning">৳{viewingSale.prize_out_cost.toLocaleString()}</div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Calculation Flow */}
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Calculation Breakdown</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Sales Amount (Gross):</span>
-                    <span className="font-medium">৳{viewingSale.sales_amount.toLocaleString()}</span>
-                  </div>
-                  {viewingSale.vat_amount > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">VAT ({viewingSale.franchises?.vat_percentage || 0}%):</span>
-                      <span className="text-destructive">-৳{viewingSale.vat_amount.toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Net Sales (After VAT):</span>
-                    <span className="font-medium">৳{(viewingSale.net_sales_amount || (viewingSale.sales_amount - (viewingSale.vat_amount || 0))).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Prize Cost (Deducted):</span>
-                    <span className="text-destructive">-৳{viewingSale.prize_out_cost.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="text-muted-foreground">Clowee Profit ({viewingSale.franchises?.clowee_share || 40}%):</span>
-                    <span className="font-medium text-success">৳{(viewingSale.clowee_profit || 0).toLocaleString()}</span>
-                  </div>
-                  {viewingSale.franchises?.electricity_cost > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Electricity Cost:</span>
-                      <span className="text-destructive">-৳{viewingSale.franchises.electricity_cost.toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between border-t pt-2 font-bold">
-                    <span className="text-primary">Pay To Clowee:</span>
-                    <span className="text-primary text-lg">৳{(viewingSale.pay_to_clowee || 0).toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {(viewingSale.vat_amount > 0 || viewingSale.franchises?.electricity_cost > 0) && (
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Additional Charges</h4>
-                  <div className="space-y-2">
-                    {viewingSale.vat_amount > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">VAT ({viewingSale.franchises?.vat_percentage || 0}%):</span>
-                        <span className="text-destructive">৳{viewingSale.vat_amount.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {viewingSale.franchises?.electricity_cost > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Electricity Cost:</span>
-                        <span className="text-warning">৳{viewingSale.franchises.electricity_cost.toLocaleString()}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {(viewingSale.coin_adjustment || viewingSale.prize_adjustment || viewingSale.adjustment_notes) && (
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Adjustments</h4>
-                  <div className="space-y-2">
-                    {viewingSale.coin_adjustment && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Coin Adjustment:</span>
-                        <span className="text-destructive">-{viewingSale.coin_adjustment} coins</span>
-                      </div>
-                    )}
-                    {viewingSale.prize_adjustment && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Prize Adjustment:</span>
-                        <span className="text-destructive">-{viewingSale.prize_adjustment} pcs</span>
-                      </div>
-                    )}
-                    {viewingSale.adjustment_notes && (
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Notes:</div>
-                        <div className="text-sm bg-secondary/20 rounded p-2">{viewingSale.adjustment_notes}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Net Revenue:</span>
-                  <span className={`text-lg font-bold ${(viewingSale.sales_amount - viewingSale.prize_out_cost) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                    ৳{(viewingSale.sales_amount - viewingSale.prize_out_cost).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex justify-end pt-4">
-                <Button onClick={() => setViewingSale(null)}>Close</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <SalesDetailsModal 
+          sale={viewingSale} 
+          onClose={() => setViewingSale(null)}
+          getAgreementValueForSale={getAgreementValueForSale}
+        />
       )}
       
       {/* Edit Sales Modal */}
@@ -567,6 +424,187 @@ export default function Sales() {
           onClose={() => setPrintingSale(null)}
         />
       )}
+    </div>
+  );
+}
+
+// Separate component for Sales Details Modal to use franchise-specific agreements
+function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: { 
+  sale: any; 
+  onClose: () => void;
+  getAgreementValueForSale: (sale: any, field: string, agreements?: any[]) => any;
+}) {
+  const { data: agreements } = useFranchiseAgreements(sale.franchise_id);
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <Card className="bg-gradient-card border-border shadow-card max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            Sales Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Machine</div>
+              <div className="font-medium">{sale.machines?.machine_name} - {sale.machines?.machine_number}</div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Franchise</div>
+              <div className="font-medium">{sale.franchises?.name}</div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Sales Date</div>
+              <div className="font-medium">{formatDate(sale.sales_date)}</div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Created</div>
+              <div className="font-medium">{formatDate(sale.created_at)}</div>
+            </div>
+          </div>
+          
+          <div className="border-t pt-4">
+            <h4 className="font-medium mb-3">Sales Summary</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <div className="text-sm text-muted-foreground mb-1">Coin Sales</div>
+                <div className="text-lg font-semibold text-primary">{sale.coin_sales.toLocaleString()} coins</div>
+                <div className="text-sm text-success">৳{((sale.coin_sales || 0) * (getAgreementValueForSale(sale, 'coin_price', agreements) || 0)).toLocaleString()}</div>
+              </div>
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <div className="text-sm text-muted-foreground mb-1">Prize Out</div>
+                <div className="text-lg font-semibold text-accent">{sale.prize_out_quantity.toLocaleString()} pcs</div>
+                <div className="text-sm text-warning">৳{((sale.prize_out_quantity || 0) * (getAgreementValueForSale(sale, 'doll_price', agreements) || 0)).toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Calculation Flow */}
+          <div className="border-t pt-4">
+            <h4 className="font-medium mb-3">Calculation Breakdown</h4>
+            <div className="space-y-2 text-sm">
+              {(() => {
+                // Calculate values using agreement rates (matching InvoicePrint logic)
+                const coinPrice = getAgreementValueForSale(sale, 'coin_price', agreements) || 0;
+                const dollPrice = getAgreementValueForSale(sale, 'doll_price', agreements) || 0;
+                const vatPercentage = getAgreementValueForSale(sale, 'vat_percentage', agreements) || 0;
+                const electricityCost = getAgreementValueForSale(sale, 'electricity_cost', agreements) || 0;
+                
+                const calculatedSalesAmount = (sale.coin_sales || 0) * coinPrice;
+                const calculatedPrizeCost = (sale.prize_out_quantity || 0) * dollPrice;
+                const calculatedVatAmount = calculatedSalesAmount * vatPercentage / 100;
+                const calculatedNetSales = calculatedSalesAmount - calculatedVatAmount;
+                
+                return (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Sales Amount (Gross):</span>
+                      <span className="font-medium">৳{calculatedSalesAmount.toLocaleString()}</span>
+                    </div>
+                    {calculatedVatAmount > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">VAT ({vatPercentage}%):</span>
+                        <span className="text-destructive">-৳{calculatedVatAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Net Sales (After VAT):</span>
+                      <span className="font-medium">৳{calculatedNetSales.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Prize Cost (Deducted):</span>
+                      <span className="text-destructive">-৳{calculatedPrizeCost.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="text-muted-foreground">Clowee Profit ({getAgreementValueForSale(sale, 'clowee_share', agreements) || 40}%):</span>
+                      <span className="font-medium text-success">৳{(sale.clowee_profit || 0).toLocaleString()}</span>
+                    </div>
+                    {electricityCost > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Electricity Cost:</span>
+                        <span className="text-destructive">-৳{electricityCost.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-t pt-2 font-bold">
+                      <span className="text-primary">Pay To Clowee:</span>
+                      <span className="text-primary text-lg">৳{(sale.pay_to_clowee || 0).toLocaleString()}</span>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+          
+          {(() => {
+            const vatPercentage = getAgreementValueForSale(sale, 'vat_percentage', agreements) || 0;
+            const electricityCost = getAgreementValueForSale(sale, 'electricity_cost', agreements) || 0;
+            const coinPrice = getAgreementValueForSale(sale, 'coin_price', agreements) || 0;
+            const calculatedSalesAmount = (sale.coin_sales || 0) * coinPrice;
+            const calculatedVatAmount = calculatedSalesAmount * vatPercentage / 100;
+            
+            return (calculatedVatAmount > 0 || electricityCost > 0) && (
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Additional Charges</h4>
+                <div className="space-y-2">
+                  {calculatedVatAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">VAT ({vatPercentage}%):</span>
+                      <span className="text-destructive">৳{calculatedVatAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {electricityCost > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Electricity Cost:</span>
+                      <span className="text-warning">৳{electricityCost.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+          
+          {(sale.coin_adjustment || sale.prize_adjustment || sale.adjustment_notes) && (
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Adjustments</h4>
+              <div className="space-y-2">
+                {sale.coin_adjustment && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Coin Adjustment:</span>
+                    <span className="text-destructive">-{sale.coin_adjustment} coins</span>
+                  </div>
+                )}
+                {sale.prize_adjustment && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Prize Adjustment:</span>
+                    <span className="text-destructive">-{sale.prize_adjustment} pcs</span>
+                  </div>
+                )}
+                {sale.adjustment_notes && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Notes:</div>
+                    <div className="text-sm bg-secondary/20 rounded p-2">{sale.adjustment_notes}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="border-t pt-4">
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Net Revenue:</span>
+              <span className={`text-lg font-bold ${(sale.sales_amount - sale.prize_out_cost) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                ৳{(sale.sales_amount - sale.prize_out_cost).toLocaleString()}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex justify-end pt-4">
+            <Button onClick={onClose}>Close</Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

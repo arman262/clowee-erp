@@ -32,14 +32,8 @@ export function SalesForm({ onSubmit, onCancel, initialData }: SalesFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Generate invoice number in new format
-    const currentYear = new Date(formData.sales_date).getFullYear();
-    const yearSales = existingSales?.filter(s => new Date(s.sales_date).getFullYear() === currentYear) || [];
-    const nextNumber = (yearSales.length + 1).toString().padStart(3, '0');
-    const invoiceNumber = `clw/${currentYear}/${nextNumber}`;
-    
-    onSubmit({ ...formData, invoice_number: invoiceNumber });
+    // Database trigger will auto-generate invoice_number
+    onSubmit(formData);
   };
 
   const netRevenue = formData.sales_amount - formData.prize_out_cost;
