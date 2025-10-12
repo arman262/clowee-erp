@@ -384,7 +384,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">BILL TO</h3>
               <div className="text-sm text-gray-900">
-                <p className="font-medium">Franchise: {sale.franchises?.name || 'Franchise Partner'}</p>
+                <p className="font-medium">Franchises: {sale.franchises?.name || 'Franchise Partner'}</p>
                 <p>Branch: {sale.machines?.machine_name || 'Machine Location'}</p>
               </div>
             </div>

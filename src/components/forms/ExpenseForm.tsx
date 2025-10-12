@@ -32,13 +32,23 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isMonthlyExpense, setIsMonthlyExpense] = useState(false);
+  const [prizeQuantity, setPrizeQuantity] = useState(initialData?.quantity || 1);
+  const [prizeRate, setPrizeRate] = useState(initialData?.item_price || 0);
 
   const monthlyCategories = ["Employee Salary", "Factory Rent", "Office Rent", "Server Bill"];
 
   useEffect(() => {
     const selectedCategory = categories?.find(cat => String(cat.id) === formData.category_id);
     setIsMonthlyExpense(selectedCategory ? monthlyCategories.includes(selectedCategory.category_name) : false);
-  }, [formData.category_id, categories]);
+    
+    // Auto-calculate total for Prize Purchase
+    if (selectedCategory?.category_name === 'Prize Purchase') {
+      const calculatedTotal = prizeQuantity * prizeRate;
+      setFormData(prev => ({ ...prev, total_amount: calculatedTotal, quantity: prizeQuantity }));
+    }
+  }, [formData.category_id, categories, prizeQuantity, prizeRate]);
+
+  const isPrizePurchase = categories?.find(cat => String(cat.id) === formData.category_id)?.category_name === 'Prize Purchase';
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -68,8 +78,8 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
       expense_date: isMonthlyExpense ? formData.expense_month + "-01" : formData.expense_date,
       expense_details: formData.expense_details || "Expense",
       unique_id: formData.reference_id || null,
-      quantity: formData.quantity || 1,
-      item_price: formData.total_amount / (formData.quantity || 1),
+      quantity: isPrizePurchase ? prizeQuantity : (formData.quantity || 1),
+      item_price: isPrizePurchase ? prizeRate : (formData.total_amount / (formData.quantity || 1)),
       total_amount: formData.total_amount,
     };
     
@@ -164,9 +174,48 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
             )}
           </div>
 
+          {/* Prize Purchase Fields */}
+          {isPrizePurchase && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="prize_quantity">Quantity*</Label>
+                <Input
+                  id="prize_quantity"
+                  type="number"
+                  min="1"
+                  value={prizeQuantity}
+                  onChange={(e) => {
+                    setPrizeQuantity(Number(e.target.value));
+                    setErrors({ ...errors, quantity: "" });
+                  }}
+                  placeholder="Enter quantity"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="prize_rate">Prize Rate (৳)*</Label>
+                <Input
+                  id="prize_rate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={prizeRate}
+                  onChange={(e) => {
+                    setPrizeRate(Number(e.target.value));
+                    setErrors({ ...errors, prize_rate: "" });
+                  }}
+                  placeholder="Enter prize rate"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
           {/* Amount Field */}
           <div className="space-y-2">
-            <Label htmlFor="total_amount">Amount (৳)*</Label>
+            <Label htmlFor="total_amount">
+              {isPrizePurchase ? "Total Amount (৳)" : "Amount (৳)*"}
+            </Label>
             <Input
               id="total_amount"
               type="number"
@@ -174,11 +223,14 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
               step="0.01"
               value={formData.total_amount}
               onChange={(e) => {
-                setFormData({ ...formData, total_amount: Number(e.target.value) });
-                setErrors({ ...errors, total_amount: "" });
+                if (!isPrizePurchase) {
+                  setFormData({ ...formData, total_amount: Number(e.target.value) });
+                  setErrors({ ...errors, total_amount: "" });
+                }
               }}
               className={errors.total_amount ? "border-destructive" : ""}
-              placeholder="Enter amount"
+              placeholder={isPrizePurchase ? "Auto-calculated" : "Enter amount"}
+              disabled={isPrizePurchase}
               required
             />
             {errors.total_amount && (
@@ -198,20 +250,35 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
             />
           </div>
 
-          {/* Quantity and Reference ID */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                placeholder="1"
-              />
+          {/* Quantity and Reference ID - Hidden for Prize Purchase */}
+          {!isPrizePurchase && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
+                  placeholder="1"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="reference_id">Reference ID</Label>
+                <Input
+                  id="reference_id"
+                  value={formData.reference_id}
+                  onChange={(e) => setFormData({ ...formData, reference_id: e.target.value })}
+                  placeholder="Optional reference"
+                />
+              </div>
             </div>
-            
+          )}
+
+          {/* Reference ID for Prize Purchase */}
+          {isPrizePurchase && (
             <div className="space-y-2">
               <Label htmlFor="reference_id">Reference ID</Label>
               <Input
@@ -221,7 +288,7 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
                 placeholder="Optional reference"
               />
             </div>
-          </div>
+          )}
 
           <div className="flex gap-4 pt-4">
             <Button type="submit" className="bg-gradient-primary hover:opacity-90 flex-1">
