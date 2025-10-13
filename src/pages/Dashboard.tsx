@@ -16,7 +16,10 @@ import {
   Calendar,
   Receipt,
   CreditCard,
-  Activity
+  Activity,
+  Sprout,
+  Wallet,
+  Landmark
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSales } from "@/hooks/useSales";
@@ -56,7 +59,11 @@ const quickActions = [
 
 export default function Dashboard() {
   const [filterType, setFilterType] = useState<'month' | 'year'>('month');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    return lastMonth.toISOString().slice(0, 7);
+  });
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   
   const { data: sales } = useSales();
@@ -66,6 +73,7 @@ export default function Dashboard() {
 
   // Filter data based on selected period
   const filteredSales = sales?.filter(sale => {
+    if (!sale.sales_date) return false;
     const saleDate = new Date(sale.sales_date);
     if (filterType === 'month') {
       const [year, month] = selectedMonth.split('-');
@@ -86,6 +94,7 @@ export default function Dashboard() {
   }) || [];
 
   const filteredPayments = payments?.filter(payment => {
+    if (!payment.payment_date) return false;
     const paymentDate = new Date(payment.payment_date);
     if (filterType === 'month') {
       const [year, month] = selectedMonth.split('-');
@@ -97,7 +106,7 @@ export default function Dashboard() {
 
   // Calculations
   const activeMachines = machines?.filter(machine => machine.is_active !== false) || [];
-  const totalSales = filteredSales.reduce((sum, sale) => sum + (sale.sales_amount || 0), 0);
+  const totalSales = filteredSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0);
   
   // Machine-wise sales for highest/lowest
   const machineSales = activeMachines.map(machine => {
@@ -109,7 +118,7 @@ export default function Dashboard() {
       total,
       machineName
     };
-  });
+  }).filter(machine => machine.total > 0); // Only include machines with sales
   
   const highestMachine = machineSales.length > 0 ? machineSales.reduce((max, current) => current.total > max.total ? current : max) : null;
   const lowestMachine = machineSales.length > 0 ? machineSales.reduce((min, current) => current.total < min.total ? current : min) : null;
@@ -118,10 +127,25 @@ export default function Dashboard() {
   const lowestMachineSales = lowestMachine?.total || 0;
   const avgSalesPerMachine = activeMachines.length > 0 ? totalSales / activeMachines.length : 0;
   
-  const totalPaymentReceived = filteredPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
-  const totalDue = filteredSales.reduce((sum, sale) => sum + ((sale.sales_amount || 0) - (sale.paid_amount || 0)), 0);
+  const totalPaymentReceived = filteredPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const totalDue = filteredSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
+
   const totalPrizePurchase = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.total_amount || 0), 0);
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + (expense.total_amount || 0), 0);
+  const totalPrizeQuantity = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0);
+  
+  // Total expenses excluding Profit Share (Share Holders)
+  const totalExpenses = filteredExpenses
+    .filter(expense => expense.expense_categories?.category_name !== 'Profit ShareProfit Share(Share Holders)')
+    .reduce((sum: number, expense) => sum + (expense.total_amount || 0), 0);
+  
+  // Net Profit = Pay To Clowee (sum from Sales table) - total expense (except Profit Share)
+  const totalPayToClowee = filteredSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
+  const netProfit = totalPayToClowee - totalExpenses;
+
+  // Bank calculations
+  const cashInHand = filteredPayments.filter(payment => payment.bank === 'Cash').reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const mdbBank = filteredPayments.filter(payment => payment.bank === 'MDB Bank').reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const nccBank = filteredPayments.filter(payment => payment.bank === 'NCC Bank').reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
 
   // Prepare chart data
   const getChartData = () => {
@@ -157,7 +181,7 @@ export default function Dashboard() {
     if (filterType === 'month') {
       const [year, month] = selectedMonth.split('-');
       const date = new Date(parseInt(year), parseInt(month) - 1);
-      return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     } else {
       return selectedYear;
     }
@@ -212,7 +236,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid card */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -268,16 +292,34 @@ export default function Dashboard() {
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Average Sales per Machine
+              Average Sales/Machine
             </CardTitle>
-            <Cpu className="h-5 w-5 text-accent" />
+            <Cpu className="h-5 w-5 text-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent mb-1">
+            <div className="text-2xl font-bold text-white mb-1">
               ৳{formatCurrency(avgSalesPerMachine)}
             </div>
             <div className="text-sm text-muted-foreground">
               Per active machine
+            </div>
+          </CardContent>
+        </Card>
+
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Net Profit
+            </CardTitle>
+            <Sprout className="h-5 w-5 text-accent"/>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-accent mb-1">
+              ৳{formatCurrency(netProfit)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Net Profit After All Cost
             </div>
           </CardContent>
         </Card>
@@ -328,7 +370,7 @@ export default function Dashboard() {
               ৳{formatCurrency(totalPrizePurchase)}
             </div>
             <div className="text-sm text-muted-foreground">
-              Prize expenses
+              Total Doll Qty: {totalPrizeQuantity}
             </div>
           </CardContent>
         </Card>
@@ -346,6 +388,57 @@ export default function Dashboard() {
             </div>
             <div className="text-sm text-muted-foreground">
               All expenses
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Cash In Hand
+            </CardTitle>
+            <Wallet className="h-5 w-5 text-success" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-success mb-1">
+              ৳{formatCurrency(cashInHand)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Cash payments
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              MDB Bank
+            </CardTitle>
+            <Landmark className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary mb-1">
+              ৳{formatCurrency(mdbBank)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              MDB Bank payments
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              NCC Bank
+            </CardTitle>
+            <Landmark className="h-5 w-5 text-accent" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-accent mb-1">
+              ৳{formatCurrency(nccBank)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              NCC Bank payments
             </div>
           </CardContent>
         </Card>

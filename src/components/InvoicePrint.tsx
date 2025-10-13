@@ -322,11 +322,18 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
   const calculatedPrizeCost = (sale.prize_out_quantity || 0) * dollPrice;
   const calculatedVatAmount = calculatedSalesAmount * vatPercentage / 100;
   const calculatedNetSales = calculatedSalesAmount - calculatedVatAmount;
-  const netRevenue = calculatedSalesAmount - calculatedPrizeCost;
   
-  // Calculate franchise and clowee profits based on agreement rates
-  const calculatedFranchiseProfit = (netRevenue * franchiseShare) / 100;
-  const calculatedCloweeProfit = (netRevenue * cloweeShare) / 100;
+  // Calculate net profit (Sales - VAT - Prize Cost)
+  const netProfit = calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost;
+  
+  // Calculate maintenance from net profit
+  const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
+  const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+  
+  // Calculate franchise and clowee profits AFTER deducting maintenance
+  const profitAfterMaintenance = netProfit - maintenanceAmount;
+  const calculatedFranchiseProfit = (profitAfterMaintenance * franchiseShare) / 100;
+  const calculatedCloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
 
   return (
     <Dialog open={!!sale} onOpenChange={(open) => !open && onClose()}>
@@ -449,14 +456,22 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   <tr className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">Coin Sales</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      Coin Sales
+                      {sale.coin_adjustment ? (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Adj: {sale.coin_adjustment > 0 ? '-' : '+'} {Math.abs(sale.coin_adjustment)} coins
+                          (Calc: {((sale.coin_sales || 0) + (sale.coin_adjustment || 0)).toLocaleString()} {sale.coin_adjustment > 0 ? '-' : '+'} {Math.abs(sale.coin_adjustment || 0)} = {sale.coin_sales?.toLocaleString() || '0'})
+                        </div>
+                      ) : ''}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{getAgreementValue('coin_price') || 0}/coin</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.coin_sales?.toLocaleString() || '0'} coins</td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{calculatedSalesAmount.toLocaleString()}</td>
                   </tr>
                   {sale.vat_amount > 0 && (
                     <tr className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-900">VAT ({getAgreementValue('vat_percentage') || 0}%)</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">VAT - {getAgreementValue('vat_percentage') || 0}% (Sales - {getAgreementValue('vat_percentage') || 0}% Vat)</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-center">-</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-right">-</td>
                       <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedVatAmount.toLocaleString()}</td>
@@ -469,7 +484,15 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                     </tr>
                   )}
                   <tr className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">Prize Out Cost (Deducted)</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      Prize Out Cost (Deducted)
+                      {sale.prize_adjustment ? (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Adj: {sale.prize_adjustment > 0 ? '-' : '+'}{Math.abs(sale.prize_adjustment)} pcs
+                          (Calc: {((sale.prize_out_quantity || 0) + (sale.prize_adjustment || 0)).toLocaleString()} {sale.prize_adjustment > 0 ? '-' : '+'} {Math.abs(sale.prize_adjustment || 0)} = {sale.prize_out_quantity?.toLocaleString() || '0'})
+                        </div>
+                      ) : ''}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{getAgreementValue('doll_price') || ' '}/doll</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.prize_out_quantity?.toLocaleString() || '0'} pcs</td>
                     <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedPrizeCost.toLocaleString()}</td>
@@ -488,20 +511,39 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
               {/* Summary Section */}
               <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                    <span className="text-sm font-medium text-blue-700">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost{getAgreementValue('electricity_cost') > 0 ? ' - Electricity Cost' : ''})</span>
-                    <span className="text-sm font-semibold text-blue-700">৳{(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0)).toLocaleString()}</span>
+                  <div className="flex justify-between items-center py-3 border-b border-gray-200">
+                    <span className="text-lg font-medium text-blue-700">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost{getAgreementValue('electricity_cost') > 0 ? ' - Electricity Cost' : ''})</span>
+                    <span className="text-lg font-semibold text-blue-700">৳{(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0)).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-sm text-gray-600">{sale.franchises?.name || 'Franchise'} Profit ({franchiseShare}%)</span>
-                    <span className="text-sm font-medium text-green-600">৳{calculatedFranchiseProfit.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-sm text-gray-600">Clowee Profit ({cloweeShare}%)</span>
-                    <span className="text-sm font-medium text-green-600">৳{calculatedCloweeProfit.toLocaleString()}</span>
-                  </div>
+                  {(() => {
+                    const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
+                    const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+                    const profitAfterMaintenance = netProfit - maintenanceAmount;
+                    
+                    return (
+                      <>
+                        {maintenanceAmount > 0 && (
+                          <div className="flex justify-between items-center py-1">
+                            <span className="text-sm text-gray-600">Maintenance ({maintenancePercentage}%)</span>
+                            <span className="text-sm font-medium text-gray-900">৳{maintenanceAmount.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center py-1">
+                          <span className="text-sm text-gray-600">{sale.franchises?.name || 'Franchise'} Profit ({franchiseShare}%)</span>
+                          <span className="text-sm font-medium text-green-600">৳{calculatedFranchiseProfit.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                          <span className="text-sm text-gray-600">Clowee Profit ({cloweeShare}%)</span>
+                          <span className="text-sm font-medium text-green-600">৳{calculatedCloweeProfit.toLocaleString()}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                   <div className="flex justify-between items-center py-3 border-t-2 border-blue-600 mt-3">
-                    <span className="text-base font-semibold text-gray-900">Pay To Clowee (Clowee Profit + Prize Cost{getAgreementValue('electricity_cost') > 0 ? ` - Electricity Cost` : ''})</span>
+                    <span className="text-base font-semibold text-gray-900">Pay To Clowee (Clowee Profit + Prize Cost{getAgreementValue('electricity_cost') > 0 ? ` - Electricity Cost` : ''}{(() => {
+                      const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
+                      return maintenancePercentage > 0 ? ` + Maintenance` : '';
+                    })()})</span>
                     <span 
                       className="text-3xl font-bold text-blue-600"
                       style={{
@@ -516,7 +558,10 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                         lineHeight: '1.2'
                       }}
                     >
-                      ৳{sale.pay_to_clowee?.toLocaleString() || '0'}
+                      ৳{(() => {
+                        const payToClowee = calculatedCloweeProfit + calculatedPrizeCost + maintenanceAmount - (getAgreementValue('electricity_cost') || 0);
+                        return payToClowee.toLocaleString();
+                      })()}
                     </span>
                   </div>
                 </div>

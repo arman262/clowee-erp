@@ -84,7 +84,7 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
                     const balance = Number(sale.pay_to_clowee || 0) - totalPaid;
                     return (
                       <SelectItem key={sale.id} value={sale.id}>
-                        {sale.invoice_number || `clw/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`} - {sale.machines?.machine_name} (Due: ৳{balance.toLocaleString()})
+                        {sale.invoice_number || `CLW/${new Date(sale.sales_date).getFullYear()}/${sale.id.slice(-3).padStart(3, '0')}`} - {sale.machines?.machine_name} (Due: ৳{balance.toLocaleString()})
                       </SelectItem>
                     );
                   })

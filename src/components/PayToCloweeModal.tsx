@@ -138,13 +138,19 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
     // Calculate VAT
     const vatAmount = adjustedSalesAmount * vatPercentage / 100;
     
-    // Calculate net revenue after VAT and prize cost
-    const netRevenue = adjustedSalesAmount - vatAmount - adjustedPrizeCost;
+    // Calculate net profit (Sales - VAT - Prize Cost)
+    const netProfit = adjustedSalesAmount - vatAmount - adjustedPrizeCost;
     
-    // Calculate profit shares
-    const cloweeProfit = netRevenue * cloweeShare / 100;
-    const franchiseProfit = netRevenue * franchiseShare / 100;
-    const payToClowee = cloweeProfit + adjustedPrizeCost - electricityCost;
+    // Calculate maintenance from net profit if maintenance percentage exists
+    const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
+    const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+    
+    // Calculate profit shares AFTER deducting maintenance
+    const profitAfterMaintenance = netProfit - maintenanceAmount;
+    const cloweeProfit = profitAfterMaintenance * cloweeShare / 100;
+    const franchiseProfit = profitAfterMaintenance * franchiseShare / 100;
+    
+    const payToClowee = cloweeProfit + adjustedPrizeCost + maintenanceAmount - electricityCost;
     
     console.log('Calculation results:', {
       coinSales,
@@ -169,7 +175,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
       adjustedPrizeCost,
       vatAmount,
       netSalesAmount: adjustedSalesAmount - vatAmount,
-      netRevenue,
+      netRevenue: netProfit,
       cloweeProfit,
       franchiseProfit,
       payToClowee
@@ -408,7 +414,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm text-muted-foreground">Net Sales</span>
+                      <span className="text-sm text-muted-foreground">Net Sales (After Vat)</span>
                     </div>
                     <p className="text-lg font-semibold text-success">
                       ৳{calculations.netSalesAmount.toLocaleString()}
@@ -441,12 +447,26 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm text-muted-foreground">Net Revenue</span>
+                      <span className="text-sm text-muted-foreground">Net Profit</span>
                     </div>
                     <p className="text-lg font-semibold text-info">
                       ৳{calculations.netRevenue.toLocaleString()}
                     </p>
                   </div>
+                  {(() => {
+                    const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
+                    const maintenanceAmount = maintenancePercentage > 0 ? calculations.netRevenue * maintenancePercentage / 100 : 0;
+                    return maintenanceAmount > 0 && (
+                      <div className="bg-secondary/30 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm text-muted-foreground">Maintenance ({maintenancePercentage}%)</span>
+                        </div>
+                        <p className="text-lg font-semibold text-destructive">
+                          ৳{maintenanceAmount.toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  })()}
                   <div className="bg-secondary/30 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm text-muted-foreground">Clowee Profit</span>
@@ -477,7 +497,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm font-medium text-primary">Pay To Clowee Calculation</span>
                     </div>
                     <div className="text-xs text-muted-foreground mb-2">
-                      Clowee Profit + Prize Cost - Electricity Cost
+                      Clowee Profit + Prize Cost + Maintenance - Electricity Cost
                     </div>
                     <p className="text-xl font-bold text-primary">
                       ৳{calculations.payToClowee.toLocaleString()}

@@ -527,9 +527,31 @@ function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: {
                         <span className="text-destructive">-৳{electricityCost.toLocaleString()}</span>
                       </div>
                     )}
+                    {(() => {
+                      const maintenancePercentage = getAgreementValueForSale(sale, 'maintenance_percentage', agreements) || 0;
+                      const netProfit = calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost;
+                      const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+                      
+                      return maintenanceAmount > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Maintenance ({maintenancePercentage}%):</span>
+                          <span className="font-medium">৳{maintenanceAmount.toLocaleString()}</span>
+                        </div>
+                      );
+                    })()}
                     <div className="flex justify-between border-t pt-2 font-bold">
                       <span className="text-primary">Pay To Clowee:</span>
-                      <span className="text-primary text-lg">৳{(sale.pay_to_clowee || 0).toLocaleString()}</span>
+                      <span className="text-primary text-lg">৳{(() => {
+                        const maintenancePercentage = getAgreementValueForSale(sale, 'maintenance_percentage', agreements) || 0;
+                        const netProfit = calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost;
+                        const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+                        const electricityCost = getAgreementValueForSale(sale, 'electricity_cost', agreements) || 0;
+                        const cloweeShare = getAgreementValueForSale(sale, 'clowee_share', agreements) || 40;
+                        const profitAfterMaintenance = netProfit - maintenanceAmount;
+                        const cloweeProfit = profitAfterMaintenance * cloweeShare / 100;
+                        const payToClowee = cloweeProfit + calculatedPrizeCost + maintenanceAmount - electricityCost;
+                        return payToClowee.toLocaleString();
+                      })()}</span>
                     </div>
                   </>
                 );
