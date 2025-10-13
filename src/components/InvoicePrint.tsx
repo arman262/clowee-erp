@@ -31,18 +31,9 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
     return sale.franchises?.[field];
   };
 
-  // Calculate dynamic payment status (modified for invoice)
-  const getPaymentStatus = (sale: any) => {
-    const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
-    const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const payToClowee = Number(sale.pay_to_clowee || 0);
-    
-    if (totalPaid === 0) return { status: 'Due', totalPaid, balance: payToClowee };
-    if (totalPaid >= payToClowee) return { status: 'Paid', totalPaid, balance: 0 };
-    return { status: 'Partial', totalPaid, balance: payToClowee - totalPaid };
-  };
 
-  const paymentInfo = getPaymentStatus(sale);
+
+
 
   const handlePrint = () => {
     const printContent = document.getElementById('invoice-content');
@@ -58,13 +49,17 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
           <title>${sale.machines?.machine_name || ''}- Invoice: ${sale.invoice_number}</title>
           <style>
             @media print {
-              @page { margin: 0.3in; size: A4; }
-              body { -webkit-print-color-adjust: exact; }
+              @page { margin: 0; size: A4; }
+              body { 
+                -webkit-print-color-adjust: exact;
+                margin: 0;
+                padding: 0.5in 0.3in 0.3in 0.3in;
+              }
             }
             body { 
               font-family: Arial, sans-serif; 
               margin: 0; 
-              padding: 10px;
+              padding: 0.5in 0.3in 0.3in 0.3in;
               color: #000;
               background: white;
               font-size: 11px;
@@ -104,7 +99,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
             .px-4 { padding-left: 1rem; padding-right: 1rem; }
             .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
             .py-2 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-            .pt-2 { padding-top: 0.25rem; }
+            .pt-2 { padding-top: 0.25rem; }   
             .pt-6 { padding-top: 0.5rem; }
             .border { border: 1px solid #e5e7eb; }
             .border-t { border-top: 1px solid #e5e7eb; }
@@ -335,6 +330,21 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
   const calculatedFranchiseProfit = (profitAfterMaintenance * franchiseShare) / 100;
   const calculatedCloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
 
+  // Calculate Pay To Clowee amount
+  const calculatedPayToClowee = calculatedCloweeProfit + calculatedPrizeCost + maintenanceAmount - (getAgreementValue('electricity_cost') || 0);
+
+  // Calculate dynamic payment status (modified for invoice)
+  const getPaymentStatus = (sale: any) => {
+    const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
+    const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    
+    if (totalPaid === 0) return { status: 'Due', totalPaid, balance: calculatedPayToClowee };
+    if (totalPaid >= calculatedPayToClowee) return { status: 'Paid', totalPaid, balance: 0 };
+    return { status: 'Partial', totalPaid, balance: calculatedPayToClowee - totalPaid };
+  };
+
+  const paymentInfo = getPaymentStatus(sale);
+
   return (
     <Dialog open={!!sale} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
@@ -511,8 +521,8 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
               {/* Summary Section */}
               <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center py-3 border-b border-gray-200">
-                    <span className="text-lg font-medium text-blue-700">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost{getAgreementValue('electricity_cost') > 0 ? ' - Electricity Cost' : ''})</span>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-sm font-medium text-blue-800">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost{getAgreementValue('electricity_cost') > 0 ? ' - Electricity Cost' : ''})</span>
                     <span className="text-lg font-semibold text-blue-700">৳{(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0)).toLocaleString()}</span>
                   </div>
                   {(() => {
@@ -588,7 +598,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Total Amount:</span>
-                  <span className="font-medium text-gray-900">৳{Number(sale.pay_to_clowee || 0).toLocaleString()}</span>
+                  <span className="font-medium text-gray-900">৳{calculatedPayToClowee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Amount Paid:</span>
