@@ -19,7 +19,7 @@ import {
 import { useMachineCounters, useCreateMachineCounter, useUpdateMachineCounter, useDeleteMachineCounter } from "@/hooks/useMachineCounters";
 import { useMachines } from "@/hooks/useMachines";
 import { useFranchises } from "@/hooks/useFranchises";
-
+import { usePermissions } from "@/hooks/usePermissions";
 import { CounterReadingForm } from "@/components/forms/CounterReadingForm";
 import { CounterReadingDetailsModal } from "@/components/CounterReadingDetailsModal";
 import { PayToCloweeModal } from "@/components/PayToCloweeModal";
@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function CounterReadings() {
+  const { canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -119,32 +120,34 @@ export default function CounterReadings() {
             Record and track machine counter readings
           </p>
         </div>
-        <div className="flex gap-3">
-          <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Reading
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CounterReadingForm
-                onSubmit={(data) => {
-                  createReading.mutate(data);
-                  setShowAddForm(false);
-                }}
-                onCancel={() => setShowAddForm(false)}
-              />
-            </DialogContent>
-          </Dialog>
-          <Button 
-            onClick={() => setShowPayToClowee(true)}
-            className="bg-gradient-accent hover:opacity-90 shadow-neon"
-          >
-            <Calculator className="h-4 w-4 mr-2" />
-            Pay to Clowee
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex gap-3">
+            <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Reading
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <CounterReadingForm
+                  onSubmit={(data) => {
+                    createReading.mutate(data);
+                    setShowAddForm(false);
+                  }}
+                  onCancel={() => setShowAddForm(false)}
+                />
+              </DialogContent>
+            </Dialog>
+            <Button 
+              onClick={() => setShowPayToClowee(true)}
+              className="bg-gradient-accent hover:opacity-90 shadow-neon"
+            >
+              <Calculator className="h-4 w-4 mr-2" />
+              Pay to Clowee
+            </Button>
+          </div>
+        )}
       </div>
       {/* Search and Filters */}
       <Card className="bg-gradient-card border-border shadow-card">
@@ -211,10 +214,12 @@ export default function CounterReadings() {
               <p className="text-muted-foreground mb-4">
                 No counter readings have been recorded yet. Add your first reading to get started.
               </p>
-              <Button onClick={() => setShowAddForm(true)} className="bg-gradient-primary hover:opacity-90">
-                <Plus className="h-4 w-4 mr-2" />
-                Add First Reading
-              </Button>
+              {canEdit && (
+                <Button onClick={() => setShowAddForm(true)} className="bg-gradient-primary hover:opacity-90">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add First Reading
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -264,7 +269,7 @@ export default function CounterReadings() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Calendar className="h-4 w-4 text-white" />
                     <span>{formatDate(reading.reading_date)}</span>
                   </div>
                 </TableCell>
@@ -289,7 +294,7 @@ export default function CounterReadings() {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {!reading.is_initial && (
+                    {canEdit && !reading.is_initial && (
                       <>
                         <Dialog open={editingReading?.id === reading.id} onOpenChange={(open) => !open && setEditingReading(null)}>
                           <DialogTrigger asChild>

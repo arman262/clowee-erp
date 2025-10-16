@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { useMachines } from "@/hooks/useMachines";
 import { useActiveExpenseCategories } from "@/hooks/useExpenseCategories";
+import { useBanks } from "@/hooks/useBanks";
 
 interface ExpenseFormProps {
   onSubmit: (data: any) => void;
@@ -18,10 +19,12 @@ interface ExpenseFormProps {
 export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProps) {
   const { data: machines } = useMachines();
   const { data: categories } = useActiveExpenseCategories();
+  const { data: banks } = useBanks();
   
   const [formData, setFormData] = useState({
     category_id: initialData?.category_id ? String(initialData.category_id) : "",
     machine_id: initialData?.machine_id ? String(initialData.machine_id) : "",
+    bank_id: initialData?.bank_id ? String(initialData.bank_id) : "",
     expense_date: initialData?.expense_date ? new Date(initialData.expense_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     expense_month: initialData?.expense_month || new Date().toISOString().slice(0, 7),
     total_amount: initialData?.total_amount || 0,
@@ -75,6 +78,7 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
     const submitData = {
       machine_id: formData.machine_id && formData.machine_id !== "none" ? formData.machine_id : null,
       category_id: formData.category_id ? Number(formData.category_id) : null,
+      bank_id: formData.bank_id || null,
       expense_date: isMonthlyExpense ? formData.expense_month + "-01" : formData.expense_date,
       expense_details: formData.expense_details || "Expense",
       unique_id: formData.reference_id || null,
@@ -159,7 +163,7 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
                 type="month"
                 value={formData.expense_month}
                 onChange={(e) => setFormData({ ...formData, expense_month: e.target.value })}
-                className="[&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:contrast-200"
+                className="[&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-150"
                 required
               />
             ) : (
@@ -168,7 +172,7 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
                 type="date"
                 value={formData.expense_date}
                 onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
-                className="[&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:contrast-200"
+                className="[&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-150"
                 required
               />
             )}
@@ -236,6 +240,32 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
             {errors.total_amount && (
               <p className="text-sm text-destructive">{errors.total_amount}</p>
             )}
+          </div>
+
+          {/* Banks Field */}
+          <div className="space-y-2">
+            <Label htmlFor="bank_id">Bank</Label>
+            <Select
+              value={formData.bank_id}
+              onValueChange={(value) => setFormData({ ...formData, bank_id: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={banks ? "Select Bank" : "Loading banks..."} />
+              </SelectTrigger>
+              <SelectContent>
+                {!banks ? (
+                  <SelectItem value="loading" disabled>Loading banks...</SelectItem>
+                ) : banks.length === 0 ? (
+                  <SelectItem value="no-data" disabled>No banks available</SelectItem>
+                ) : (
+                  banks.map((bank) => (
+                    <SelectItem key={bank.id} value={bank.id}>
+                      {bank.bank_name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Description Field */}

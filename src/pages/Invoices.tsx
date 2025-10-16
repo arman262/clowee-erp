@@ -22,8 +22,10 @@ import { InvoiceDetailsModal } from "@/components/InvoiceDetailsModal";
 import { formatDate } from "@/lib/dateUtils";
 import { TablePager } from "@/components/TablePager";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Invoices() {
+  const { canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
@@ -76,13 +78,14 @@ export default function Invoices() {
             Create and manage franchise invoices
           </p>
         </div>
-        <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Invoice
-            </Button>
-          </DialogTrigger>
+        {canEdit && (
+          <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Invoice
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <InvoiceForm
               onSubmit={(data) => {
@@ -92,7 +95,8 @@ export default function Invoices() {
               onCancel={() => setShowAddForm(false)}
             />
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -127,10 +131,12 @@ export default function Invoices() {
               <p className="text-muted-foreground mb-4">
                 No invoices have been created yet. Create your first invoice to get started.
               </p>
-              <Button onClick={() => setShowAddForm(true)} className="bg-gradient-primary hover:opacity-90">
-                <Plus className="h-4 w-4 mr-2" />
-                Create First Invoice
-              </Button>
+              {canEdit && (
+                <Button onClick={() => setShowAddForm(true)} className="bg-gradient-primary hover:opacity-90">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Invoice
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -203,7 +209,7 @@ export default function Invoices() {
               {/* Invoice Details */}
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="h-4 w-4 text-white" />
                   <span className="text-muted-foreground">Invoice Date:</span>
                 </div>
                 <span className="text-foreground">
@@ -222,44 +228,48 @@ export default function Invoices() {
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
-                <Dialog open={editingInvoice?.id === invoice.id} onOpenChange={(open) => !open && setEditingInvoice(null)}>
-                  <DialogTrigger asChild>
+                {canEdit && (
+                  <>
+                    <Dialog open={editingInvoice?.id === invoice.id} onOpenChange={(open) => !open && setEditingInvoice(null)}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1 border-border hover:bg-secondary/50"
+                          onClick={() => setEditingInvoice(invoice)}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <InvoiceForm
+                          initialData={invoice}
+                          onSubmit={(data) => {
+                            updateInvoice.mutate({ id: invoice.id, ...data });
+                            setEditingInvoice(null);
+                          }}
+                          onCancel={() => setEditingInvoice(null)}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" size="sm" className="border-border hover:bg-secondary/50">
+                      <Download className="h-4 w-4" />
+                    </Button>
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="flex-1 border-border hover:bg-secondary/50"
-                      onClick={() => setEditingInvoice(invoice)}
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <InvoiceForm
-                      initialData={invoice}
-                      onSubmit={(data) => {
-                        updateInvoice.mutate({ id: invoice.id, ...data });
-                        setEditingInvoice(null);
+                      className="border-destructive text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this invoice?')) {
+                          deleteInvoice.mutate(invoice.id);
+                        }
                       }}
-                      onCancel={() => setEditingInvoice(null)}
-                    />
-                  </DialogContent>
-                </Dialog>
-                <Button variant="outline" size="sm" className="border-border hover:bg-secondary/50">
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="border-destructive text-destructive hover:bg-destructive/10"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to delete this invoice?')) {
-                      deleteInvoice.mutate(invoice.id);
-                    }
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

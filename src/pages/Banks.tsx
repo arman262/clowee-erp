@@ -18,8 +18,10 @@ import { BankForm } from "@/components/forms/BankForm";
 import { useBanks, useCreateBank, useUpdateBank, useDeleteBank } from "@/hooks/useBanks";
 import { TablePager } from "@/components/TablePager";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Banks() {
+  const { canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingBank, setViewingBank] = useState<any | null>(null);
@@ -57,13 +59,14 @@ export default function Banks() {
             Manage bank accounts and payment methods
           </p>
         </div>
-        <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Bank
-            </Button>
-          </DialogTrigger>
+        {canEdit && (
+          <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Bank
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <BankForm
               onSubmit={(data) => {
@@ -73,7 +76,8 @@ export default function Banks() {
               onCancel={() => setShowAddForm(false)}
             />
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
 
       {/* Summary Stats */}
@@ -206,25 +210,29 @@ export default function Banks() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setEditingBank(bank)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="border-destructive text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this bank?')) {
-                            deleteBank.mutate(bank.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setEditingBank(bank)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="border-destructive text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this bank?')) {
+                                deleteBank.mutate(bank.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

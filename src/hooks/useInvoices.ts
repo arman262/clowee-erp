@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from "@/integrations/postgres/client";
 import { toast } from 'sonner';
+import { useNotificationMutations } from '@/hooks/useNotificationMutations';
 
 type Invoice = {
   id: string;
@@ -37,6 +38,7 @@ export const useInvoices = () => {
 
 export const useCreateInvoice = () => {
   const queryClient = useQueryClient();
+  const { notifyCreate } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async (invoice: Omit<Invoice, 'id' | 'created_at'>) => {
@@ -51,6 +53,7 @@ export const useCreateInvoice = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       toast.success('Invoice created successfully');
+      notifyCreate('Invoice');
     },
     onError: (error) => {
       toast.error('Failed to create invoice: ' + error.message);
@@ -60,6 +63,7 @@ export const useCreateInvoice = () => {
 
 export const useUpdateInvoice = () => {
   const queryClient = useQueryClient();
+  const { notifyUpdate } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Invoice> & { id: string }) => {
@@ -75,6 +79,7 @@ export const useUpdateInvoice = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       toast.success('Invoice updated successfully');
+      notifyUpdate('Invoice');
     },
     onError: (error) => {
       toast.error('Failed to update invoice: ' + error.message);
@@ -84,6 +89,7 @@ export const useUpdateInvoice = () => {
 
 export const useDeleteInvoice = () => {
   const queryClient = useQueryClient();
+  const { notifyDelete } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async (id: string) => {
@@ -96,6 +102,7 @@ export const useDeleteInvoice = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       toast.success('Invoice deleted successfully');
+      notifyDelete('Invoice');
     },
     onError: (error) => {
       toast.error('Failed to delete invoice: ' + error.message);

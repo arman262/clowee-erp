@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { db } from "@/integrations/postgres/client";
+import { createNotification } from "./useNotifications";
 
 export function useUsers() {
   const [users, setUsers] = useState<any[]>([]);
@@ -34,6 +35,11 @@ export function useUsers() {
       .single();
 
     setUsers(prev => [data, ...prev]);
+    
+    const storedUser = localStorage.getItem('clowee_user');
+    const userId = storedUser ? JSON.parse(storedUser).user.id : null;
+    await createNotification('Success', `New user ${userData.name || userData.email} created`, 'Users', userId);
+    
     return data;
   };
 
@@ -56,9 +62,15 @@ export function useUsers() {
       .single();
 
     setUsers(prev => prev.map(user => user.id === id ? data : user));
+    
+    const storedUser = localStorage.getItem('clowee_user');
+    const userId = storedUser ? JSON.parse(storedUser).user.id : null;
+    await createNotification('Info', `User ${userData.name || userData.email} updated`, 'Users', userId);
   };
 
   const deleteUser = async (id: string) => {
+    const userToDelete = users.find(u => u.id === id);
+    
     await db
       .from("users")
       .delete()
@@ -66,6 +78,10 @@ export function useUsers() {
       .execute();
 
     setUsers(prev => prev.filter(user => user.id !== id));
+    
+    const storedUser = localStorage.getItem('clowee_user');
+    const userId = storedUser ? JSON.parse(storedUser).user.id : null;
+    await createNotification('Warning', `User ${userToDelete?.name || userToDelete?.email} deleted`, 'Users', userId);
   };
 
   useEffect(() => {

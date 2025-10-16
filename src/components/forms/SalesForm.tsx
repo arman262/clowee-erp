@@ -73,7 +73,7 @@ export function SalesForm({ onSubmit, onCancel, initialData }: SalesFormProps) {
               type="date"
               value={formData.sales_date}
               onChange={(e) => setFormData({ ...formData, sales_date: e.target.value })}
-              className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:invert"
+              className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:invert"
               required
             />
           </div>

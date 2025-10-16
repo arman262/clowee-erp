@@ -13,6 +13,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  isSpectator: boolean;
+  canEdit: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,6 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAdmin = userRole === 'admin';
+  const isSpectator = userRole === 'spectator';
+  const canEdit = !isSpectator;
 
   return (
     <AuthContext.Provider value={{
@@ -91,7 +95,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       signIn,
       signOut,
-      isAdmin
+      isAdmin,
+      isSpectator,
+      canEdit
     }}>
       {children}
     </AuthContext.Provider>

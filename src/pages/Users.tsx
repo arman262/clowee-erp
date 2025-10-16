@@ -119,6 +119,7 @@ export default function Users() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="spectator">Spectator</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -146,9 +147,11 @@ export default function Users() {
               <TableCell>{user.email}</TableCell>
               <TableCell>
                 <span className={`px-2 py-1 rounded text-xs ${
-                  user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                  user.role === 'admin' ? 'bg-red-100 text-red-800' : 
+                  user.role === 'spectator' ? 'bg-blue-100 text-blue-800' : 
+                  'bg-green-100 text-green-800'
                 }`}>
-                  {user.role}
+                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                 </span>
               </TableCell>
               <TableCell>{new Date(user.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</TableCell>
@@ -225,6 +228,7 @@ export default function Users() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="spectator">Spectator</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
+import { usePermissions } from "@/hooks/usePermissions";
 import { 
   CreditCard, 
   Plus, 
@@ -22,6 +23,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function Payments() {
+  const { canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingPayment, setViewingPayment] = useState<any | null>(null);
@@ -59,6 +61,7 @@ export default function Payments() {
             Track and manage machine-related payments
           </p>
         </div>
+        {canEdit && (
         <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
@@ -77,6 +80,7 @@ export default function Payments() {
             />
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Summary Stats */}
@@ -204,6 +208,8 @@ export default function Payments() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
+                      {canEdit && (
+                      <>
                       <Dialog open={editingPayment?.id === payment.id} onOpenChange={(open) => !open && setEditingPayment(null)}>
                         <DialogTrigger asChild>
                           <Button 
@@ -238,6 +244,8 @@ export default function Payments() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                      </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

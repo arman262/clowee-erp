@@ -157,6 +157,7 @@ export function FranchiseAgreementModal({ franchise, open, onOpenChange, initial
                       type="date"
                       value={formData.effective_date}
                       onChange={(e) => setFormData({...formData, effective_date: e.target.value})}
+                      className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:invert"
                     />
                   </div>
                   <div className="space-y-2">
@@ -257,7 +258,7 @@ export function FranchiseAgreementModal({ franchise, open, onOpenChange, initial
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" />
+                      <Calendar className="h-4 w-4 text-white" />
                       <span className="font-medium">Effective: {formatDate(agreement.effective_date)}</span>
                     </div>
                     <Badge variant={index === 0 ? "default" : "secondary"}>

@@ -18,8 +18,10 @@ import { ExpenseCategoryForm } from "@/components/forms/ExpenseCategoryForm";
 import { useExpenseCategories, useCreateExpenseCategory, useUpdateExpenseCategory, useDeleteExpenseCategory } from "@/hooks/useExpenseCategories";
 import { TablePager } from "@/components/TablePager";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function ExpenseCategories() {
+  const { canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingCategory, setViewingCategory] = useState<any | null>(null);
@@ -57,13 +59,14 @@ export default function ExpenseCategories() {
             Manage expense categories for better organization
           </p>
         </div>
-        <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Category
-            </Button>
-          </DialogTrigger>
+        {canEdit && (
+          <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Category
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogTitle className="sr-only">Add New Expense Category</DialogTitle>
             <ExpenseCategoryForm
@@ -74,7 +77,8 @@ export default function ExpenseCategories() {
               onCancel={() => setShowAddForm(false)}
             />
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
 
       {/* Summary Stats */}
@@ -211,25 +215,29 @@ export default function ExpenseCategories() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setEditingCategory(category)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="border-destructive text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this category?')) {
-                            deleteCategory.mutate(category.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setEditingCategory(category)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="border-destructive text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this category?')) {
+                                deleteCategory.mutate(category.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

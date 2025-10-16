@@ -90,3 +90,66 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Calendar icon visibility fix for dark theme */
+@layer components {
+  /* Make all calendar icons white/light for better visibility */
+  svg[data-lucide="calendar"],
+  .lucide-calendar {
+    @apply text-white !important;
+  }
+  
+  /* Specific overrides for calendar icons in different contexts */
+  .text-muted-foreground svg[data-lucide="calendar"],
+  .text-muted-foreground .lucide-calendar {
+    @apply text-white !important;
+  }
+  
+  /* Calendar picker indicator styling for date inputs */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="month"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(2) contrast(1.5) !important;
+    opacity: 1 !important;
+  }
+  
+  /* Firefox calendar icon */
+  input[type="date"]::-moz-calendar-picker-indicator,
+  input[type="month"]::-moz-calendar-picker-indicator {
+    filter: invert(1) brightness(2) !important;
+  }
+  
+  /* Mobile responsive table wrapper */
+  .table-responsive {
+    @apply overflow-x-auto -mx-3 sm:mx-0;
+  }
+  
+  /* Make tables scrollable on mobile */
+  @media (max-width: 640px) {
+    table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+  
+  /* Mobile responsive cards */
+  .card-responsive {
+    @apply p-3 sm:p-4 md:p-6;
+  }
+  
+  /* Mobile responsive grid */
+  .grid-responsive {
+    @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+  
+  /* Mobile responsive text */
+  .text-responsive {
+    @apply text-sm sm:text-base;
+  }
+  
+  /* Mobile responsive buttons */
+  .btn-responsive {
+    @apply text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2;
+  }
+}

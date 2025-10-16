@@ -1,0 +1,58 @@
+{
+  "name": "q_ide_default",
+  "description": "Default agent configuration",
+  "prompt": "",
+  "mcpServers": {
+    "clowee_erp": {
+      "command": "npx",
+      "disabled": false,
+      "timeout": 60000,
+      "args": [
+        "-y",
+        "mcp-postgres"
+      ],
+      "env": {
+        "PGHOST": "localhost",
+        "PGPORT": "5433",
+        "PGUSER": "postgres",
+        "PGPASSWORD": "clowee@erp",
+        "PGDATABASE": "clowee_erp",
+        "PGSSL": "false"
+      }
+    }
+  },
+  "tools": [
+    "fs_read",
+    "execute_bash",
+    "fs_write",
+    "report_issue",
+    "use_aws",
+    "@clowee_erp"
+  ],
+  "toolAliases": {},
+  "allowedTools": [
+    "fs_read",
+    "report_issue",
+    "use_aws",
+    "execute_bash",
+    "fs_write"
+  ],
+  "toolsSettings": {
+    "use_aws": {
+      "preset": "readOnly"
+    },
+    "execute_bash": {
+      "preset": "readOnly"
+    }
+  },
+  "resources": [
+    "file://AmazonQ.md",
+    "file://README.md",
+    "file://.amazonq/rules/**/*.md"
+  ],
+  "hooks": {
+    "agentSpawn": [],
+    "userPromptSubmit": []
+  },
+  "useLegacyMcpJson": true
+}

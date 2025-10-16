@@ -92,7 +92,7 @@ export function CounterReadingForm({ onSubmit, onCancel, initialData }: CounterR
                 <SelectValue placeholder="Select machine" />
               </SelectTrigger>
               <SelectContent>
-                {machines?.map((machine) => (
+                {machines?.sort((a, b) => (a.machine_number || 0) - (b.machine_number || 0)).map((machine) => (
                   <SelectItem key={machine.id} value={machine.id}>
                     {machine.machine_name} ({machine.machine_number})
                   </SelectItem>
@@ -108,6 +108,7 @@ export function CounterReadingForm({ onSubmit, onCancel, initialData }: CounterR
               type="date"
               value={formData.reading_date}
               onChange={(e) => setFormData({ ...formData, reading_date: e.target.value })}
+              className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:invert"
               required
             />
           </div>

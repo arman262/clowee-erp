@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { usePermissions } from "@/hooks/usePermissions";
 import { 
   Receipt, 
   Plus, 
@@ -22,6 +23,7 @@ import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency, formatNumber } from "@/lib/numberUtils";
 
 export default function Expenses() {
+  const { canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
@@ -74,6 +76,7 @@ export default function Expenses() {
             Track and manage machine-related expenses
           </p>
         </div>
+        {canEdit && (
         <Button 
           className="bg-gradient-primary hover:opacity-90 shadow-neon"
           onClick={() => setShowAddForm(true)}
@@ -81,6 +84,7 @@ export default function Expenses() {
           <Plus className="h-4 w-4 mr-2" />
           Add Expense
         </Button>
+        )}
       </div>
 
       {/* Today Summary */}
@@ -144,7 +148,7 @@ export default function Expenses() {
               />
             </div>
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Calendar className="h-4 w-4 text-white" />
               <Input
                 type="date"
                 value={dateFilter}
@@ -177,13 +181,14 @@ export default function Expenses() {
               <TableHead>Qty</TableHead>
               <TableHead>Item Price</TableHead>
               <TableHead>Total</TableHead>
+              <TableHead>Bank</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedExpenses.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   No expenses found
                 </TableCell>
               </TableRow>
@@ -201,6 +206,7 @@ export default function Expenses() {
                   <TableCell>{expense.quantity}</TableCell>
                   <TableCell>৳{formatCurrency(expense.item_price)}</TableCell>
                   <TableCell>৳{formatCurrency(expense.total_amount)}</TableCell>
+                  <TableCell>{expense.banks?.bank_name || '-'}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button 
@@ -210,6 +216,8 @@ export default function Expenses() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
+                      {canEdit && (
+                      <>
                       <Dialog open={editingExpense?.id === expense.id} onOpenChange={(open) => !open && setEditingExpense(null)}>
                         <DialogTrigger asChild>
                           <Button 
@@ -245,6 +253,8 @@ export default function Expenses() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                      </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -315,6 +325,12 @@ export default function Expenses() {
                 <div className="text-sm text-muted-foreground">Total Amount</div>
                 <div className="text-lg font-bold text-success">৳{formatCurrency(viewingExpense.total_amount)}</div>
               </div>
+              {viewingExpense.banks && (
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">Bank</div>
+                  <div className="font-medium">{viewingExpense.banks.bank_name}</div>
+                </div>
+              )}
               <div className="flex justify-end pt-4">
                 <Button onClick={() => setViewingExpense(null)}>Close</Button>
               </div>

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from "@/integrations/postgres/client";
 import { toast } from 'sonner';
+import { useNotificationMutations } from '@/hooks/useNotificationMutations';
 
 type Machine = {
   id: string;
@@ -13,7 +14,11 @@ type Machine = {
   initial_coin_counter: number;
   initial_prize_counter: number;
   notes?: string;
+  status?: string;
+  location?: string;
+  last_maintenance_date?: string;
   created_at?: string;
+  updated_at?: string;
   franchises?: { name: string } | null;
 };
 
@@ -42,6 +47,7 @@ export const useMachines = () => {
 
 export const useCreateMachine = () => {
   const queryClient = useQueryClient();
+  const { notifyCreate } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async (machine: Omit<Machine, 'id' | 'created_at'>) => {
@@ -64,10 +70,11 @@ export const useCreateMachine = () => {
       
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['machines'] });
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
       toast.success('Machine created successfully');
+      notifyCreate('Machine', data?.machine_name);
     },
     onError: (error) => {
       toast.error('Failed to create machine: ' + error.message);
@@ -77,6 +84,7 @@ export const useCreateMachine = () => {
 
 export const useUpdateMachine = () => {
   const queryClient = useQueryClient();
+  const { notifyUpdate } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Machine> & { id: string }) => {
@@ -89,9 +97,10 @@ export const useUpdateMachine = () => {
       
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['machines'] });
       toast.success('Machine updated successfully');
+      notifyUpdate('Machine', data?.machine_name);
     },
     onError: (error) => {
       toast.error('Failed to update machine: ' + error.message);
@@ -101,6 +110,7 @@ export const useUpdateMachine = () => {
 
 export const useDeleteMachine = () => {
   const queryClient = useQueryClient();
+  const { notifyDelete } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async (id: string) => {
@@ -118,6 +128,7 @@ export const useDeleteMachine = () => {
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
       queryClient.invalidateQueries({ queryKey: ['machine_payments'] });
       toast.success('Machine deleted successfully');
+      notifyDelete('Machine');
     },
     onError: (error) => {
       toast.error('Failed to delete machine: ' + error.message);

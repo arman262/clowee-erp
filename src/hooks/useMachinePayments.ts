@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/integrations/postgres/client";
 import { toast } from "sonner";
+import { useNotificationMutations } from "@/hooks/useNotificationMutations";
 
 type MachinePayment = {
   id: string;
@@ -17,12 +18,13 @@ export function useMachinePayments() {
   return useQuery({
     queryKey: ["machine_payments"],
     queryFn: async () => {
-      // Fetch payments, machines, banks, and sales separately
-      const [payments, machines, banks, sales] = await Promise.all([
+      // Fetch payments, machines, banks, sales, and users separately
+      const [payments, machines, banks, sales, users] = await Promise.all([
         db.from("machine_payments").select("*").order("payment_date", { ascending: false }).execute(),
         db.from("machines").select("*").execute(),
         db.from("banks").select("*").execute(),
-        db.from("sales").select("*").execute()
+        db.from("sales").select("*").execute(),
+        db.from("users").select("*").execute()
       ]);
 
       // Create lookup maps
@@ -39,6 +41,11 @@ export function useMachinePayments() {
       const salesMap = new Map();
       sales?.forEach(sale => {
         salesMap.set(sale.id, sale);
+      });
+
+      const userMap = new Map();
+      users?.forEach(user => {
+        userMap.set(user.id, user);
       });
 
       // Join payments with machine, bank, and sales data
@@ -59,7 +66,8 @@ export function useMachinePayments() {
           ...payment,
           machines: payment.machine_id ? machineMap.get(payment.machine_id) : null,
           banks: payment.bank_id ? bankMap.get(payment.bank_id) : null,
-          sales: matchingSale || null
+          sales: matchingSale || null,
+          created_by_user: payment.created_by ? userMap.get(payment.created_by) : { name: 'System' }
         };
       });
 
@@ -70,14 +78,19 @@ export function useMachinePayments() {
 
 export function useCreateMachinePayment() {
   const queryClient = useQueryClient();
+  const { notifyCreate } = useNotificationMutations();
 
   return useMutation({
     mutationFn: async (data: Omit<MachinePayment, 'id' | 'created_at'>) => {
       console.log('Creating payment with data:', data);
       try {
+        const storedUser = localStorage.getItem('clowee_user');
+        const userId = storedUser ? JSON.parse(storedUser).user.id : null;
+        const insertData = userId ? { ...data, created_by: userId } : data;
+        
         const result = await db
           .from("machine_payments")
-          .insert(data)
+          .insert(insertData)
           .select()
           .single();
 
@@ -127,6 +140,7 @@ export function useCreateMachinePayment() {
       queryClient.invalidateQueries({ queryKey: ["machine_payments"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Payment added successfully");
+      notifyCreate("Payment");
     },
     onError: (error) => {
       console.error("Error creating payment:", error);
@@ -137,6 +151,7 @@ export function useCreateMachinePayment() {
 
 export function useUpdateMachinePayment() {
   const queryClient = useQueryClient();
+  const { notifyUpdate } = useNotificationMutations();
 
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string } & Partial<MachinePayment>) => {
@@ -154,6 +169,7 @@ export function useUpdateMachinePayment() {
       queryClient.invalidateQueries({ queryKey: ["machine_payments"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Payment updated successfully");
+      notifyUpdate("Payment");
     },
     onError: (error) => {
       console.error("Error updating payment:", error);
@@ -164,6 +180,7 @@ export function useUpdateMachinePayment() {
 
 export function useDeleteMachinePayment() {
   const queryClient = useQueryClient();
+  const { notifyDelete } = useNotificationMutations();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -179,6 +196,7 @@ export function useDeleteMachinePayment() {
       queryClient.invalidateQueries({ queryKey: ["machine_payments"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Payment deleted successfully");
+      notifyDelete("Payment");
     },
     onError: (error) => {
       console.error("Error deleting payment:", error);

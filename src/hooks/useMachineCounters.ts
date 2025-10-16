@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from "@/integrations/postgres/client";
 import { toast } from 'sonner';
+import { useNotificationMutations } from '@/hooks/useNotificationMutations';
 
 type MachineCounter = {
   id: string;
@@ -16,24 +17,39 @@ export const useMachineCounters = () => {
   return useQuery({
     queryKey: ['machine_counters'],
     queryFn: async () => {
-      const data = await db
-        .from('machine_counters')
-        .select('*')
-        .order('reading_date', { ascending: false })
-        .execute();
-      return data || [];
+      const [counters, users] = await Promise.all([
+        db.from('machine_counters').select('*').order('reading_date', { ascending: false }).execute(),
+        db.from('users').select('*').execute()
+      ]);
+      
+      const userMap = new Map();
+      users?.forEach(user => {
+        userMap.set(user.id, user);
+      });
+      
+      const countersWithUsers = (counters || []).map(counter => ({
+        ...counter,
+        created_by_user: counter.created_by ? userMap.get(counter.created_by) : { name: 'System' }
+      }));
+      
+      return countersWithUsers;
     }
   });
 };
 
 export const useCreateMachineCounter = () => {
   const queryClient = useQueryClient();
+  const { notifyCreate } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async (counter: Omit<MachineCounter, 'id' | 'created_at'>) => {
+      const storedUser = localStorage.getItem('clowee_user');
+      const userId = storedUser ? JSON.parse(storedUser).user.id : null;
+      const insertData = userId ? { ...counter, created_by: userId } : counter;
+      
       const { data } = await db
         .from('machine_counters')
-        .insert(counter)
+        .insert(insertData)
         .select()
         .single();
       
@@ -43,6 +59,7 @@ export const useCreateMachineCounter = () => {
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
       queryClient.invalidateQueries({ queryKey: ['combined_counter_readings'] });
       toast.success('Counter reading recorded successfully');
+      notifyCreate('Counter Reading');
     },
     onError: (error) => {
       toast.error('Failed to record counter reading: ' + error.message);
@@ -52,6 +69,7 @@ export const useCreateMachineCounter = () => {
 
 export const useUpdateMachineCounter = () => {
   const queryClient = useQueryClient();
+  const { notifyUpdate } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<MachineCounter> & { id: string }) => {
@@ -68,6 +86,7 @@ export const useUpdateMachineCounter = () => {
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
       queryClient.invalidateQueries({ queryKey: ['combined_counter_readings'] });
       toast.success('Counter reading updated successfully');
+      notifyUpdate('Counter Reading');
     },
     onError: (error) => {
       toast.error('Failed to update counter reading: ' + error.message);
@@ -77,6 +96,7 @@ export const useUpdateMachineCounter = () => {
 
 export const useDeleteMachineCounter = () => {
   const queryClient = useQueryClient();
+  const { notifyDelete } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async (id: string) => {
@@ -90,6 +110,7 @@ export const useDeleteMachineCounter = () => {
       queryClient.invalidateQueries({ queryKey: ['machine_counters'] });
       queryClient.invalidateQueries({ queryKey: ['combined_counter_readings'] });
       toast.success('Counter reading deleted successfully');
+      notifyDelete('Counter Reading');
     },
     onError: (error) => {
       toast.error('Failed to delete counter reading: ' + error.message);

@@ -102,7 +102,7 @@ export function InvoiceForm({ onSubmit, onCancel, initialData }: InvoiceFormProp
                   <SelectValue placeholder="Select machine" />
                 </SelectTrigger>
                 <SelectContent>
-                  {machines?.map((machine) => (
+                  {machines?.sort((a, b) => (a.machine_number || 0) - (b.machine_number || 0)).map((machine) => (
                     <SelectItem key={machine.id} value={machine.id}>
                       {machine.machine_name} ({machine.machine_number})
                     </SelectItem>
@@ -118,6 +118,7 @@ export function InvoiceForm({ onSubmit, onCancel, initialData }: InvoiceFormProp
                 type="date"
                 value={formData.invoice_date}
                 onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value })}
+                className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:invert"
                 required
               />
             </div>

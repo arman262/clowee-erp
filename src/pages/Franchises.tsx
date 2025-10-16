@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { usePermissions } from "@/hooks/usePermissions";
 import { 
   Building2, 
   Plus, 
@@ -27,14 +28,20 @@ import { clearAllInvoices } from "@/utils/clearInvoices";
 import { checkInvoicesCount } from "@/utils/checkInvoices";
 import { useQueryClient } from '@tanstack/react-query';
 import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
+import { useMachines } from "@/hooks/useMachines";
+import { useSales } from "@/hooks/useSales";
+import { formatCurrency } from "@/lib/numberUtils";
 
 export default function Franchises() {
+  const { canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingFranchise, setEditingFranchise] = useState<any | null>(null);
   const [viewingFranchise, setViewingFranchise] = useState<any | null>(null);
 
   const { data: franchises, isLoading } = useFranchises();
+  const { data: machines } = useMachines();
+  const { data: sales } = useSales();
   const createFranchise = useCreateFranchise();
   const updateFranchise = useUpdateFranchise();
   const deleteFranchise = useDeleteFranchise();
@@ -42,6 +49,32 @@ export default function Franchises() {
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [isClearingInvoices, setIsClearingInvoices] = useState(false);
   const [isCheckingInvoices, setIsCheckingInvoices] = useState(false);
+
+  // Calculate total machines
+  const totalMachines = machines?.length || 0;
+
+  // Calculate total monthly sales (previous month)
+  const now = new Date();
+  const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1);
+  const targetMonth = previousMonth.getMonth();
+  const targetYear = previousMonth.getFullYear();
+  const monthName = previousMonth.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  
+  const totalMonthlySales = sales?.filter(sale => {
+    const saleDate = new Date(sale.sales_date);
+    return saleDate.getMonth() === targetMonth && saleDate.getFullYear() === targetYear;
+  }).reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0) || 0;
+
+  // Calculate monthly sales per franchise
+  const getFranchiseMonthlySales = (franchiseId: string) => {
+    const franchiseMachineIds = machines?.filter(m => m.franchise_id === franchiseId).map(m => m.id) || [];
+    return sales?.filter(sale => {
+      const saleDate = new Date(sale.sales_date);
+      return franchiseMachineIds.includes(sale.machine_id) && 
+             saleDate.getMonth() === targetMonth && 
+             saleDate.getFullYear() === targetYear;
+    }).reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0) || 0;
+  };
 
   // Helper function to check if franchise has agreements
   const FranchiseActions = ({ franchise }: { franchise: any }) => {
@@ -59,7 +92,7 @@ export default function Franchises() {
           <Eye className="h-4 w-4 mr-1" />
           View
         </Button>
-        {!hasAgreements && (
+        {canEdit && !hasAgreements && (
           <Button 
             variant="outline" 
             size="sm" 
@@ -70,18 +103,20 @@ export default function Franchises() {
             Edit
           </Button>
         )}
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="border-destructive text-destructive hover:bg-destructive/10"
-          onClick={() => {
-            if (confirm('Are you sure you want to delete this franchise?')) {
-              deleteFranchise.mutate(franchise?.id);
-            }
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {canEdit && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-destructive text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              if (confirm('Are you sure you want to delete this franchise?')) {
+                deleteFranchise.mutate(franchise?.id);
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     );
   };
@@ -142,13 +177,15 @@ export default function Franchises() {
             Manage franchise partners and their gaming operations
           </p>
         </div>
-        <Button 
-          className="bg-gradient-primary hover:opacity-90 shadow-neon"
-          onClick={() => setShowAddForm(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Franchise
-        </Button>
+        {canEdit && (
+          <Button 
+            className="bg-gradient-primary hover:opacity-90 shadow-neon"
+            onClick={() => setShowAddForm(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Franchise
+          </Button>
+        )}
       </div>
 
       {/* Add Franchise Dialog */}
@@ -178,7 +215,7 @@ export default function Franchises() {
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-accent">
-              --
+              {totalMachines}
             </div>
             <div className="text-sm text-muted-foreground">Total Machines</div>
           </CardContent>
@@ -186,7 +223,7 @@ export default function Franchises() {
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-warning">
-              --
+              ৳{formatCurrency(totalMonthlySales)}
             </div>
             <div className="text-sm text-muted-foreground">Total Monthly Sales</div>
           </CardContent>
@@ -302,11 +339,10 @@ export default function Franchises() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-secondary/30 rounded-lg p-3">
                   <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-primary" />
                     <span className="text-sm text-muted-foreground">Monthly Sales</span>
                   </div>
                   <p className="text-lg font-semibold text-foreground">
-                    --
+                    ৳{formatCurrency(getFranchiseMonthlySales(franchise?.id))} <span className="text-sm text-muted-foreground">({monthName})</span>
                   </p>
                 </div>
                 <div className="bg-secondary/30 rounded-lg p-3">

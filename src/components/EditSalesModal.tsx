@@ -21,6 +21,7 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
   const [prizeOut, setPrizeOut] = useState(sale.prize_out_quantity.toString());
   const [coinAdjustment, setCoinAdjustment] = useState("0");
   const [prizeAdjustment, setPrizeAdjustment] = useState("0");
+  const [amountAdjustment, setAmountAdjustment] = useState(sale.amount_adjustment?.toString() || "0");
   const [adjustmentNotes, setAdjustmentNotes] = useState(sale.adjustment_notes || "");
   const [payToClowee, setPayToClowee] = useState(0);
 
@@ -30,6 +31,7 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
     const prizeOutValue = parseInt(prizeOut) || 0;
     const coinAdjustmentValue = parseInt(coinAdjustment) || 0;
     const prizeAdjustmentValue = parseInt(prizeAdjustment) || 0;
+    const amountAdjustmentValue = parseFloat(amountAdjustment) || 0;
 
     const adjustedCoinSales = Math.max(0, coinSalesValue - coinAdjustmentValue);
     const adjustedPrizeOut = Math.max(0, prizeOutValue - prizeAdjustmentValue);
@@ -50,17 +52,18 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
     const netAfterVatAndPrize = adjustedSalesAmount - vatAmount - adjustedPrizeCost;
     const cloweeProfit = netAfterVatAndPrize * cloweeShare / 100;
     
-    // Calculate pay to Clowee
-    const calculatedPayToClowee = cloweeProfit + adjustedPrizeCost - electricityCost;
+    // Calculate pay to Clowee and deduct amount adjustment
+    const calculatedPayToClowee = cloweeProfit + adjustedPrizeCost - electricityCost - amountAdjustmentValue;
     
     setPayToClowee(Math.max(0, calculatedPayToClowee));
-  }, [coinSales, prizeOut, coinAdjustment, prizeAdjustment, sale.franchises]);
+  }, [coinSales, prizeOut, coinAdjustment, prizeAdjustment, amountAdjustment, sale.franchises]);
 
   const handleUpdate = () => {
     const coinSalesValue = parseInt(coinSales) || 0;
     const prizeOutValue = parseInt(prizeOut) || 0;
     const coinAdjustmentValue = parseInt(coinAdjustment) || 0;
     const prizeAdjustmentValue = parseInt(prizeAdjustment) || 0;
+    const amountAdjustmentValue = parseFloat(amountAdjustment) || 0;
 
     const adjustedCoinSales = Math.max(0, coinSalesValue - coinAdjustmentValue);
     const adjustedPrizeOut = Math.max(0, prizeOutValue - prizeAdjustmentValue);
@@ -78,7 +81,7 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
     const netSalesAmount = adjustedSalesAmount - vatAmount;
     const netAfterVatAndPrize = adjustedSalesAmount - vatAmount - adjustedPrizeCost;
     const cloweeProfit = netAfterVatAndPrize * cloweeShare / 100;
-    const calculatedPayToClowee = cloweeProfit + adjustedPrizeCost - electricityCost;
+    const calculatedPayToClowee = cloweeProfit + adjustedPrizeCost - electricityCost - amountAdjustmentValue;
 
     onUpdate({
       sales_date: salesDate,
@@ -90,13 +93,14 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
       net_sales_amount: netSalesAmount,
       clowee_profit: cloweeProfit,
       pay_to_clowee: Math.max(0, calculatedPayToClowee),
+      amount_adjustment: amountAdjustmentValue,
       adjustment_notes: adjustmentNotes
     });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <Card className="bg-gradient-card border-border shadow-card max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <Card className="bg-gradient-card border-border shadow-card max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Edit className="h-5 w-5 text-primary" />
@@ -110,6 +114,7 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
               type="date" 
               value={salesDate}
               onChange={(e) => setSalesDate(e.target.value)}
+              className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:invert"
             />
           </div>
           
@@ -153,6 +158,18 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
                   onChange={(e) => setPrizeAdjustment(e.target.value)}
                 />
               </div>
+            </div>
+            
+            <div className="space-y-2 mt-4">
+              <Label>Amount Adjustment (৳)</Label>
+              <Input 
+                type="number" 
+                step="0.01"
+                placeholder="Amount to deduct (e.g., 4 for ৳4)"
+                value={amountAdjustment}
+                onChange={(e) => setAmountAdjustment(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Use this to adjust small payment differences (e.g., client pays ৳12400 instead of ৳12404)</p>
             </div>
             
             <div className="space-y-2">

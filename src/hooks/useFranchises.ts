@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from "@/integrations/postgres/client";
 import { toast } from 'sonner';
+import { useNotificationMutations } from '@/hooks/useNotificationMutations';
 
 type Franchise = {
   id: string;
@@ -46,6 +47,7 @@ export const useFranchises = () => {
 
 export const useCreateFranchise = () => {
   const queryClient = useQueryClient();
+  const { notifyCreate } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async (franchise: Omit<Franchise, 'id' | 'created_at' | 'updated_at'>) => {
@@ -82,9 +84,10 @@ export const useCreateFranchise = () => {
       
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['franchises'] });
       toast.success('Franchise created successfully');
+      notifyCreate('Franchise', data?.name);
     },
     onError: (error) => {
       toast.error('Failed to create franchise: ' + error.message);
@@ -94,6 +97,7 @@ export const useCreateFranchise = () => {
 
 export const useUpdateFranchise = () => {
   const queryClient = useQueryClient();
+  const { notifyUpdate } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Franchise> & { id: string }) => {
@@ -116,9 +120,10 @@ export const useUpdateFranchise = () => {
       
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['franchises'] });
       toast.success('Franchise updated successfully');
+      notifyUpdate('Franchise', data?.name);
     },
     onError: (error) => {
       toast.error('Failed to update franchise: ' + error.message);
@@ -128,6 +133,7 @@ export const useUpdateFranchise = () => {
 
 export const useDeleteFranchise = () => {
   const queryClient = useQueryClient();
+  const { notifyDelete } = useNotificationMutations();
   
   return useMutation({
     mutationFn: async (id: string) => {
@@ -152,6 +158,7 @@ export const useDeleteFranchise = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['franchises'] });
       toast.success('Franchise deleted successfully');
+      notifyDelete('Franchise');
     },
     onError: (error) => {
       toast.error('Failed to delete franchise: ' + error.message);

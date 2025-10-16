@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/integrations/postgres/client";
 import { toast } from "sonner";
+import { useNotificationMutations } from "@/hooks/useNotificationMutations";
 
 type Sale = {
   id: string;
@@ -18,13 +19,14 @@ export function useSales() {
   return useQuery({
     queryKey: ["sales"],
     queryFn: async () => {
-      // Fetch sales, machines, franchises, banks, and payments separately
-      const [sales, machines, franchises, banks, payments] = await Promise.all([
+      // Fetch sales, machines, franchises, banks, payments, and users separately
+      const [sales, machines, franchises, banks, payments, users] = await Promise.all([
         db.from("sales").select("*").order("sales_date", { ascending: false }).execute(),
         db.from("machines").select("*").execute(),
         db.from("franchises").select("*").execute(),
         db.from("banks").select("*").execute(),
-        db.from("machine_payments").select("*").execute()
+        db.from("machine_payments").select("*").execute(),
+        db.from("users").select("*").execute()
       ]);
 
       // Create lookup maps
@@ -45,6 +47,11 @@ export function useSales() {
           banks: franchise.payment_bank_id ? bankMap.get(franchise.payment_bank_id) : null
         };
         franchiseMap.set(franchise.id, franchiseWithBank);
+      });
+
+      const userMap = new Map();
+      users?.forEach(user => {
+        userMap.set(user.id, user);
       });
 
       // Calculate payment totals for each sale by invoice_id or fallback to machine/date
@@ -109,7 +116,7 @@ export function useSales() {
           total_paid: totalPaid,
           clowee_share_amount: sale.clowee_profit || 0,
           payment_status: paymentStatus,
-
+          created_by_user: sale.created_by ? userMap.get(sale.created_by) : { name: 'System' },
         };
       });
 
@@ -120,13 +127,17 @@ export function useSales() {
 
 export function useCreateSale() {
   const queryClient = useQueryClient();
+  const { notifyCreate } = useNotificationMutations();
 
   return useMutation({
     mutationFn: async (data: Omit<Sale, 'id' | 'created_at'>) => {
-      // Let database trigger auto-generate invoice_number
+      const storedUser = localStorage.getItem('clowee_user');
+      const userId = storedUser ? JSON.parse(storedUser).user.id : null;
+      const insertData = userId ? { ...data, payment_status: 'Due', created_by: userId } : { ...data, payment_status: 'Due' };
+      
       const { data: result, error } = await db
         .from("sales")
-        .insert({ ...data, payment_status: 'Due' })
+        .insert(insertData)
         .select()
         .single();
       
@@ -136,6 +147,7 @@ export function useCreateSale() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Sales record added successfully");
+      notifyCreate("Sales", "record");
     },
     onError: (error: any) => {
       console.error("Error creating sale:", error);
@@ -147,6 +159,7 @@ export function useCreateSale() {
 
 export function useUpdateSale() {
   const queryClient = useQueryClient();
+  const { notifyUpdate } = useNotificationMutations();
 
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string } & Partial<Sale>) => {
@@ -163,6 +176,7 @@ export function useUpdateSale() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Sales data updated successfully");
+      notifyUpdate("Sales", "record");
     },
     onError: (error) => {
       console.error("Error updating sale:", error);
@@ -173,6 +187,7 @@ export function useUpdateSale() {
 
 export function useDeleteSale() {
   const queryClient = useQueryClient();
+  const { notifyDelete } = useNotificationMutations();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -185,6 +200,7 @@ export function useDeleteSale() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Sales data deleted successfully");
+      notifyDelete("Sales", "record");
     },
     onError: (error) => {
       console.error("Error deleting sale:", error);

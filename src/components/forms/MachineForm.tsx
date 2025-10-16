@@ -24,12 +24,18 @@ export function MachineForm({ onSubmit, onCancel, initialData }: MachineFormProp
     franchise_id: initialData?.franchise_id || "",
     initial_coin_counter: initialData?.initial_coin_counter || 0,
     initial_prize_counter: initialData?.initial_prize_counter || 0,
-    notes: initialData?.notes || ""
+
+
+    status: initialData?.notes?.includes('[STATUS:inactive]') ? 'inactive' : 'active',
+    notes: initialData?.notes?.replace('[STATUS:inactive]', '').replace('[STATUS:active]', '').trim() || ""
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    const { status, notes, ...submitData } = formData;
+    const statusTag = `[STATUS:${status}]`;
+    const updatedNotes = notes ? `${statusTag} ${notes}` : statusTag;
+    onSubmit({ ...submitData, notes: updatedNotes });
   };
 
   return (
@@ -82,7 +88,7 @@ export function MachineForm({ onSubmit, onCancel, initialData }: MachineFormProp
                 value={formData.installation_date}
                 onChange={(e) => setFormData({ ...formData, installation_date: e.target.value })}
                 required
-                className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:invert"
+                className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:invert"
               />
             </div>
           </div>
@@ -106,14 +112,32 @@ export function MachineForm({ onSubmit, onCancel, initialData }: MachineFormProp
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="branch_location">Branch Location*</Label>
-            <Input
-              id="branch_location"
-              value={formData.branch_location}
-              onChange={(e) => setFormData({ ...formData, branch_location: e.target.value })}
-              required
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="branch_location">Branch Location*</Label>
+              <Input
+                id="branch_location"
+                value={formData.branch_location}
+                onChange={(e) => setFormData({ ...formData, branch_location: e.target.value })}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="status">Status*</Label>
+              <Select 
+                value={formData.status} 
+                onValueChange={(value) => setFormData({ ...formData, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
