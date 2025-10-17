@@ -1,10 +1,9 @@
-import { formatDate } from "@/lib/dateUtils";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, X, Download, Image } from "lucide-react";
-import { useMachinePayments } from "@/hooks/useMachinePayments";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
-import Franchises from "@/pages/Franchises";
+import { useMachinePayments } from "@/hooks/useMachinePayments";
+import { formatDate } from "@/lib/dateUtils";
+import { Download, Image, Printer, X } from "lucide-react";
 
 interface InvoicePrintProps {
   sale: any;
@@ -17,18 +16,21 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
 
   // Get agreement values or fallback to franchise values
   const getAgreementValue = (field: string) => {
+    let value;
     if (!agreements || agreements.length === 0) {
-      return sale.franchises?.[field];
+      value = sale.franchises?.[field];
+    } else {
+      const latestAgreement = agreements
+        .filter(a => new Date(a.effective_date) <= new Date(sale.sales_date))
+        .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime())[0];
+      
+      if (latestAgreement) {
+        value = latestAgreement[field];
+      } else {
+        value = sale.franchises?.[field];
+      }
     }
-    
-    const latestAgreement = agreements
-      .filter(a => new Date(a.effective_date) <= new Date(sale.sales_date))
-      .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime())[0];
-    
-    if (latestAgreement) {
-      return latestAgreement[field];
-    }
-    return sale.franchises?.[field];
+    return Number(value) || 0;
   };
 
 
@@ -179,11 +181,12 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
             table { 
               border-collapse: collapse; 
               width: 100%; 
-              margin-bottom: 0.4rem;
+              margin-top: 0.4rem;
+              margin-bottom: 1rem;
             }
             th, td { 
               border: none; 
-              padding: 0.5rem 0.4rem; 
+              padding: 1rem 1rem; 
               text-align: left;
               vertical-align: top;
               font-size: 0.7rem;
@@ -193,6 +196,8 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
               font-weight: 500;
               text-transform: uppercase;
               letter-spacing: 0.05em;
+              margin-top: 1rem;
+              margin-bottom: 1rem;
             }
             .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
             .divide-y > * + * { border-top: 1px solid #e5e7eb; }
@@ -348,7 +353,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
   const calculatedCloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
 
   // Calculate Pay To Clowee amount
-  const amountAdjustment = sale.amount_adjustment || 0;
+  const amountAdjustment = Number(sale.amount_adjustment) || 0;
   const calculatedPayToClowee = calculatedCloweeProfit + calculatedPrizeCost + maintenanceAmount - (getAgreementValue('electricity_cost') || 0) - amountAdjustment;
 
   // Calculate dynamic payment status (modified for invoice)
@@ -364,9 +369,35 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
   const paymentInfo = getPaymentStatus(sale);
 
   return (
-    <Dialog open={!!sale} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
         <DialogTitle className="sr-only">Invoice Print Preview</DialogTitle>
+        <style>{`
+          @media print {
+            body > *:not([role="dialog"]) { display: none !important; }
+            [role="dialog"] { position: static !important; max-width: none !important; }
+            #invoice-print-area > *:not(#invoice-content) { display: none !important; }
+            #invoice-content { 
+              position: static !important;
+              transform: scale(0.75) !important;
+              transform-origin: top left !important;
+              width: 133.33% !important;
+              padding: 0.5cm !important;
+              background: white !important;
+              max-width: none !important;
+              margin: 0 !important;
+            }
+            @page { 
+              margin: 0.3cm; 
+              size: A4 portrait; 
+            }
+            body { 
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              background: white !important;
+            }
+          }
+        `}</style>
         {/* top-level area that will be printed to match preview */}
         <div id="invoice-print-area" className="p-3 sm:p-6">
           {/* Print Controls */}
@@ -496,38 +527,38 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                     <td className="px-4 py-3 text-sm text-gray-900">
                       Coin Sales
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{getAgreementValue('coin_price') || 0}/coin</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{Number(getAgreementValue('coin_price') || 0).toFixed(2)}/coin</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.coin_sales?.toLocaleString() || '0'} coins</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{Math.round(calculatedSalesAmount).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{calculatedSalesAmount.toFixed(2)}</td>
                   </tr>
                   {calculatedVatAmount > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">VAT - {getAgreementValue('vat_percentage') || 0}% (Sales - {getAgreementValue('vat_percentage') || 0}% Vat)</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-center">-</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-right">-</td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{Math.round(calculatedVatAmount).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedVatAmount.toFixed(2)}</td>
                     </tr>
                   )}
                   {calculatedVatAmount > 0 && (
                     <tr className="bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900" colSpan={3}>Net Sales (After VAT)</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{Math.round(calculatedNetSales).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{calculatedNetSales.toFixed(2)}</td>
                     </tr>
                   )}
                   <tr className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
                       Prize Out Cost (Deducted)
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{getAgreementValue('doll_price') || ' '}/doll</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{Number(getAgreementValue('doll_price') || 0).toFixed(2)}/doll</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.prize_out_quantity?.toLocaleString() || '0'} pcs</td>
-                    <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{Math.round(calculatedPrizeCost).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedPrizeCost.toFixed(2)}</td>
                   </tr>
                   {(getAgreementValue('electricity_cost') || 0) > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">Electricity Cost (Deducted)</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-center">-</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-right">-</td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{Math.round(getAgreementValue('electricity_cost') || 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{Number(getAgreementValue('electricity_cost') || 0).toFixed(2)}</td>
                     </tr>
                   )}
                 </tbody>
@@ -538,7 +569,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center py-2 border-b border-gray-200">
                     <span className="text-sm font-medium text-blue-800">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost{(getAgreementValue('electricity_cost') || 0) > 0 ? ' - Electricity Cost' : ''})</span>
-                    <span className="text-lg font-semibold text-blue-700">৳{Math.round(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0)).toLocaleString()}</span>
+                    <span className="text-lg font-semibold text-blue-700">৳{(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0)).toFixed(2)}</span>
                   </div>
                   {(() => {
                     const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
@@ -550,26 +581,20 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                         {maintenanceAmount > 0 && (
                           <div className="flex justify-between items-center py-1">
                             <span className="text-sm text-gray-600">Maintenance ({maintenancePercentage}%)</span>
-                            <span className="text-sm font-medium text-gray-900">৳{Math.round(maintenanceAmount).toLocaleString()}</span>
+                            <span className="text-sm font-medium text-gray-900">৳{maintenanceAmount.toFixed(2)}</span>
                           </div>
                         )}
                         <div className="flex justify-between items-center py-1">
                           <span className="text-sm text-gray-600">{sale.franchises?.name || 'Franchise'} Profit ({franchiseShare}%)</span>
-                          <span className="text-sm font-medium text-green-600">৳{Math.round(calculatedFranchiseProfit).toLocaleString()}</span>
+                          <span className="text-sm font-medium text-green-600">৳{calculatedFranchiseProfit.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center py-1">
                           <span className="text-sm text-gray-600">Clowee Profit ({cloweeShare}%)</span>
-                          <span className="text-sm font-medium text-green-600">৳{Math.round(calculatedCloweeProfit).toLocaleString()}</span>
+                          <span className="text-sm font-medium text-green-600">৳{calculatedCloweeProfit.toFixed(2)}</span>
                         </div>
                       </>
                     );
                   })()}
-                  {amountAdjustment > 0 && (
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-sm text-gray-600">Amount Adjustment (Deducted)</span>
-                      <span className="text-sm font-medium text-red-600">-৳{Math.round(amountAdjustment).toLocaleString()}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between items-center py-3 border-t-2 border-blue-600 mt-3">
                     <span className="text-base font-semibold text-gray-900">Pay To Clowee (Clowee Profit + Prize Cost{(getAgreementValue('electricity_cost') || 0) > 0 ? ` - Electricity Cost` : ''}{(() => {
                       const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
@@ -591,8 +616,8 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                     >
                       ৳{(() => {
                         const payToClowee = calculatedCloweeProfit + calculatedPrizeCost + maintenanceAmount - 
-                        (getAgreementValue('electricity_cost') || 0);
-                        return Math.round(payToClowee).toLocaleString();
+                        (getAgreementValue('electricity_cost') || 0) - amountAdjustment;
+                        return payToClowee.toFixed(2);
                       })()}
                     </span>
                   </div>
@@ -623,11 +648,11 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Total Amount:</span>
-                        <span className="font-medium text-gray-900">৳{Math.round(calculatedPayToClowee).toLocaleString()}</span>
+                        <span className="font-medium text-gray-900">৳{calculatedPayToClowee.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Amount Paid:</span>
-                        <span className="font-medium text-green-600">৳{Math.round(paymentInfo.totalPaid).toLocaleString()}</span>
+                        <span className="font-medium text-green-600">৳{paymentInfo.totalPaid.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
                         <span className="font-medium text-gray-900">Balance Due:</span>
@@ -646,7 +671,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                             lineHeight: '1.2'
                           }}
                         >
-                          ৳{Math.round(paymentInfo.balance).toLocaleString()}
+                          ৳{paymentInfo.balance.toFixed(2)}
                         </span>
                       </div>
                     </div>

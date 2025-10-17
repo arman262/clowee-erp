@@ -1,34 +1,33 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { usePermissions } from "@/hooks/usePermissions";
-import { 
-  Search, 
-  Loader2,
-  TrendingUp,
-  Coins,
-  Gift,
-  Calendar,
-  Eye,
-  Edit,
-  Trash2,
-  Plus,
-  Printer
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { useSales, useCreateSale, useDeleteSale, useUpdateSale } from "@/hooks/useSales";
-import { useMachinePayments } from "@/hooks/useMachinePayments";
-import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
 import { EditSalesModal } from "@/components/EditSalesModal";
-import { SalesForm } from "@/components/forms/SalesForm";
 import { InvoicePrint } from "@/components/InvoicePrint";
 import { PayToCloweeModal } from "@/components/PayToCloweeModal";
 import { TablePager } from "@/components/TablePager";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
+import { useMachinePayments } from "@/hooks/useMachinePayments";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useCreateSale, useDeleteSale, useSales, useUpdateSale } from "@/hooks/useSales";
 import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency, formatNumber } from "@/lib/numberUtils";
+import {
+  Calendar,
+  Coins,
+  Edit,
+  Eye,
+  FileText,
+  Gift,
+  Loader2,
+  Plus,
+  Printer,
+  Search,
+  Trash2,
+  TrendingUp
+} from "lucide-react";
+import { useState } from "react";
 
 export default function Sales() {
   const { canEdit } = usePermissions();
@@ -38,7 +37,7 @@ export default function Sales() {
   const [showPayToClowee, setShowPayToClowee] = useState(false);
   const [viewingSale, setViewingSale] = useState<any | null>(null);
   const [editingSale, setEditingSale] = useState<any | null>(null);
-  const [printingSale, setPrintingSale] = useState<any | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
@@ -351,17 +350,17 @@ export default function Sales() {
                     </Badge>
                     {paymentInfo.totalPaid > 0 && (
                       <div className="text-[10px] sm:text-xs text-muted-foreground mt-1 whitespace-nowrap">
-                        Paid: ৳{Math.round(paymentInfo.totalPaid).toLocaleString()}
+                        Paid: ৳{formatCurrency(paymentInfo.totalPaid)}
                       </div>
                     )}
                     {paymentInfo.balance > 0 && (
                       <div className="text-[10px] sm:text-xs text-destructive mt-1 whitespace-nowrap">
-                        Due: ৳{Math.round(paymentInfo.balance).toLocaleString()}
+                        Due: ৳{formatCurrency(paymentInfo.balance)}
                       </div>
                     )}
                     {paymentInfo.status === 'Overpaid' && (
                       <div className="text-[10px] sm:text-xs text-blue-600 mt-1 whitespace-nowrap">
-                        Overpaid: ৳{Math.round(paymentInfo.totalPaid - calculatePayToClowee(sale)).toLocaleString()}
+                        Overpaid: ৳{formatCurrency(paymentInfo.totalPaid - calculatePayToClowee(sale))}
                       </div>
                     )}
                   </TableCell>
@@ -379,11 +378,11 @@ export default function Sales() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => setPrintingSale(sale)}
-                        title="Print Invoice"
+                        onClick={() => setViewingInvoice(sale)}
+                        title="View Invoice"
                         className="border-2 border-blue-600 text-blue-600 bg-blue-50 hover:bg-blue-100 p-1 sm:p-2 h-7 w-7 sm:h-8 sm:w-8"
                       >
-                        <Printer className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                       {canEdit && (
                       <>
@@ -451,11 +450,11 @@ export default function Sales() {
         />
       )}
       
-      {/* Print Invoice Modal */}
-      {printingSale && (
+      {/* View Invoice Modal */}
+      {viewingInvoice && (
         <InvoicePrint
-          sale={printingSale}
-          onClose={() => setPrintingSale(null)}
+          sale={viewingInvoice}
+          onClose={() => setViewingInvoice(null)}
         />
       )}
     </div>
@@ -505,12 +504,12 @@ function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: {
               <div className="bg-secondary/30 rounded-lg p-3">
                 <div className="text-sm text-muted-foreground mb-1">Coin Sales</div>
                 <div className="text-lg font-semibold text-primary">{sale.coin_sales.toLocaleString()} coins</div>
-                <div className="text-sm text-success">৳{Math.round((sale.coin_sales || 0) * (getAgreementValueForSale(sale, 'coin_price', agreements) || 0)).toLocaleString()}</div>
+                <div className="text-sm text-success">৳{formatCurrency((sale.coin_sales || 0) * (getAgreementValueForSale(sale, 'coin_price', agreements) || 0))}</div>
               </div>
               <div className="bg-secondary/30 rounded-lg p-3">
                 <div className="text-sm text-muted-foreground mb-1">Prize Out</div>
                 <div className="text-lg font-semibold text-accent">{sale.prize_out_quantity.toLocaleString()} pcs</div>
-                <div className="text-sm text-warning">৳{Math.round((sale.prize_out_quantity || 0) * (getAgreementValueForSale(sale, 'doll_price', agreements) || 0)).toLocaleString()}</div>
+                <div className="text-sm text-warning">৳{formatCurrency((sale.prize_out_quantity || 0) * (getAgreementValueForSale(sale, 'doll_price', agreements) || 0))}</div>
               </div>
             </div>
           </div>
@@ -535,30 +534,50 @@ function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: {
                   <>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Sales Amount (Gross):</span>
-                      <span className="font-medium">৳{Math.round(calculatedSalesAmount).toLocaleString()}</span>
+                      <span className="font-medium">৳{formatCurrency(calculatedSalesAmount)}</span>
                     </div>
                     {calculatedVatAmount > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">VAT ({vatPercentage}%):</span>
-                        <span className="text-destructive">-৳{Math.round(calculatedVatAmount).toLocaleString()}</span>
+                        <span className="text-destructive">-৳{formatCurrency(calculatedVatAmount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Net Sales (After VAT):</span>
-                      <span className="font-medium">৳{Math.round(calculatedNetSales).toLocaleString()}</span>
+                      <span className="font-medium">৳{formatCurrency(calculatedNetSales)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Prize Cost (Deducted):</span>
-                      <span className="text-destructive">-৳{Math.round(calculatedPrizeCost).toLocaleString()}</span>
+                      <span className="text-destructive">-৳{formatCurrency(calculatedPrizeCost)}</span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
+                      <span className="text-muted-foreground">Franchise Profit ({getAgreementValueForSale(sale, 'franchise_share', agreements) || 60}%):</span>
+                      <span className="font-medium text-success">৳{(() => {
+                        const franchiseShare = getAgreementValueForSale(sale, 'franchise_share', agreements) || 60;
+                        const maintenancePercentage = getAgreementValueForSale(sale, 'maintenance_percentage', agreements) || 0;
+                        const netProfit = calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost;
+                        const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+                        const profitAfterMaintenance = netProfit - maintenanceAmount;
+                        const franchiseProfit = profitAfterMaintenance * franchiseShare / 100;
+                        return formatCurrency(franchiseProfit);
+                      })()}</span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-muted-foreground">Clowee Profit ({getAgreementValueForSale(sale, 'clowee_share', agreements) || 40}%):</span>
-                      <span className="font-medium text-success">৳{Math.round(sale.clowee_profit || 0).toLocaleString()}</span>
+                      <span className="font-medium text-success">৳{(() => {
+                        const cloweeShare = getAgreementValueForSale(sale, 'clowee_share', agreements) || 40;
+                        const maintenancePercentage = getAgreementValueForSale(sale, 'maintenance_percentage', agreements) || 0;
+                        const netProfit = calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost;
+                        const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+                        const profitAfterMaintenance = netProfit - maintenanceAmount;
+                        const cloweeProfit = profitAfterMaintenance * cloweeShare / 100;
+                        return formatCurrency(cloweeProfit);
+                      })()}</span>
                     </div>
                     {electricityCost > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Electricity Cost:</span>
-                        <span className="text-destructive">-৳{Math.round(electricityCost).toLocaleString()}</span>
+                        <span className="text-destructive">-৳{formatCurrency(electricityCost)}</span>
                       </div>
                     )}
                     {(() => {
@@ -569,7 +588,7 @@ function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: {
                       return maintenanceAmount > 0 && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Maintenance ({maintenancePercentage}%):</span>
-                          <span className="font-medium">৳{Math.round(maintenanceAmount).toLocaleString()}</span>
+                          <span className="font-medium">৳{formatCurrency(maintenanceAmount)}</span>
                         </div>
                       );
                     })()}
@@ -584,7 +603,7 @@ function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: {
                         const profitAfterMaintenance = netProfit - maintenanceAmount;
                         const cloweeProfit = profitAfterMaintenance * cloweeShare / 100;
                         const payToClowee = cloweeProfit + calculatedPrizeCost + maintenanceAmount - electricityCost;
-                        return Math.round(payToClowee).toLocaleString();
+                        return formatCurrency(payToClowee);
                       })()}</span>
                     </div>
                   </>
@@ -607,13 +626,13 @@ function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: {
                   {calculatedVatAmount > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">VAT ({vatPercentage}%):</span>
-                      <span className="text-destructive">৳{Math.round(calculatedVatAmount).toLocaleString()}</span>
+                      <span className="text-destructive">৳{formatCurrency(calculatedVatAmount)}</span>
                     </div>
                   )}
                   {electricityCost > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Electricity Cost:</span>
-                      <span className="text-warning">৳{Math.round(electricityCost).toLocaleString()}</span>
+                      <span className="text-warning">৳{formatCurrency(electricityCost)}</span>
                     </div>
                   )}
                 </div>
@@ -621,7 +640,7 @@ function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: {
             );
           })()}
           
-          {(sale.coin_adjustment || sale.prize_adjustment || sale.adjustment_notes) && (
+          {(sale.coin_adjustment || sale.prize_adjustment || sale.amount_adjustment || sale.adjustment_notes) && (
             <div className="border-t pt-4">
               <h4 className="font-medium mb-3">Adjustments</h4>
               <div className="space-y-2">
@@ -635,6 +654,12 @@ function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Prize Adjustment:</span>
                     <span className="text-destructive">-{sale.prize_adjustment} pcs</span>
+                  </div>
+                )}
+                {sale.amount_adjustment > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount Adjustment:</span>
+                    <span className="text-destructive">-৳{formatCurrency(sale.amount_adjustment)}</span>
                   </div>
                 )}
                 {sale.adjustment_notes && (

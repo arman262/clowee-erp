@@ -386,11 +386,11 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Coin Sales</span>
                     </div>
                     <p className="text-lg font-semibold text-foreground">
-                      {Math.round(calculations.adjustedCoinSales).toLocaleString()} coins
+                      {calculations.adjustedCoinSales.toLocaleString()} coins
                     </p>
                     {(parseInt(coinAdjustment) || 0) > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Raw: {Math.round(calculations.coinSales).toLocaleString()} | Adj: -{parseInt(coinAdjustment)}
+                        Raw: {calculations.coinSales.toLocaleString()} | Adj: -{parseInt(coinAdjustment)}
                       </p>
                     )}
                   </div>
@@ -399,10 +399,10 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Sales Amount</span>
                     </div>
                     <p className="text-lg font-semibold text-success">
-                      ৳{Math.round(calculations.adjustedSalesAmount).toLocaleString()}
+                      ৳{calculations.adjustedSalesAmount.toFixed(2)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {Math.round(calculations.adjustedCoinSales).toLocaleString()} × ৳{getAgreementValue('coin_price') || 0}
+                      {calculations.adjustedCoinSales.toLocaleString()} × ৳{(getAgreementValue('coin_price') || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
@@ -410,7 +410,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">VAT Amount</span>
                     </div>
                     <p className="text-lg font-semibold text-destructive">
-                      ৳{Math.round(calculations.vatAmount).toLocaleString()}
+                      ৳{calculations.vatAmount.toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
@@ -418,7 +418,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Net Sales (After Vat)</span>
                     </div>
                     <p className="text-lg font-semibold text-success">
-                      ৳{Math.round(calculations.netSalesAmount).toLocaleString()}
+                      ৳{calculations.netSalesAmount.toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
@@ -427,11 +427,11 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Prize Out</span>
                     </div>
                     <p className="text-lg font-semibold text-foreground">
-                      {Math.round(calculations.adjustedPrizeOut).toLocaleString()} pcs
+                      {calculations.adjustedPrizeOut.toLocaleString()} pcs
                     </p>
                     {(parseInt(prizeAdjustment) || 0) > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Raw: {Math.round(calculations.prizeOut).toLocaleString()} | Adj: -{parseInt(prizeAdjustment)}
+                        Raw: {calculations.prizeOut.toLocaleString()} | Adj: -{parseInt(prizeAdjustment)}
                       </p>
                     )}
                   </div>
@@ -440,10 +440,10 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Prize Cost</span>
                     </div>
                     <p className="text-lg font-semibold text-warning">
-                      ৳{Math.round(calculations.adjustedPrizeCost).toLocaleString()}
+                      ৳{calculations.adjustedPrizeCost.toFixed(2)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {Math.round(calculations.adjustedPrizeOut).toLocaleString()} × ৳{getAgreementValue('doll_price') || 0}
+                      {calculations.adjustedPrizeOut.toLocaleString()} × ৳{(getAgreementValue('doll_price') || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
@@ -451,7 +451,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Net Profit</span>
                     </div>
                     <p className="text-lg font-semibold text-info">
-                      ৳{Math.round(calculations.netRevenue).toLocaleString()}
+                      ৳{calculations.netRevenue.toFixed(2)}
                     </p>
                   </div>
                   {(() => {
@@ -463,7 +463,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                           <span className="text-sm text-muted-foreground">Maintenance ({maintenancePercentage}%)</span>
                         </div>
                         <p className="text-lg font-semibold text-destructive">
-                          ৳{Math.round(maintenanceAmount).toLocaleString()}
+                          ৳{maintenanceAmount.toFixed(2)}
                         </p>
                       </div>
                     );
@@ -473,7 +473,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Clowee Profit</span>
                     </div>
                     <p className="text-lg font-semibold text-primary">
-                      ৳{Math.round(calculations.cloweeProfit).toLocaleString()}
+                      ৳{calculations.cloweeProfit.toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
@@ -481,7 +481,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Franchise Profit</span>
                     </div>
                     <p className="text-lg font-semibold text-accent">
-                      ৳{Math.round(calculations.franchiseProfit).toLocaleString()}
+                      ৳{calculations.franchiseProfit.toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
@@ -489,7 +489,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Electricity Cost</span>
                     </div>
                     <p className="text-lg font-semibold text-destructive">
-                      ৳{Math.round(getAgreementValue('electricity_cost') || 0).toLocaleString()}
+                      ৳{(getAgreementValue('electricity_cost') || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-gradient-primary/20 border border-primary/30 rounded-lg p-3 col-span-2">
@@ -501,7 +501,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       Clowee Profit + Prize Cost + Maintenance - Electricity Cost
                     </div>
                     <p className="text-xl font-bold text-primary">
-                      ৳{Math.round(calculations.payToClowee).toLocaleString()}
+                      ৳{calculations.payToClowee.toFixed(2)}
                     </p>
                   </div>
                 </div>

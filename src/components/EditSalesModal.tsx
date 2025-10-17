@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toBangladeshDate } from "@/lib/dateUtils";
 import { Edit } from "lucide-react";
-import { formatDate, toBangladeshDate } from "@/lib/dateUtils";
+import { useEffect, useState } from "react";
 
 interface EditSalesModalProps {
   sale: any;
@@ -169,7 +169,7 @@ export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps)
                 value={amountAdjustment}
                 onChange={(e) => setAmountAdjustment(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">Use this to adjust small payment differences (e.g., client pays ৳12400 instead of ৳12404)</p>
+              <p className="text-xs text-muted-foreground">Adjust small amount</p>
             </div>
             
             <div className="space-y-2">
