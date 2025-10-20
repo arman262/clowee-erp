@@ -17,7 +17,10 @@ import {
   MapPin,
   Calendar,
   Activity,
-  Loader2
+  Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { useMachines, useCreateMachine, useUpdateMachine, useDeleteMachine } from "@/hooks/useMachines";
 import { MachineForm } from "@/components/forms/MachineForm";
@@ -32,17 +35,69 @@ export default function Machines() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMachine, setEditingMachine] = useState<any | null>(null);
   const [viewingMachine, setViewingMachine] = useState<any | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: machines, isLoading } = useMachines();
   const createMachine = useCreateMachine();
   const updateMachine = useUpdateMachine();
   const deleteMachine = useDeleteMachine();
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
   const filteredMachines = machines?.filter((machine: any) =>
     machine.machine_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     machine.machine_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (machine.franchises?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  ).sort((a: any, b: any) => parseInt(a.machine_number) - parseInt(b.machine_number)) || [];
+  ) || [];
+
+  const sortedMachines = [...filteredMachines].sort((a, b) => {
+    if (!sortColumn) return parseInt(a.machine_number) - parseInt(b.machine_number);
+    let aVal: any, bVal: any;
+    switch (sortColumn) {
+      case 'number':
+        aVal = parseInt(a.machine_number) || 0;
+        bVal = parseInt(b.machine_number) || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'name':
+        aVal = a.machine_name || '';
+        bVal = b.machine_name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'franchise':
+        aVal = a.franchises?.name || '';
+        bVal = b.franchises?.name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'location':
+        aVal = a.branch_location || '';
+        bVal = b.branch_location || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'date':
+        aVal = new Date(a.installation_date).getTime();
+        bVal = new Date(b.installation_date).getTime();
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'coins':
+        aVal = a.initial_coin_counter || 0;
+        bVal = b.initial_coin_counter || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'prizes':
+        aVal = a.initial_prize_counter || 0;
+        bVal = b.initial_prize_counter || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'status':
+        aVal = a.notes?.includes('[STATUS:inactive]') ? 'Inactive' : 'Active';
+        bVal = b.notes?.includes('[STATUS:inactive]') ? 'Inactive' : 'Active';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      default:
+        return 0;
+    }
+  });
 
   const {
     currentPage,
@@ -52,7 +107,7 @@ export default function Machines() {
     handlePageChange,
     handleRowsPerPageChange,
     getSerialNumber,
-  } = usePagination({ data: filteredMachines });
+  } = usePagination({ data: sortedMachines });
 
   return (
     <div className="space-y-6">
@@ -133,14 +188,54 @@ export default function Machines() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Machine Number</TableHead>
-              <TableHead>Machine</TableHead>
-              <TableHead>Franchise</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Installation Date</TableHead>
-              <TableHead>Initial Coins</TableHead>
-              <TableHead>Initial Prizes</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('number')}>
+                <div className="flex items-center gap-1">
+                  Machine Number
+                  {sortColumn === 'number' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('name')}>
+                <div className="flex items-center gap-1">
+                  Machine
+                  {sortColumn === 'name' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('franchise')}>
+                <div className="flex items-center gap-1">
+                  Franchise
+                  {sortColumn === 'franchise' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('location')}>
+                <div className="flex items-center gap-1">
+                  Location
+                  {sortColumn === 'location' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
+                <div className="flex items-center gap-1">
+                  Installation Date
+                  {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('coins')}>
+                <div className="flex items-center gap-1">
+                  Initial Coins
+                  {sortColumn === 'coins' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('prizes')}>
+                <div className="flex items-center gap-1">
+                  Initial Prizes
+                  {sortColumn === 'prizes' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('status')}>
+                <div className="flex items-center gap-1">
+                  Status
+                  {sortColumn === 'status' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>

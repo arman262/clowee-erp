@@ -14,7 +14,10 @@ import {
   Trash2,
   Calendar,
   Loader2,
-  Building
+  Building,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { PaymentForm } from "@/components/forms/PaymentForm";
 import { useMachinePayments, useCreateMachinePayment, useUpdateMachinePayment, useDeleteMachinePayment } from "@/hooks/useMachinePayments";
@@ -28,16 +31,56 @@ export default function Payments() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingPayment, setViewingPayment] = useState<any | null>(null);
   const [editingPayment, setEditingPayment] = useState<any | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: payments, isLoading } = useMachinePayments();
   const createPayment = useCreateMachinePayment();
   const updatePayment = useUpdateMachinePayment();
   const deletePayment = useDeleteMachinePayment();
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
   const filteredPayments = payments?.filter((payment: any) =>
     payment.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     payment.banks?.bank_name?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  const sortedPayments = [...filteredPayments].sort((a, b) => {
+    if (!sortColumn) return 0;
+    let aVal: any, bVal: any;
+    switch (sortColumn) {
+      case 'invoice':
+        aVal = a.sales?.invoice_number || '';
+        bVal = b.sales?.invoice_number || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'machine':
+        aVal = a.machines?.machine_name || '';
+        bVal = b.machines?.machine_name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'date':
+        aVal = new Date(a.payment_date).getTime();
+        bVal = new Date(b.payment_date).getTime();
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'amount':
+        aVal = Number(a.amount) || 0;
+        bVal = Number(b.amount) || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'bank':
+        aVal = a.banks?.bank_name || '';
+        bVal = b.banks?.bank_name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      default:
+        return 0;
+    }
+  });
 
   const {
     currentPage,
@@ -47,7 +90,7 @@ export default function Payments() {
     handlePageChange,
     handleRowsPerPageChange,
     getSerialNumber,
-  } = usePagination({ data: filteredPayments });
+  } = usePagination({ data: sortedPayments });
 
   return (
     <div className="space-y-6">
@@ -167,11 +210,36 @@ export default function Payments() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-16">#</TableHead>
-              <TableHead>Invoice No</TableHead>
-              <TableHead>Machine</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Bank</TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('invoice')}>
+                <div className="flex items-center gap-1">
+                  Invoice No
+                  {sortColumn === 'invoice' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('machine')}>
+                <div className="flex items-center gap-1">
+                  Machine
+                  {sortColumn === 'machine' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
+                <div className="flex items-center gap-1">
+                  Date
+                  {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('amount')}>
+                <div className="flex items-center gap-1">
+                  Amount
+                  {sortColumn === 'amount' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('bank')}>
+                <div className="flex items-center gap-1">
+                  Bank
+                  {sortColumn === 'bank' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
               <TableHead>Remarks</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>

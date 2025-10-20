@@ -47,8 +47,6 @@ export default function Franchises() {
   const deleteFranchise = useDeleteFranchise();
   const queryClient = useQueryClient();
   const [isCleaningUp, setIsCleaningUp] = useState(false);
-  const [isClearingInvoices, setIsClearingInvoices] = useState(false);
-  const [isCheckingInvoices, setIsCheckingInvoices] = useState(false);
 
   // Calculate total machines
   const totalMachines = machines?.length || 0;
@@ -128,27 +126,6 @@ export default function Franchises() {
       queryClient.invalidateQueries({ queryKey: ['franchises'] });
     } finally {
       setIsCleaningUp(false);
-    }
-  };
-
-  const handleClearInvoices = async () => {
-    if (confirm('Are you sure you want to delete ALL invoices? This action cannot be undone.')) {
-      setIsClearingInvoices(true);
-      try {
-        await clearAllInvoices();
-        queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      } finally {
-        setIsClearingInvoices(false);
-      }
-    }
-  };
-
-  const handleCheckInvoices = async () => {
-    setIsCheckingInvoices(true);
-    try {
-      await checkInvoicesCount();
-    } finally {
-      setIsCheckingInvoices(false);
     }
   };
 
@@ -267,32 +244,6 @@ export default function Franchises() {
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}
               Cleanup Files
-            </Button>
-            <Button 
-              variant="outline" 
-              className="border-primary text-primary hover:bg-primary/10"
-              onClick={handleCheckInvoices}
-              disabled={isCheckingInvoices}
-            >
-              {isCheckingInvoices ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Eye className="h-4 w-4 mr-2" />
-              )}
-              Check Invoices
-            </Button>
-            <Button 
-              variant="outline" 
-              className="border-destructive text-destructive hover:bg-destructive/10"
-              onClick={handleClearInvoices}
-              disabled={isClearingInvoices}
-            >
-              {isClearingInvoices ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
-              )}
-              Clear Invoices
             </Button>
           </div>
         </CardContent>

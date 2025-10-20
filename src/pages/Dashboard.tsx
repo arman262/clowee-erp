@@ -1,43 +1,42 @@
- import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useNavigate } from "react-router-dom";
-import { usePermissions } from "@/hooks/usePermissions";
-import { 
-  Building2, 
-  Cpu, 
-  DollarSign, 
-  TrendingUp, 
-  Package, 
-  Users,
-  Plus,
-  ArrowUpRight,
-  ArrowDownRight,
-  Calendar,
-  Receipt,
-  CreditCard,
-  Activity,
-  Sprout,
-  Wallet,
-  Landmark
-} from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { useSales } from "@/hooks/useSales";
-import { useMachines, useCreateMachine } from "@/hooks/useMachines";
-import { useMachineExpenses, useCreateMachineExpense } from "@/hooks/useMachineExpenses";
-import { useMachinePayments } from "@/hooks/useMachinePayments";
-import { useFranchises, useCreateFranchise } from "@/hooks/useFranchises";
-import { useMachineCounters } from "@/hooks/useMachineCounters";
-import { formatCurrency, formatNumber } from "@/lib/numberUtils";
-import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+ import { ExpenseForm } from "@/components/forms/ExpenseForm";
 import { FranchiseForm } from "@/components/forms/FranchiseForm";
 import { MachineForm } from "@/components/forms/MachineForm";
-import { ExpenseForm } from "@/components/forms/ExpenseForm";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCreateFranchise, useFranchises } from "@/hooks/useFranchises";
+import { useMachineCounters } from "@/hooks/useMachineCounters";
+import { useCreateMachineExpense, useMachineExpenses } from "@/hooks/useMachineExpenses";
+import { useMachinePayments } from "@/hooks/useMachinePayments";
+import { useCreateMachine, useMachines } from "@/hooks/useMachines";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useSales } from "@/hooks/useSales";
+import { formatCurrency, formatNumber } from "@/lib/numberUtils";
+import { format } from 'date-fns';
+import {
+  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  Building2,
+  Calendar,
+  ChevronLeft, ChevronRight,
+  Cpu,
+  CreditCard,
+  DollarSign,
+  Landmark,
+  Package,
+  Receipt,
+  Sprout,
+  TrendingUp,
+  Users,
+  Wallet
+} from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 
 
@@ -390,7 +389,7 @@ export default function Dashboard() {
             </CardTitle>
             <TrendingUp className="h-5 w-5 text-primary" />
           </CardHeader>
-          <CardContent className="pb-3">
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-primary mb-0">
               ৳{formatCurrency(highestMachineSales)}
             </div>
@@ -407,7 +406,7 @@ export default function Dashboard() {
             </CardTitle>
             <ArrowDownRight className="h-5 w-5 text-warning" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-warning mb-0">
               ৳{formatCurrency(lowestMachineSales)}
             </div>
@@ -424,7 +423,7 @@ export default function Dashboard() {
             </CardTitle>
             <Cpu className="h-5 w-5 text-white" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-white mb-0">
               ৳{formatCurrency(avgSalesPerMachine)}
             </div>
@@ -442,7 +441,7 @@ export default function Dashboard() {
             </CardTitle>
             <Sprout className="h-5 w-5 text-accent"/>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-accent mb-0">
               ৳{formatCurrency(netProfit)}
             </div>
@@ -459,7 +458,7 @@ export default function Dashboard() {
             </CardTitle>
             <Receipt className="h-5 w-5 text-warning" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-warning mb-0">
               ৳{formatCurrency(totalPayToClowee)}
             </div>
@@ -476,7 +475,7 @@ export default function Dashboard() {
             </CardTitle>
             <CreditCard className="h-5 w-5 text-success" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-success mb-0">
               ৳{formatCurrency(totalPaymentReceived)}
             </div>
@@ -493,7 +492,7 @@ export default function Dashboard() {
             </CardTitle>
             <ArrowUpRight className="h-5 w-5 text-warning" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-warning mb-0">
               ৳{formatCurrency(totalDue)}
             </div>
@@ -510,7 +509,7 @@ export default function Dashboard() {
             </CardTitle>
             <Package className="h-5 w-5 text-primary" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-primary mb-0">
               ৳{formatCurrency(totalPrizePurchase)}
             </div>
@@ -529,7 +528,7 @@ export default function Dashboard() {
             </CardTitle>
             <Wallet className="h-5 w-5 text-success" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-success mb-0">
               ৳{formatCurrency(cashInHand)}
             </div>
@@ -546,7 +545,7 @@ export default function Dashboard() {
             </CardTitle>
             <Landmark className="h-5 w-5 text-primary" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-primary mb-0">
               ৳{formatCurrency(mdbBank)}
             </div>
@@ -563,7 +562,7 @@ export default function Dashboard() {
             </CardTitle>
             <Landmark className="h-5 w-5 text-accent" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <div className="text-2xl font-bold text-accent mb-0">
               ৳{formatCurrency(nccBank)}
             </div>

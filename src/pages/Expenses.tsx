@@ -13,7 +13,10 @@ import {
   Edit, 
   Trash2,
   Calendar,
-  Loader2
+  Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { ExpenseForm } from "@/components/forms/ExpenseForm";
 import { useMachineExpenses, useCreateMachineExpense, useUpdateMachineExpense, useDeleteMachineExpense } from "@/hooks/useMachineExpenses";
@@ -29,11 +32,22 @@ export default function Expenses() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingExpense, setViewingExpense] = useState<any | null>(null);
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: expenses, isLoading } = useMachineExpenses();
   const createExpense = useCreateMachineExpense();
   const updateExpense = useUpdateMachineExpense();
   const deleteExpense = useDeleteMachineExpense();
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
 
   const filteredExpenses = expenses?.filter((expense: any) => {
     const matchesSearch = expense.expense_details?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -41,6 +55,43 @@ export default function Expenses() {
     const matchesDate = !dateFilter || expense.expense_date?.split('T')[0] === dateFilter;
     return matchesSearch && matchesDate;
   }) || [];
+
+  const sortedExpenses = [...filteredExpenses].sort((a, b) => {
+    if (!sortColumn) return 0;
+    let aVal: any, bVal: any;
+    switch (sortColumn) {
+      case 'category':
+        aVal = a.expense_categories?.category_name || '';
+        bVal = b.expense_categories?.category_name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'machine':
+        aVal = a.machines?.machine_name || '';
+        bVal = b.machines?.machine_name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'date':
+        aVal = new Date(a.expense_date).getTime();
+        bVal = new Date(b.expense_date).getTime();
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'qty':
+        aVal = a.quantity || 0;
+        bVal = b.quantity || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'itemPrice':
+        aVal = Number(a.item_price) || 0;
+        bVal = Number(b.item_price) || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'total':
+        aVal = Number(a.total_amount) || 0;
+        bVal = Number(b.total_amount) || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'bank':
+        aVal = a.banks?.bank_name || '';
+        bVal = b.banks?.bank_name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      default:
+        return 0;
+    }
+  });
 
   // Today's summary calculations
   const todayExpenses = expenses?.filter((expense: any) => 
@@ -62,7 +113,7 @@ export default function Expenses() {
     handlePageChange,
     handleRowsPerPageChange,
     getSerialNumber,
-  } = usePagination({ data: filteredExpenses });
+  } = usePagination({ data: sortedExpenses });
 
   return (
     <div className="space-y-6">
@@ -173,15 +224,50 @@ export default function Expenses() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-16">#</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Machine</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('category')}>
+                <div className="flex items-center gap-1">
+                  Category
+                  {sortColumn === 'category' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('machine')}>
+                <div className="flex items-center gap-1">
+                  Machine
+                  {sortColumn === 'machine' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
+                <div className="flex items-center gap-1">
+                  Date
+                  {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
               <TableHead>Details</TableHead>
               <TableHead>Unique ID</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Item Price</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Bank</TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('qty')}>
+                <div className="flex items-center gap-1">
+                  Qty
+                  {sortColumn === 'qty' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('itemPrice')}>
+                <div className="flex items-center gap-1">
+                  Item Price
+                  {sortColumn === 'itemPrice' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('total')}>
+                <div className="flex items-center gap-1">
+                  Total
+                  {sortColumn === 'total' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('bank')}>
+                <div className="flex items-center gap-1">
+                  Bank
+                  {sortColumn === 'bank' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>

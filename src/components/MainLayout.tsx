@@ -13,7 +13,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   
   return (
     <SidebarProvider>
@@ -44,7 +44,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuItem className="flex items-center gap-2">
                       <Mail className="h-4 w-4" />
-                      <span>admin@clowee.com</span>
+                      <span>{user?.email || 'No email'}</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 

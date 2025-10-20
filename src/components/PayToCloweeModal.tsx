@@ -402,7 +402,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       ৳{calculations.adjustedSalesAmount.toFixed(2)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {calculations.adjustedCoinSales.toLocaleString()} × ৳{(getAgreementValue('coin_price') || 0).toFixed(2)}
+                      {calculations.adjustedCoinSales.toLocaleString()} × ৳{(Number(getAgreementValue('coin_price')) || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
@@ -443,7 +443,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       ৳{calculations.adjustedPrizeCost.toFixed(2)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {calculations.adjustedPrizeOut.toLocaleString()} × ৳{(getAgreementValue('doll_price') || 0).toFixed(2)}
+                      {calculations.adjustedPrizeOut.toLocaleString()} × ৳{(Number(getAgreementValue('doll_price')) || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-secondary/30 rounded-lg p-3">
@@ -489,7 +489,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
                       <span className="text-sm text-muted-foreground">Electricity Cost</span>
                     </div>
                     <p className="text-lg font-semibold text-destructive">
-                      ৳{(getAgreementValue('electricity_cost') || 0).toFixed(2)}
+                      ৳{(Number(getAgreementValue('electricity_cost')) || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="bg-gradient-primary/20 border border-primary/30 rounded-lg p-3 col-span-2">

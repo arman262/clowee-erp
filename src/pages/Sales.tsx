@@ -16,6 +16,7 @@ import { formatCurrency, formatNumber } from "@/lib/numberUtils";
 import {
   Calendar,
   Coins,
+  Download,
   Edit,
   Eye,
   FileText,
@@ -25,9 +26,15 @@ import {
   Printer,
   Search,
   Trash2,
-  TrendingUp
+  TrendingUp,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { useState } from "react";
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function Sales() {
   const { canEdit } = usePermissions();
@@ -40,6 +47,8 @@ export default function Sales() {
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: sales, isLoading } = useSales();
   const { data: payments } = useMachinePayments();
@@ -96,6 +105,15 @@ export default function Sales() {
     return { status: 'Partial', totalPaid, balance: payToClowee - totalPaid };
   };
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
   const filteredSales = sales?.filter(sale => {
     const matchesSearch = sale.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       sale.machines?.machine_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -137,8 +155,179 @@ export default function Sales() {
     totalPayToClowee: summaryData.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0)
   };
 
+  const sortedSales = [...filteredSales].sort((a, b) => {
+    if (!sortColumn) return 0;
+    
+    let aVal: any, bVal: any;
+    
+    switch (sortColumn) {
+      case 'invoice':
+        aVal = a.invoice_number || '';
+        bVal = b.invoice_number || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'machine':
+        aVal = a.machines?.machine_name || '';
+        bVal = b.machines?.machine_name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'date':
+        aVal = new Date(a.sales_date).getTime();
+        bVal = new Date(b.sales_date).getTime();
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'coinSales':
+        aVal = a.coin_sales || 0;
+        bVal = b.coin_sales || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'salesAmount':
+        aVal = Number(a.sales_amount) || 0;
+        bVal = Number(b.sales_amount) || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'prizeOut':
+        aVal = a.prize_out_quantity || 0;
+        bVal = b.prize_out_quantity || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'prizeCost':
+        aVal = Number(a.prize_out_cost) || 0;
+        bVal = Number(b.prize_out_cost) || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'payToClowee':
+        aVal = calculatePayToClowee(a);
+        bVal = calculatePayToClowee(b);
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'paymentStatus':
+        aVal = getPaymentStatus(a).status;
+        bVal = getPaymentStatus(b).status;
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      default:
+        return 0;
+    }
+  });
+
   const startIndex = (currentPage - 1) * rowsPerPage;
-  const paginatedSales = filteredSales.slice(startIndex, startIndex + rowsPerPage);
+  const paginatedSales = sortedSales.slice(startIndex, startIndex + rowsPerPage);
+
+  const handleExportExcel = () => {
+    const exportData = sortedSales.map(sale => {
+      const paymentInfo = getPaymentStatus(sale);
+      return {
+        'Invoice No': sale.invoice_number || 'Pending',
+        'Machine Name': sale.machines?.machine_name || 'Unknown',
+        'Machine Number': sale.machines?.machine_number || '',
+        'Franchise': sale.franchises?.name || '',
+        'Sales Date': formatDate(sale.sales_date),
+        'Coin Sales': sale.coin_sales || 0,
+        'Sales Amount': Number(sale.sales_amount || 0).toFixed(2),
+        'Prize Out': sale.prize_out_quantity || 0,
+        'Prize Cost': Number(sale.prize_out_cost || 0).toFixed(2),
+        'VAT Amount': Number(sale.vat_amount || 0).toFixed(2),
+        'Net Sales': Number(sale.net_sales_amount || 0).toFixed(2),
+        'Clowee Profit': Number(sale.clowee_profit || 0).toFixed(2),
+        'Pay To Clowee': Number(calculatePayToClowee(sale)).toFixed(2),
+        'Payment Status': paymentInfo.status,
+        'Amount Paid': Number(paymentInfo.totalPaid).toFixed(2),
+        'Balance Due': Number(paymentInfo.balance).toFixed(2)
+      };
+    });
+
+    // Add total summary row
+    const dateRange = fromDate && toDate ? `${formatDate(fromDate)} → ${formatDate(toDate)}` : fromDate ? `From ${formatDate(fromDate)}` : toDate ? `To ${formatDate(toDate)}` : 'All Dates';
+    const totalDue = filteredSales.filter(sale => getPaymentStatus(sale).status === 'Due').length;
+    exportData.push({
+      'Invoice No': 'TOTAL',
+      'Machine Name': '',
+      'Machine Number': '',
+      'Franchise': '',
+      'Sales Date': dateRange,
+      'Coin Sales': filteredSales.reduce((sum, sale) => sum + (sale.coin_sales || 0), 0),
+      'Sales Amount': filteredSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0).toFixed(2),
+      'Prize Out': filteredSales.reduce((sum, sale) => sum + (sale.prize_out_quantity || 0), 0),
+      'Prize Cost': filteredSales.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0).toFixed(2),
+      'VAT Amount': '',
+      'Net Sales': '',
+      'Clowee Profit': '',
+      'Pay To Clowee': filteredSales.reduce((sum, sale) => sum + calculatePayToClowee(sale), 0).toFixed(2),
+      'Payment Status': `${totalDue} Due`,
+      'Amount Paid': '',
+      'Balance Due': ''
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sales Report');
+    
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '');
+    const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).replace(':', '');
+    const filename = `Sales_Report_${dateStr}_${timeStr}.xlsx`;
+    
+    XLSX.writeFile(wb, filename);
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    
+    doc.setFontSize(16);
+    doc.text('Sales Report', 14, 15);
+    
+    const now = new Date();
+    doc.setFontSize(9);
+    doc.text(`Generated: ${now.toLocaleString('en-GB')}`, 14, 22);
+    
+    const tableData = sortedSales.map(sale => {
+      const paymentInfo = getPaymentStatus(sale);
+      return [
+        sale.invoice_number || 'Pending',
+        sale.machines?.machine_name || 'Unknown',
+        formatDate(sale.sales_date),
+        sale.coin_sales || 0,
+        formatCurrency(sale.sales_amount),
+        formatCurrency(calculatePayToClowee(sale)),
+        paymentInfo.status
+      ];
+    });
+
+    // Add total summary row
+    const dateRange = fromDate && toDate ? `${formatDate(fromDate)} → ${formatDate(toDate)}` : fromDate ? `From ${formatDate(fromDate)}` : toDate ? `To ${formatDate(toDate)}` : 'All Dates';
+    const totalDue = filteredSales.filter(sale => getPaymentStatus(sale).status === 'Due').length;
+    tableData.push([
+      'TOTAL',
+      '',
+      dateRange,
+      filteredSales.reduce((sum, sale) => sum + (sale.coin_sales || 0), 0),
+      formatCurrency(filteredSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0)),
+      formatCurrency(filteredSales.reduce((sum, sale) => sum + calculatePayToClowee(sale), 0)),
+      `${totalDue} Due`
+    ]);
+
+    autoTable(doc, {
+      startY: 28,
+      head: [['Invoice', 'Machine', 'Date', 'Coins', 'Sales', 'Pay To Clowee', 'Status']],
+      body: tableData,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontSize: 7 },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 18 },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 30 },
+        6: { cellWidth: 20 }
+      },
+      didParseCell: function(data) {
+        if (data.row.index === tableData.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [59, 130, 246, 0.1];
+        }
+      }
+    });
+    
+    const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '');
+    const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).replace(':', '');
+    const filename = `Sales_Report_${dateStr}_${timeStr}.pdf`;
+    
+    doc.save(filename);
+  };
 
 
 
@@ -231,36 +420,51 @@ export default function Sales() {
       {/* Search and Filters */}
       <Card className="bg-gradient-card border-border shadow-card">
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col lg:flex-row gap-3">
+            <div className="relative flex-1 lg:max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search sales by machine name or franchise..."
+                placeholder="Search sales..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-secondary/30 border-border"
               />
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-              <Calendar className="h-4 w-4 text-muted-foreground hidden sm:block" />
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">From:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">From:</span>
                 <Input
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="flex-1 sm:w-40 bg-secondary/30 border-border text-xs sm:text-sm"
+                  className="w-36 bg-secondary/30 border-border text-sm"
                 />
               </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">To:</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">To:</span>
                 <Input
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="flex-1 sm:w-40 bg-secondary/30 border-border text-xs sm:text-sm"
+                  className="w-36 bg-secondary/30 border-border text-sm"
                 />
               </div>
+              <Button 
+                variant="outline" 
+                onClick={handleExportExcel}
+                className="border-success text-success hover:bg-success/10 whitespace-nowrap"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Excel
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleExportPDF}
+                className="border-success text-success hover:bg-success/10 whitespace-nowrap"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Export PDF
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -273,27 +477,71 @@ export default function Sales() {
         </div>
       )}
 
-      {/* Sales Table */}
-      <Card className="bg-gradient-card border-border shadow-card overflow-hidden">
+      {/* Sales Table - Desktop */}
+      <Card className="bg-gradient-card border-border shadow-card overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Invoice No</TableHead>
-              <TableHead>Machine</TableHead>
-              <TableHead>Sales Date</TableHead>
-              <TableHead>Coin Sales</TableHead>
-              <TableHead>Sales Amount</TableHead>
-              <TableHead>Prize Out</TableHead>
-              <TableHead>Prize Cost</TableHead>
-              <TableHead>Pay To Clowee</TableHead>
-              <TableHead>Payment Status</TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('invoice')}>
+                <div className="flex items-center gap-1">
+                  Invoice No
+                  {sortColumn === 'invoice' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('machine')}>
+                <div className="flex items-center gap-1">
+                  Machine
+                  {sortColumn === 'machine' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
+                <div className="flex items-center gap-1">
+                  Sales Date
+                  {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('coinSales')}>
+                <div className="flex items-center gap-1">
+                  Coin Sales
+                  {sortColumn === 'coinSales' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('salesAmount')}>
+                <div className="flex items-center gap-1">
+                  Sales Amount
+                  {sortColumn === 'salesAmount' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('prizeOut')}>
+                <div className="flex items-center gap-1">
+                  Prize Out
+                  {sortColumn === 'prizeOut' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('prizeCost')}>
+                <div className="flex items-center gap-1">
+                  Prize Cost
+                  {sortColumn === 'prizeCost' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('payToClowee')}>
+                <div className="flex items-center gap-1">
+                  Pay To Clowee
+                  {sortColumn === 'payToClowee' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('paymentStatus')}>
+                <div className="flex items-center gap-1">
+                  Payment Status
+                  {sortColumn === 'paymentStatus' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
               <TableHead className="sticky right-0 bg-card">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedSales.map((sale) => {
-              const netRevenue = sale.sales_amount - sale.prize_out_cost;
               const paymentInfo = getPaymentStatus(sale);
               return (
                 <TableRow key={sale.id}>
@@ -304,34 +552,34 @@ export default function Sales() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Coins className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+                      <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Coins className="h-4 w-4 text-white" />
                       </div>
                       <div className="min-w-0 max-w-[120px]">
-                        <div className="font-medium text-xs sm:text-sm break-words">{sale.machines?.machine_name || 'Unknown Machine'}</div>
+                        <div className="font-medium text-sm break-words">{sale.machines?.machine_name || 'Unknown Machine'}</div>
                         <div className="text-xs text-muted-foreground whitespace-nowrap">{sale.machines?.machine_number}</div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-white flex-shrink-0" />
-                      <span className="text-xs sm:text-sm whitespace-nowrap">{formatDate(sale.sales_date)}</span>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-white flex-shrink-0" />
+                      <span className="text-sm whitespace-nowrap">{formatDate(sale.sales_date)}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-primary font-medium text-xs sm:text-sm whitespace-nowrap">
+                  <TableCell className="text-primary font-medium text-sm whitespace-nowrap">
                     {formatNumber(sale.coin_sales)}
                   </TableCell>
-                  <TableCell className="text-success font-medium text-xs sm:text-sm whitespace-nowrap">
+                  <TableCell className="text-success font-medium text-sm whitespace-nowrap">
                     ৳{formatCurrency(sale.sales_amount)}
                   </TableCell>
-                  <TableCell className="text-accent font-medium text-xs sm:text-sm whitespace-nowrap">
+                  <TableCell className="text-accent font-medium text-sm whitespace-nowrap">
                     {formatNumber(sale.prize_out_quantity)}
                   </TableCell>
-                  <TableCell className="text-warning font-medium text-xs sm:text-sm whitespace-nowrap">
+                  <TableCell className="text-warning font-medium text-sm whitespace-nowrap">
                     ৳{formatCurrency(sale.prize_out_cost)}
                   </TableCell>
-                  <TableCell className="text-primary font-medium text-xs sm:text-sm whitespace-nowrap">
+                  <TableCell className="text-primary font-medium text-sm whitespace-nowrap">
                     ৳{formatCurrency(calculatePayToClowee(sale))}
                   </TableCell>
                   <TableCell>
@@ -349,17 +597,17 @@ export default function Sales() {
                       {paymentInfo.status}
                     </Badge>
                     {paymentInfo.totalPaid > 0 && (
-                      <div className="text-[10px] sm:text-xs text-muted-foreground mt-1 whitespace-nowrap">
+                      <div className="text-xs text-muted-foreground mt-1 whitespace-nowrap">
                         Paid: ৳{formatCurrency(paymentInfo.totalPaid)}
                       </div>
                     )}
                     {paymentInfo.balance > 0 && (
-                      <div className="text-[10px] sm:text-xs text-destructive mt-1 whitespace-nowrap">
+                      <div className="text-xs text-destructive mt-1 whitespace-nowrap">
                         Due: ৳{formatCurrency(paymentInfo.balance)}
                       </div>
                     )}
                     {paymentInfo.status === 'Overpaid' && (
-                      <div className="text-[10px] sm:text-xs text-blue-600 mt-1 whitespace-nowrap">
+                      <div className="text-xs text-blue-600 mt-1 whitespace-nowrap">
                         Overpaid: ৳{formatCurrency(paymentInfo.totalPaid - calculatePayToClowee(sale))}
                       </div>
                     )}
@@ -371,18 +619,18 @@ export default function Sales() {
                         size="sm"
                         onClick={() => setViewingSale(sale)}
                         title="View Details"
-                        className="p-1 sm:p-2 h-7 w-7 sm:h-8 sm:w-8"
+                        className="p-2 h-8 w-8"
                       >
-                        <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
                         onClick={() => setViewingInvoice(sale)}
                         title="View Invoice"
-                        className="border-2 border-blue-600 text-blue-600 bg-blue-50 hover:bg-blue-100 p-1 sm:p-2 h-7 w-7 sm:h-8 sm:w-8"
+                        className="border-2 border-blue-600 text-blue-600 bg-blue-50 hover:bg-blue-100 p-2 h-8 w-8"
                       >
-                        <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <FileText className="h-4 w-4" />
                       </Button>
                       {canEdit && (
                       <>
@@ -391,14 +639,14 @@ export default function Sales() {
                         size="sm"
                         onClick={() => setEditingSale(sale)}
                         title="Edit"
-                        className="p-1 sm:p-2 h-7 w-7 sm:h-8 sm:w-8"
+                        className="p-2 h-8 w-8"
                       >
-                        <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <Edit className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-destructive text-destructive hover:bg-destructive/10 p-1 sm:p-2 h-7 w-7 sm:h-8 sm:w-8"
+                        className="border-destructive text-destructive hover:bg-destructive/10 p-2 h-8 w-8"
                         onClick={() => {
                           if (confirm('Are you sure you want to delete this sales record?')) {
                             deleteSale.mutate(sale.id);
@@ -406,7 +654,7 @@ export default function Sales() {
                         }}
                         title="Delete"
                       >
-                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                       </>
                       )}
@@ -415,10 +663,165 @@ export default function Sales() {
                 </TableRow>
               );
             })}
+            {/* Total Summary Row */}
+            <TableRow className="bg-primary/10 font-bold border-t-2 border-primary">
+              <TableCell colSpan={2} className="text-primary">
+                TOTAL
+              </TableCell>
+              <TableCell className="text-sm">
+                {fromDate && toDate ? `${formatDate(fromDate)} → ${formatDate(toDate)}` : fromDate ? `From ${formatDate(fromDate)}` : toDate ? `To ${formatDate(toDate)}` : 'All Dates'}
+              </TableCell>
+              <TableCell className="text-primary">
+                {formatNumber(filteredSales.reduce((sum, sale) => sum + (sale.coin_sales || 0), 0))}
+              </TableCell>
+              <TableCell className="text-success">
+                ৳{formatCurrency(filteredSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0))}
+              </TableCell>
+              <TableCell className="text-accent">
+                {formatNumber(filteredSales.reduce((sum, sale) => sum + (sale.prize_out_quantity || 0), 0))}
+              </TableCell>
+              <TableCell className="text-warning">
+                ৳{formatCurrency(filteredSales.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0))}
+              </TableCell>
+              <TableCell className="text-primary">
+                ৳{formatCurrency(filteredSales.reduce((sum, sale) => sum + calculatePayToClowee(sale), 0))}
+              </TableCell>
+              <TableCell>
+                {filteredSales.filter(sale => getPaymentStatus(sale).status === 'Due').length} Due
+              </TableCell>
+              <TableCell className="sticky right-0 bg-primary/10"></TableCell>
+            </TableRow>
           </TableBody>
         </Table>
         </div>
       </Card>
+
+      {/* Sales Cards - Mobile */}
+      <div className="md:hidden space-y-3">
+        {paginatedSales.map((sale) => {
+          const paymentInfo = getPaymentStatus(sale);
+          return (
+            <Card key={sale.id} className="bg-gradient-card border-border shadow-card">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Coins className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{sale.machines?.machine_name || 'Unknown Machine'}</div>
+                      <div className="text-xs text-muted-foreground">{sale.machines?.machine_number}</div>
+                    </div>
+                  </div>
+                  <Badge 
+                    className={`text-xs ${
+                      paymentInfo.status === 'Paid' 
+                        ? 'bg-success text-success-foreground' 
+                        : paymentInfo.status === 'Overpaid'
+                        ? 'bg-blue-500 text-white'
+                        : paymentInfo.status === 'Partial'
+                        ? 'bg-warning text-warning-foreground'
+                        : 'bg-destructive text-destructive-foreground'
+                    }`}
+                  >
+                    {paymentInfo.status}
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Invoice No</div>
+                    <div className="font-mono font-medium text-primary">{sale.invoice_number || 'Pending'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Date</div>
+                    <div className="font-medium">{formatDate(sale.sales_date)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Coin Sales</div>
+                    <div className="font-medium text-primary">{formatNumber(sale.coin_sales)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Sales Amount</div>
+                    <div className="font-medium text-success">৳{formatCurrency(sale.sales_amount)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Prize Out</div>
+                    <div className="font-medium text-accent">{formatNumber(sale.prize_out_quantity)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Prize Cost</div>
+                    <div className="font-medium text-warning">৳{formatCurrency(sale.prize_out_cost)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Pay To Clowee</div>
+                    <div className="font-medium text-primary">৳{formatCurrency(calculatePayToClowee(sale))}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Payment</div>
+                    <div>
+                      {paymentInfo.totalPaid > 0 && (
+                        <div className="text-xs text-muted-foreground">Paid: ৳{formatCurrency(paymentInfo.totalPaid)}</div>
+                      )}
+                      {paymentInfo.balance > 0 && (
+                        <div className="text-xs text-destructive">Due: ৳{formatCurrency(paymentInfo.balance)}</div>
+                      )}
+                      {paymentInfo.status === 'Overpaid' && (
+                        <div className="text-xs text-blue-600">Over: ৳{formatCurrency(paymentInfo.totalPaid - calculatePayToClowee(sale))}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 pt-2 border-t">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setViewingSale(sale)}
+                    className="flex-1"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setViewingInvoice(sale)}
+                    className="flex-1 border-blue-600 text-blue-600 bg-blue-50 hover:bg-blue-100"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Invoice
+                  </Button>
+                  {canEdit && (
+                  <>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setEditingSale(sale)}
+                    className="p-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="border-destructive text-destructive hover:bg-destructive/10 p-2"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this sales record?')) {
+                        deleteSale.mutate(sale.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
       {/* Pagination */}
       <TablePager
@@ -681,7 +1084,10 @@ function SalesDetailsModal({ sale, onClose, getAgreementValueForSale }: {
             </div>
           </div>
           
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-between items-center pt-4">
+            <div className="text-sm text-muted-foreground">
+              by: <span className="font-medium text-foreground">{sale.created_by_user?.name || 'Unknown'}</span>
+            </div>
             <Button onClick={onClose}>Close</Button>
           </div>
         </CardContent>

@@ -14,7 +14,10 @@ import {
   Cpu,
   Calendar,
   Loader2,
-  Calculator
+  Calculator,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { useMachineCounters, useCreateMachineCounter, useUpdateMachineCounter, useDeleteMachineCounter } from "@/hooks/useMachineCounters";
 import { useMachines } from "@/hooks/useMachines";
@@ -37,6 +40,8 @@ export default function CounterReadings() {
   const [showPayToClowee, setShowPayToClowee] = useState(false);
   const [editingReading, setEditingReading] = useState<any | null>(null);
   const [viewingReading, setViewingReading] = useState<any | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: readings, isLoading, error } = useMachineCounters();
   const { data: machines } = useMachines();
@@ -85,6 +90,15 @@ export default function CounterReadings() {
     return new Date(b.reading_date).getTime() - new Date(a.reading_date).getTime();
   });
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
   const filteredReadings = enrichedReadings?.filter(reading => {
     const matchesSearch = reading.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       reading.machine_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -98,6 +112,39 @@ export default function CounterReadings() {
     return matchesSearch && matchesFromDate && matchesToDate;
   }) || [];
 
+  const sortedReadings = [...filteredReadings].sort((a, b) => {
+    if (!sortColumn) return new Date(b.reading_date).getTime() - new Date(a.reading_date).getTime();
+    let aVal: any, bVal: any;
+    switch (sortColumn) {
+      case 'machine':
+        aVal = a.machine_name || '';
+        bVal = b.machine_name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'franchise':
+        aVal = a.franchise_name || '';
+        bVal = b.franchise_name || '';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'date':
+        aVal = new Date(a.reading_date).getTime();
+        bVal = new Date(b.reading_date).getTime();
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'coins':
+        aVal = a.coin_counter || 0;
+        bVal = b.coin_counter || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'prizes':
+        aVal = a.prize_counter || 0;
+        bVal = b.prize_counter || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      case 'type':
+        aVal = a.is_initial ? 'Initial' : 'Reading';
+        bVal = b.is_initial ? 'Initial' : 'Reading';
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      default:
+        return 0;
+    }
+  });
+
   const {
     currentPage,
     rowsPerPage,
@@ -106,7 +153,7 @@ export default function CounterReadings() {
     handlePageChange,
     handleRowsPerPageChange,
     getSerialNumber,
-  } = usePagination({ data: filteredReadings });
+  } = usePagination({ data: sortedReadings });
 
   return (
     <div className="space-y-6">
@@ -232,12 +279,42 @@ export default function CounterReadings() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-16">#</TableHead>
-              <TableHead>Machine</TableHead>
-              <TableHead>Franchise</TableHead>
-              <TableHead>Reading Date</TableHead>
-              <TableHead>Coin Counter</TableHead>
-              <TableHead>Prize Counter</TableHead>
-              <TableHead>Type</TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('machine')}>
+                <div className="flex items-center gap-1">
+                  Machine
+                  {sortColumn === 'machine' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('franchise')}>
+                <div className="flex items-center gap-1">
+                  Franchise
+                  {sortColumn === 'franchise' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
+                <div className="flex items-center gap-1">
+                  Reading Date
+                  {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('coins')}>
+                <div className="flex items-center gap-1">
+                  Coin Counter
+                  {sortColumn === 'coins' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('prizes')}>
+                <div className="flex items-center gap-1">
+                  Prize Counter
+                  {sortColumn === 'prizes' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('type')}>
+                <div className="flex items-center gap-1">
+                  Type
+                  {sortColumn === 'type' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
               <TableHead>Notes</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
