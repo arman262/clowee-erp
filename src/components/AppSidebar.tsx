@@ -15,6 +15,7 @@ import {
   Landmark,
   Tag,
   LogOut,
+  FileBarChart,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -46,6 +47,7 @@ const financeItems = [
   { title: "Expense Categories", url: "/expense-categories", icon: Tag },
   { title: "Payments", url: "/payments", icon: CreditCard },
   { title: "Banks", url: "/banks", icon: Landmark },
+  { title: "Monthly Report", url: "/monthly-report", icon: FileBarChart },
   { title: "Inventory", url: "/inventory", icon: Package },
 ];
 

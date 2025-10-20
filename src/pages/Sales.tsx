@@ -573,8 +573,11 @@ export default function Sales() {
                   <TableCell className="text-success font-medium text-sm whitespace-nowrap">
                     ৳{formatCurrency(sale.sales_amount)}
                   </TableCell>
-                  <TableCell className="text-accent font-medium text-sm whitespace-nowrap">
-                    {formatNumber(sale.prize_out_quantity)}
+                  <TableCell className="text-accent font-medium text-sm">
+                    <div>{formatNumber(sale.prize_out_quantity)}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Ratio: {sale.prize_out_quantity > 0 ? ((sale.coin_sales || 0) / sale.prize_out_quantity).toFixed(2) : '0.00'}
+                    </div>
                   </TableCell>
                   <TableCell className="text-warning font-medium text-sm whitespace-nowrap">
                     ৳{formatCurrency(sale.prize_out_cost)}

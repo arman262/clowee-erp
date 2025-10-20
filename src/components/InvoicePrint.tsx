@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { formatDate } from "@/lib/dateUtils";
+import { formatCurrency } from "@/lib/numberUtils";
 import { Download, Image, Printer, X } from "lucide-react";
 
 interface InvoicePrintProps {
@@ -527,38 +528,38 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                     <td className="px-4 py-3 text-sm text-gray-900">
                       Coin Sales
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{Number(getAgreementValue('coin_price') || 0).toFixed(2)}/coin</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{formatCurrency(getAgreementValue('coin_price') || 0)}/coin</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.coin_sales?.toLocaleString() || '0'} coins</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{calculatedSalesAmount.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{formatCurrency(calculatedSalesAmount)}</td>
                   </tr>
                   {calculatedVatAmount > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">VAT - {getAgreementValue('vat_percentage') || 0}% (Sales - {getAgreementValue('vat_percentage') || 0}% Vat)</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-center">-</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-right">-</td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedVatAmount.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{formatCurrency(calculatedVatAmount)}</td>
                     </tr>
                   )}
                   {calculatedVatAmount > 0 && (
                     <tr className="bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900" colSpan={3}>Net Sales (After VAT)</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{calculatedNetSales.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{formatCurrency(calculatedNetSales)}</td>
                     </tr>
                   )}
                   <tr className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
                       Prize Out Cost (Deducted)
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{Number(getAgreementValue('doll_price') || 0).toFixed(2)}/doll</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{formatCurrency(getAgreementValue('doll_price') || 0)}/doll</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.prize_out_quantity?.toLocaleString() || '0'} pcs</td>
-                    <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedPrizeCost.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{formatCurrency(calculatedPrizeCost)}</td>
                   </tr>
                   {(getAgreementValue('electricity_cost') || 0) > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">Electricity Cost (Deducted)</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-center">-</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-right">-</td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{Number(getAgreementValue('electricity_cost') || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{formatCurrency(getAgreementValue('electricity_cost') || 0)}</td>
                     </tr>
                   )}
                 </tbody>
@@ -569,7 +570,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center py-2 border-b border-gray-200">
                     <span className="text-sm font-medium text-blue-800">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost{(getAgreementValue('electricity_cost') || 0) > 0 ? ' - Electricity Cost' : ''})</span>
-                    <span className="text-lg font-semibold text-blue-700">৳{(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0)).toFixed(2)}</span>
+                    <span className="text-lg font-semibold text-blue-700">৳{formatCurrency(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0))}</span>
                   </div>
                   {(() => {
                     const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
@@ -581,16 +582,16 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                         {maintenanceAmount > 0 && (
                           <div className="flex justify-between items-center py-1">
                             <span className="text-sm text-gray-600">Maintenance ({maintenancePercentage}%)</span>
-                            <span className="text-sm font-medium text-gray-900">৳{maintenanceAmount.toFixed(2)}</span>
+                            <span className="text-sm font-medium text-gray-900">৳{formatCurrency(maintenanceAmount)}</span>
                           </div>
                         )}
                         <div className="flex justify-between items-center py-1">
                           <span className="text-sm text-gray-600">{sale.franchises?.name || 'Franchise'} Profit ({franchiseShare}%)</span>
-                          <span className="text-sm font-medium text-green-600">৳{calculatedFranchiseProfit.toFixed(2)}</span>
+                          <span className="text-sm font-medium text-green-600">৳{formatCurrency(calculatedFranchiseProfit)}</span>
                         </div>
                         <div className="flex justify-between items-center py-1">
                           <span className="text-sm text-gray-600">Clowee Profit ({cloweeShare}%)</span>
-                          <span className="text-sm font-medium text-green-600">৳{calculatedCloweeProfit.toFixed(2)}</span>
+                          <span className="text-sm font-medium text-green-600">৳{formatCurrency(calculatedCloweeProfit)}</span>
                         </div>
                       </>
                     );
@@ -614,11 +615,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                         lineHeight: '1.2'
                       }}
                     >
-                      ৳{(() => {
-                        const payToClowee = calculatedCloweeProfit + calculatedPrizeCost + maintenanceAmount - 
-                        (getAgreementValue('electricity_cost') || 0) - amountAdjustment;
-                        return payToClowee.toFixed(2);
-                      })()}
+                      ৳{formatCurrency(calculatedCloweeProfit + calculatedPrizeCost + maintenanceAmount - (getAgreementValue('electricity_cost') || 0) - amountAdjustment)}
                     </span>
                   </div>
                 </div>
@@ -648,11 +645,11 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Total Amount:</span>
-                        <span className="font-medium text-gray-900">৳{calculatedPayToClowee.toFixed(2)}</span>
+                        <span className="font-medium text-gray-900">৳{formatCurrency(calculatedPayToClowee)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Amount Paid:</span>
-                        <span className="font-medium text-green-600">৳{paymentInfo.totalPaid.toFixed(2)}</span>
+                        <span className="font-medium text-green-600">৳{formatCurrency(paymentInfo.totalPaid)}</span>
                       </div>
                       <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
                         <span className="font-medium text-gray-900">Balance Due:</span>
@@ -671,7 +668,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                             lineHeight: '1.2'
                           }}
                         >
-                          ৳{paymentInfo.balance.toFixed(2)}
+                          ৳{formatCurrency(paymentInfo.balance)}
                         </span>
                       </div>
                     </div>

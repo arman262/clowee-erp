@@ -22,6 +22,8 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import MonthlyReport from "./pages/MonthlyReport";
+import Inventory from "./pages/Inventory";
 
 const queryClient = new QueryClient();
 
@@ -53,8 +55,9 @@ function AppRoutes() {
         <Route path="/expense-categories" element={<ProtectedRoute><ExpenseCategories /></ProtectedRoute>} />
         <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
         <Route path="/banks" element={<ProtectedRoute><Banks /></ProtectedRoute>} />
+        <Route path="/monthly-report" element={<ProtectedRoute><MonthlyReport /></ProtectedRoute>} />
         <Route path="/accounting" element={<ProtectedRoute><div className="p-8 text-center text-muted-foreground">Accounting - Coming Soon</div></ProtectedRoute>} />
-        <Route path="/inventory" element={<ProtectedRoute><div className="p-8 text-center text-muted-foreground">Inventory - Coming Soon</div></ProtectedRoute>} />
+        <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
