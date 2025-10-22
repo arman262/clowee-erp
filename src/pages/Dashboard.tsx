@@ -26,6 +26,7 @@ import {
   Cpu,
   CreditCard,
   DollarSign,
+  Eye,
   Landmark,
   Package,
   Receipt,
@@ -53,6 +54,9 @@ export default function Dashboard() {
   const [showFranchiseForm, setShowFranchiseForm] = useState(false);
   const [showMachineForm, setShowMachineForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [showDueListModal, setShowDueListModal] = useState(false);
+  const [showHighestSalesModal, setShowHighestSalesModal] = useState(false);
+  const [showLowestSalesModal, setShowLowestSalesModal] = useState(false);
   const [transactionPage, setTransactionPage] = useState(1);
   const [transactionLimit, setTransactionLimit] = useState(10);
 
@@ -377,7 +381,7 @@ export default function Dashboard() {
               ৳{formatCurrency(totalSales)}
             </div>
             <div className="text-xs text-muted-foreground">
-              {filteredSales.length} transactions
+              {filteredSales.length} invoices
             </div>
           </CardContent>
         </Card>
@@ -387,7 +391,10 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Highest Machine Sales
             </CardTitle>
-            <TrendingUp className="h-5 w-5 text-primary" />
+            <div className="flex items-center gap-1">
+              <Eye className="h-5 w-5 text-primary cursor-pointer" onClick={() => setShowHighestSalesModal(true)} />
+              <TrendingUp className="h-5 w-5 text-primary" />
+            </div>
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-2xl font-bold text-primary mb-0">
@@ -404,7 +411,10 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Lowest Machine Sales
             </CardTitle>
-            <ArrowDownRight className="h-5 w-5 text-warning" />
+            <div className="flex items-center gap-1">
+              <Eye className="h-5 w-5 text-primary cursor-pointer" onClick={() => setShowLowestSalesModal(true)} />
+              <ArrowDownRight className="h-5 w-5 text-warning" />
+            </div>
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-2xl font-bold text-warning mb-0">
@@ -428,7 +438,7 @@ export default function Dashboard() {
               ৳{formatCurrency(avgSalesPerMachine)}
             </div>
             <div className="text-xs text-muted-foreground">
-              Per active machine
+              Sales Average Per active machine
             </div>
           </CardContent>
         </Card>
@@ -446,7 +456,7 @@ export default function Dashboard() {
               ৳{formatCurrency(netProfit)}
             </div>
             <div className="text-xs text-muted-foreground">
-              Net Profit After All Cost
+              Clowee Net Profit After All Cost
             </div>
           </CardContent>
         </Card>
@@ -490,10 +500,13 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Due
             </CardTitle>
-            <ArrowUpRight className="h-5 w-5 text-warning" />
+            <div className="flex items-center gap-1">
+              <Eye className="h-5 w-5 text-primary cursor-pointer" onClick={() => setShowDueListModal(true)} />
+              <ArrowUpRight className="h-5 w-5 text-warning" />
+            </div>
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-warning mb-0">
+            <div className="text-2xl font-bold text-destructive mb-0">
               ৳{formatCurrency(totalDue)}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -505,7 +518,7 @@ export default function Dashboard() {
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Prize Purchase
+              Total Prize Purchase Amount
             </CardTitle>
             <Package className="h-5 w-5 text-primary" />
           </CardHeader>
@@ -533,7 +546,7 @@ export default function Dashboard() {
               ৳{formatCurrency(cashInHand)}
             </div>
             <div className="text-xs text-muted-foreground">
-              Cash payments
+              Cash Amount
             </div>
           </CardContent>
         </Card>
@@ -550,7 +563,7 @@ export default function Dashboard() {
               ৳{formatCurrency(mdbBank)}
             </div>
             <div className="text-xs text-muted-foreground">
-              MDB Bank payments
+              MDB Bank Balance
             </div>
           </CardContent>
         </Card>
@@ -567,7 +580,7 @@ export default function Dashboard() {
               ৳{formatCurrency(nccBank)}
             </div>
             <div className="text-xs text-muted-foreground">
-              NCC Bank payments
+              NCC Bank Balance
             </div>
           </CardContent>
         </Card>
@@ -755,6 +768,124 @@ export default function Dashboard() {
             }}
             onCancel={() => setShowExpenseForm(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Highest Machine Sales Modal */}
+      <Dialog open={showHighestSalesModal} onOpenChange={setShowHighestSalesModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle>Highest Machine Sales - All Sales ({getFormattedPeriod()})</DialogTitle>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="space-y-3 pr-4">
+              {machineSales.sort((a, b) => b.total - a.total).map((machine, index) => {
+                const machineSalesData = filteredSales
+                  .filter(sale => sale.machines?.machine_name === machine.machineName)
+                  .sort((a, b) => new Date(b.sales_date).getTime() - new Date(a.sales_date).getTime());
+                
+                return (
+                  <div key={index} className="border border-border rounded-lg p-4 bg-gradient-glass">
+                    <div className="space-y-2">
+                      {machineSalesData.map((sale) => (
+                        <div key={sale.id} className="flex items-center justify-between p-2 rounded bg-secondary/30">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-3 w-3 text-muted-foreground" />
+                          <div className="font-bold text-foreground">{machine.machineName}</div>  
+                            <span className="text-sm">{format(new Date(sale.sales_date), 'd MMM yyyy')}</span>
+                          </div>
+                          <span className="text-sm font-medium text-success">৳{formatCurrency(sale.sales_amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lowest Machine Sales Modal */}
+      <Dialog open={showLowestSalesModal} onOpenChange={setShowLowestSalesModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle>Lowest Machine Sales - All Sales ({getFormattedPeriod()})</DialogTitle>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="space-y-3 pr-4">
+              {machineSales.sort((a, b) => a.total - b.total).map((machine, index) => {
+                const machineSalesData = filteredSales
+                  .filter(sale => sale.machines?.machine_name === machine.machineName)
+                  .sort((a, b) => new Date(b.sales_date).getTime() - new Date(a.sales_date).getTime());
+                return (
+                  <div key={index} className="border border-border rounded-lg p-4 bg-gradient-glass">
+                    <div className="space-y-2">
+                      {machineSalesData.map((sale) => (
+                        <div key={sale.id} className="flex items-center justify-between p-2 rounded bg-secondary/30">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-3 w-3 text-muted-foreground" />
+                          <div className="font-bold text-foreground">{machine.machineName}</div>
+                            <span className="text-sm">{format(new Date(sale.sales_date), 'd MMM yyyy')}</span>
+                          </div>
+                          <span className="text-sm font-medium text-success">৳{formatCurrency(sale.sales_amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Due List Modal */}
+      <Dialog open={showDueListModal} onOpenChange={setShowDueListModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle>Due List - All Sales</DialogTitle>
+          <div className="space-y-3">
+            {(() => {
+              const salesWithDue = filteredSales
+                .map(sale => {
+                  const payToClowee = Number(sale.pay_to_clowee || 0);
+                  const salePayments = filteredPayments.filter(p => p.invoice_id === sale.id);
+                  const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                  const due = payToClowee - totalPaid;
+                  
+                  return {
+                    id: sale.id,
+                    machineName: sale.machines?.machine_name || 'Unknown Machine',
+                    salesDate: sale.sales_date,
+                    payToClowee,
+                    totalPaid,
+                    due
+                  };
+                })
+                .filter(sale => sale.due > 0)
+                .sort((a, b) => new Date(b.salesDate).getTime() - new Date(a.salesDate).getTime());
+              
+              return salesWithDue.length > 0 ? (
+                <div className="space-y-2">
+                  {salesWithDue.map((sale) => (
+                    <div key={sale.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-8 h-8 bg-warning/20 rounded-full flex items-center justify-center">
+                          <Cpu className="h-4 w-4 text-warning" />
+                        </div>
+                        <div className="flex-1">
+                          <span className="font-medium text-foreground">{sale.machineName}</span>
+                          <p className="text-xs text-muted-foreground">{format(new Date(sale.salesDate), 'd MMM yyyy')}</p>
+                        </div>
+                      </div>
+                      <span className="font-bold text-destructive">৳{formatCurrency(sale.due)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Receipt className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No dues found</p>
+                </div>
+              );
+            })()}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -15,6 +15,26 @@ import { useBanks } from "@/hooks/useBanks";
 import { useSales } from "@/hooks/useSales";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
 
+const calculatePayToClowee = (sale: any) => {
+  const coinPrice = sale.franchises?.coin_price || 0;
+  const dollPrice = sale.franchises?.doll_price || 0;
+  const vatPercentage = sale.franchises?.vat_percentage || 0;
+  const cloweeShare = sale.franchises?.clowee_share || 40;
+  const maintenancePercentage = sale.franchises?.maintenance_percentage || 0;
+  const electricityCost = sale.franchises?.electricity_cost || 0;
+  const amountAdjustment = sale.amount_adjustment || 0;
+  
+  const calculatedSalesAmount = (sale.coin_sales || 0) * coinPrice;
+  const calculatedPrizeCost = (sale.prize_out_quantity || 0) * dollPrice;
+  const calculatedVatAmount = calculatedSalesAmount * vatPercentage / 100;
+  const netProfit = calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost;
+  const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+  const profitAfterMaintenance = netProfit - maintenanceAmount;
+  const calculatedCloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
+  
+  return calculatedCloweeProfit + calculatedPrizeCost + maintenanceAmount - electricityCost - amountAdjustment;
+};
+
 interface PaymentFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
@@ -31,7 +51,7 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
   const dueInvoices = sales?.filter(sale => {
     const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
     const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const payToClowee = Number(sale.pay_to_clowee || 0);
+    const payToClowee = calculatePayToClowee(sale);
     return totalPaid < payToClowee;
   }).sort((a, b) => new Date(b.sales_date).getTime() - new Date(a.sales_date).getTime()) || [];
   const [formData, setFormData] = useState({
@@ -77,8 +97,8 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
                         if (!selectedSale) return "Select Due Invoice";
                         const salePayments = payments?.filter(p => p.invoice_id === selectedSale.id) || [];
                         const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                        const balance = Number(selectedSale.pay_to_clowee || 0) - totalPaid;
-                        return `${formatDate(selectedSale.sales_date)} - ${selectedSale.machines?.machine_name} (Due: ৳${balance.toLocaleString()})`;
+                        const balance = calculatePayToClowee(selectedSale) - totalPaid;
+                        return `${formatDate(selectedSale.sales_date)} - ${selectedSale.machines?.machine_name} - ৳${balance.toLocaleString()}`;
                       })()
                     : "Select Due Invoice"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -98,7 +118,7 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
                         dueInvoices.map((sale) => {
                           const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
                           const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                          const balance = Number(sale.pay_to_clowee || 0) - totalPaid;
+                          const balance = calculatePayToClowee(sale) - totalPaid;
                           return (
                             <CommandItem
                               key={sale.id}
@@ -119,7 +139,7 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
                                   formData.invoice_id === sale.id ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              {formatDate(sale.sales_date)} - {sale.machines?.machine_name} (Due: ৳{balance.toLocaleString()})
+                              {formatDate(sale.sales_date)} - {sale.machines?.machine_name} - ৳{balance.toLocaleString()}
                             </CommandItem>
                           );
                         })
@@ -223,7 +243,7 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
             const selectedSale = sales?.find(s => s.id === formData.invoice_id);
             const existingPayments = payments?.filter(p => p.invoice_id === formData.invoice_id) || [];
             const totalPaid = existingPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-            const payToClowee = Number(selectedSale?.pay_to_clowee || 0);
+            const payToClowee = selectedSale ? calculatePayToClowee(selectedSale) : 0;
             const remainingDue = Math.max(0, payToClowee - totalPaid);
             const currentPayment = Number(formData.amount || 0);
             const newTotal = totalPaid + currentPayment;

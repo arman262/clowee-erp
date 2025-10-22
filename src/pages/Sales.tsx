@@ -1,5 +1,6 @@
 import { EditSalesModal } from "@/components/EditSalesModal";
 import { InvoicePrint } from "@/components/InvoicePrint";
+import { ManualSalesModal } from "@/components/ManualSalesModal";
 import { PayToCloweeModal } from "@/components/PayToCloweeModal";
 import { TablePager } from "@/components/TablePager";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ export default function Sales() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [showPayToClowee, setShowPayToClowee] = useState(false);
+  const [showManualSales, setShowManualSales] = useState(false);
   const [viewingSale, setViewingSale] = useState<any | null>(null);
   const [editingSale, setEditingSale] = useState<any | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
@@ -97,8 +99,8 @@ export default function Sales() {
   // Calculate dynamic payment status
   const getPaymentStatus = (sale: any) => {
     const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
-    const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const payToClowee = calculatePayToClowee(sale);
+    const totalPaid = Math.round(salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0) * 100) / 100;
+    const payToClowee = Math.round(calculatePayToClowee(sale) * 100) / 100;
     
     if (totalPaid === 0) return { status: 'Due', totalPaid, balance: payToClowee };
     if (totalPaid >= payToClowee) return { status: totalPaid > payToClowee ? 'Overpaid' : 'Paid', totalPaid, balance: 0 };
@@ -345,6 +347,11 @@ export default function Sales() {
         </div>
         {canEdit && (
         <div className="flex gap-2 w-full sm:w-auto">
+          <Button onClick={() => setShowManualSales(true)} className="bg-gradient-accent hover:opacity-90 flex-1 sm:flex-none">
+            <Plus className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Add Sales</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
           <Button onClick={() => setShowPayToClowee(true)} className="bg-gradient-primary hover:opacity-90 flex-1 sm:flex-none">
             <Plus className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Pay to Clowee</span>
@@ -353,6 +360,12 @@ export default function Sales() {
         </div>
         )}
       </div>
+
+      {/* Manual Sales Modal */}
+      <ManualSalesModal
+        open={showManualSales}
+        onOpenChange={setShowManualSales}
+      />
 
       {/* Pay to Clowee Modal */}
       <PayToCloweeModal
@@ -478,13 +491,13 @@ export default function Sales() {
       )}
 
       {/* Sales Table - Desktop */}
-      <Card className="bg-gradient-card border-border shadow-card overflow-hidden hidden md:block">
+      <Card className="bg-gradient-card border-border shadow-card hidden md:block">
         <div className="overflow-x-auto">
-        <Table>
+        <Table className="relative">
           <TableHeader>
             <TableRow>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('invoice')}>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 w-3">
                   Invoice No
                   {sortColumn === 'invoice' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
@@ -495,7 +508,7 @@ export default function Sales() {
                   {sortColumn === 'machine' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
-              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
+              <TableHead className="cursor-pointer hover:bg-secondary/50 w-28" onClick={() => handleSort('date')}>
                 <div className="flex items-center gap-1">
                   Sales Date
                   {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
@@ -561,7 +574,7 @@ export default function Sales() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-28">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-white flex-shrink-0" />
                       <span className="text-sm whitespace-nowrap">{formatDate(sale.sales_date)}</span>
