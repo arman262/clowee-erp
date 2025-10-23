@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ export default function Machines() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMachine, setEditingMachine] = useState<any | null>(null);
   const [viewingMachine, setViewingMachine] = useState<any | null>(null);
+  const [deletingMachine, setDeletingMachine] = useState<any | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -313,11 +315,7 @@ export default function Machines() {
                       variant="outline" 
                       size="sm"
                       className="border-destructive text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        if (confirm('Are you sure you want to delete this machine?')) {
-                          deleteMachine.mutate(machine.id);
-                        }
-                      }}
+                      onClick={() => setDeletingMachine(machine)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -346,7 +344,22 @@ export default function Machines() {
         open={!!viewingMachine}
         onOpenChange={(open) => !open && setViewingMachine(null)}
       />
-
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletingMachine}
+        onOpenChange={(open) => !open && setDeletingMachine(null)}
+        onConfirm={() => deleteMachine.mutate(deletingMachine.id)}
+        title="Delete Machine"
+        description="Are you sure you want to delete this machine?"
+        details={[
+          { label: "Machine Number", value: deletingMachine?.machine_number || '' },
+          { label: "Machine Name", value: deletingMachine?.machine_name || '' },
+          { label: "Franchise", value: deletingMachine?.franchises?.name || 'No Franchise' },
+          { label: "Location", value: deletingMachine?.branch_location || '' },
+          { label: "Installation Date", value: deletingMachine ? formatDate(deletingMachine.installation_date) : '' }
+        ]}
+      />
 
     </div>
   );

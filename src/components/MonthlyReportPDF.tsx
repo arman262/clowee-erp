@@ -14,7 +14,6 @@ interface MonthlyReportData {
   expense: {
     fixedCost: number;
     variableCost: number;
-    electricityVatOthers: number;
   };
   salesBreakdown: Array<{
     location: string;
@@ -29,9 +28,13 @@ interface MonthlyReportPDFProps {
 }
 
 export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
+  console.log('MonthlyReportPDF received data:', data);
+  
   const totalIncome = data.income.profitShareClowee + data.income.prizeIncome + data.income.maintenanceCharge;
-  const totalExpense = data.expense.fixedCost + data.expense.variableCost + data.expense.electricityVatOthers;
+  const totalExpense = data.expense.fixedCost + data.expense.variableCost;
   const netProfitLoss = totalIncome - totalExpense;
+  
+  console.log('Calculated values:', { totalIncome, totalExpense, netProfitLoss });
 
   const handlePrint = () => {
     const printContent = document.getElementById('report-content');
@@ -258,8 +261,8 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">Maintenance Charge</td>
                       <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(data.income.maintenanceCharge)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">Electricity + VAT + Others</td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">৳{formatCurrency(data.expense.electricityVatOthers)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900"></td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right"></td>
                     </tr>
                   </tbody>
                 </table>

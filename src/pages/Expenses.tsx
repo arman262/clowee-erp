@@ -1,29 +1,29 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import { ExpenseForm } from "@/components/forms/ExpenseForm";
+import { TablePager } from "@/components/TablePager";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { usePermissions } from "@/hooks/usePermissions";
-import { 
-  Receipt, 
-  Plus, 
-  Search, 
-  Eye, 
-  Edit, 
-  Trash2,
-  Calendar,
-  Loader2,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown
-} from "lucide-react";
-import { ExpenseForm } from "@/components/forms/ExpenseForm";
-import { useMachineExpenses, useCreateMachineExpense, useUpdateMachineExpense, useDeleteMachineExpense } from "@/hooks/useMachineExpenses";
-import { TablePager } from "@/components/TablePager";
+import { useCreateMachineExpense, useDeleteMachineExpense, useMachineExpenses, useUpdateMachineExpense } from "@/hooks/useMachineExpenses";
 import { usePagination } from "@/hooks/usePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatDate, formatDateTime } from "@/lib/dateUtils";
-import { formatCurrency, formatNumber } from "@/lib/numberUtils";
+import { formatCurrency } from "@/lib/numberUtils";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Edit,
+  Eye,
+  Loader2,
+  Plus,
+  Receipt,
+  Search,
+  Trash2
+} from "lucide-react";
+import { useState } from "react";
 
 export default function Expenses() {
   const { canEdit } = usePermissions();
@@ -33,6 +33,7 @@ export default function Expenses() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingExpense, setViewingExpense] = useState<any | null>(null);
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
+  const [deletingExpense, setDeletingExpense] = useState<any | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -51,14 +52,14 @@ export default function Expenses() {
   };
 
   const filteredExpenses = expenses?.filter((expense: any) => {
-    const matchesSearch = expense.expense_details?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expense.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = expense.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.expense_categories?.category_name?.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (fromDate || toDate) {
-      const expenseDate = expense.expense_date?.split('T')[0];
-      if (!expenseDate) return false;
-      const matchesDateRange = (!fromDate || expenseDate >= fromDate) && (!toDate || expenseDate <= toDate);
+      if (!expense.expense_date) return false;
+      const date = new Date(expense.expense_date);
+      const expenseDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      const matchesDateRange = (!fromDate || expenseDateLocal >= fromDate) && (!toDate || expenseDateLocal <= toDate);
       return matchesSearch && matchesDateRange;
     }
     
@@ -103,11 +104,12 @@ export default function Expenses() {
   });
 
   // Filtered summary calculations
+  const conveyanceExpenses = filteredExpenses.filter(exp => exp.expense_categories?.category_name === 'Conveyance');
   const filteredStats = {
     totalExpenses: filteredExpenses.length,
     totalAmount: filteredExpenses.reduce((sum, exp) => sum + Number(exp.total_amount || 0), 0),
-    avgAmount: filteredExpenses.length > 0 ? filteredExpenses.reduce((sum, exp) => sum + Number(exp.total_amount || 0), 0) / filteredExpenses.length : 0,
-    categories: [...new Set(filteredExpenses.map(exp => exp.expense_categories?.category_name).filter(Boolean))].length
+    prizePurchaseAmount: filteredExpenses.filter(exp => exp.expense_categories?.category_name === 'Prize Purchase').reduce((sum, exp) => sum + Number(exp.total_amount || 0), 0),
+    conveyanceAmount: conveyanceExpenses.reduce((sum, exp) => sum + Number(exp.total_amount || 0), 0)
   };
 
   const {
@@ -158,7 +160,7 @@ export default function Expenses() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-primary">{filteredStats.totalExpenses}</div>
-                <div className="text-sm text-muted-foreground">Total Expenses</div>
+                <div className="text-sm text-muted-foreground">Total Items</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -167,16 +169,16 @@ export default function Expenses() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-success">৳{formatCurrency(filteredStats.totalAmount)}</div>
-                <div className="text-sm text-muted-foreground">Total Amount</div>
+                <div className="text-sm text-muted-foreground">Total Expense Amount</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-secondary rounded-lg flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-primary-foreground" />
+                <Receipt className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-accent">৳{formatCurrency(filteredStats.avgAmount)}</div>
-                <div className="text-sm text-muted-foreground">Avg Amount</div>
+                <div className="text-2xl font-bold text-accent">৳{formatCurrency(filteredStats.prizePurchaseAmount)}</div>
+                <div className="text-sm text-muted-foreground">Prize Purchase</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -184,8 +186,8 @@ export default function Expenses() {
                 <Receipt className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-warning">{filteredStats.categories}</div>
-                <div className="text-sm text-muted-foreground">Categories Used</div>
+                <div className="text-2xl font-bold text-warning">৳{formatCurrency(filteredStats.conveyanceAmount)}</div>
+                <div className="text-sm text-muted-foreground">Total Conveyance</div>
               </div>
             </div>
           </div>
@@ -199,7 +201,7 @@ export default function Expenses() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by category, machine, or details..."
+                placeholder="Search by category or machine..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-secondary/30 border-border"
@@ -254,12 +256,11 @@ export default function Expenses() {
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
                 <div className="flex items-center gap-1">
-                  Date
+                  Expense Date
                   {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead>Details</TableHead>
-              <TableHead>Unique ID</TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('qty')}>
                 <div className="flex items-center gap-1">
                   Qty
@@ -268,13 +269,13 @@ export default function Expenses() {
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('itemPrice')}>
                 <div className="flex items-center gap-1">
-                  Item Price
+                  Unit Price
                   {sortColumn === 'itemPrice' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('total')}>
                 <div className="flex items-center gap-1">
-                  Total
+                  Total Amount
                   {sortColumn === 'total' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
@@ -291,7 +292,7 @@ export default function Expenses() {
           <TableBody>
             {paginatedExpenses.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   No expenses found
                 </TableCell>
               </TableRow>
@@ -305,7 +306,6 @@ export default function Expenses() {
                   <TableCell>{expense.machines?.machine_name}</TableCell>
                   <TableCell>{formatDate(expense.expense_date)}</TableCell>
                   <TableCell>{expense.expense_details}</TableCell>
-                  <TableCell>{expense.unique_id || '-'}</TableCell>
                   <TableCell>{expense.quantity}</TableCell>
                   <TableCell>৳{formatCurrency(expense.item_price)}</TableCell>
                   <TableCell>৳{formatCurrency(expense.total_amount)}</TableCell>
@@ -351,11 +351,7 @@ export default function Expenses() {
                         variant="outline" 
                         size="sm" 
                         className="border-destructive text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this expense?')) {
-                            deleteExpense.mutate(expense.id);
-                          }
-                        }}
+                        onClick={() => setDeletingExpense(expense)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -414,7 +410,7 @@ export default function Expenses() {
                 <div className="font-medium">{formatDate(viewingExpense.expense_date)}</div>
               </div>
               <div className="space-y-2">
-                <div className="text-sm text-muted-foreground">Details</div>
+                <div className="text-sm text-muted-foreground">Descriptions</div>
                 <div className="font-medium">{viewingExpense.expense_details}</div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -423,7 +419,7 @@ export default function Expenses() {
                   <div className="font-medium">{viewingExpense.quantity}</div>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">Item Price</div>
+                  <div className="text-sm text-muted-foreground">Unit Price</div>
                   <div className="font-medium">৳{formatCurrency(viewingExpense.item_price)}</div>
                 </div>
               </div>
@@ -445,6 +441,21 @@ export default function Expenses() {
         </div>
       )}
       
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletingExpense}
+        onOpenChange={(open) => !open && setDeletingExpense(null)}
+        onConfirm={() => deleteExpense.mutate(deletingExpense.id)}
+        title="Delete Expense"
+        description="Are you sure you want to delete this expense?"
+        details={[
+          { label: "Category", value: deletingExpense?.expense_categories?.category_name || '-' },
+          { label: "Machine", value: deletingExpense?.machines?.machine_name || '-' },
+          { label: "Date", value: deletingExpense ? formatDate(deletingExpense.expense_date) : '' },
+          { label: "Details", value: deletingExpense?.expense_details || '-' },
+          { label: "Total Amount", value: deletingExpense ? `৳${formatCurrency(deletingExpense.total_amount)}` : '' }
+        ]}
+      />
 
     </div>
   );

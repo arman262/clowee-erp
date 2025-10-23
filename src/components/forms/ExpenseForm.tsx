@@ -27,17 +27,29 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
   const { data: categories } = useActiveExpenseCategories();
   const { data: banks } = useBanks();
   
-  const [formData, setFormData] = useState({
-    category_id: initialData?.category_id ? String(initialData.category_id) : "",
-    machine_id: initialData?.machine_id ? String(initialData.machine_id) : "",
-    bank_id: initialData?.bank_id ? String(initialData.bank_id) : "",
-    expense_date: initialData?.expense_date ? new Date(initialData.expense_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    expense_month: initialData?.expense_date ? new Date(initialData.expense_date).toISOString().slice(0, 7) : new Date().toISOString().slice(0, 7),
-    total_amount: initialData?.total_amount || 0,
-    expense_details: initialData?.expense_details || "",
-    reference_id: initialData?.unique_id || "",
-    quantity: initialData?.quantity || 1,
-    employee_id: initialData?.employee_id || "",
+  const [formData, setFormData] = useState(() => {
+    let expenseDate = new Date().toISOString().split('T')[0];
+    let expenseMonth = new Date().toISOString().slice(0, 7);
+    
+    if (initialData?.expense_date) {
+      const date = new Date(initialData.expense_date);
+      const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      expenseDate = localDate;
+      expenseMonth = localDate.slice(0, 7);
+    }
+    
+    return {
+      category_id: initialData?.category_id ? String(initialData.category_id) : "",
+      machine_id: initialData?.machine_id ? String(initialData.machine_id) : "",
+      bank_id: initialData?.bank_id ? String(initialData.bank_id) : "",
+      expense_date: expenseDate,
+      expense_month: expenseMonth,
+      total_amount: initialData?.total_amount || 0,
+      expense_details: initialData?.expense_details || "",
+      reference_id: initialData?.unique_id || "",
+      quantity: initialData?.quantity || 1,
+      employee_id: initialData?.employee_id || "",
+    };
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});

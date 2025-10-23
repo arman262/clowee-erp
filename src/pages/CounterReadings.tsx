@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ export default function CounterReadings() {
   const [showPayToClowee, setShowPayToClowee] = useState(false);
   const [editingReading, setEditingReading] = useState<any | null>(null);
   const [viewingReading, setViewingReading] = useState<any | null>(null);
+  const [deletingReading, setDeletingReading] = useState<any | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -398,11 +400,7 @@ export default function CounterReadings() {
                           variant="outline" 
                           size="sm"
                           className="border-destructive text-destructive hover:bg-destructive/10"
-                          onClick={() => {
-                            if (confirm('Are you sure you want to delete this reading?')) {
-                              deleteReading.mutate(reading.id);
-                            }
-                          }}
+                          onClick={() => setDeletingReading(reading)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -439,6 +437,22 @@ export default function CounterReadings() {
       <PayToCloweeModal
         open={showPayToClowee}
         onOpenChange={setShowPayToClowee}
+      />
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletingReading}
+        onOpenChange={(open) => !open && setDeletingReading(null)}
+        onConfirm={() => deleteReading.mutate(deletingReading.id)}
+        title="Delete Counter Reading"
+        description="Are you sure you want to delete this counter reading?"
+        details={[
+          { label: "Machine", value: deletingReading?.machine_name || '' },
+          { label: "Franchise", value: deletingReading?.franchise_name || '' },
+          { label: "Reading Date", value: deletingReading ? formatDate(deletingReading.reading_date) : '' },
+          { label: "Coin Counter", value: deletingReading?.coin_counter?.toLocaleString() || '0' },
+          { label: "Prize Counter", value: deletingReading?.prize_counter?.toLocaleString() || '0' }
+        ]}
       />
     </div>
   );

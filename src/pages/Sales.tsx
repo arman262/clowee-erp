@@ -1,3 +1,4 @@
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { EditSalesModal } from "@/components/EditSalesModal";
 import { InvoicePrint } from "@/components/InvoicePrint";
 import { ManualSalesModal } from "@/components/ManualSalesModal";
@@ -14,7 +15,12 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useCreateSale, useDeleteSale, useSales, useUpdateSale } from "@/hooks/useSales";
 import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency, formatNumber } from "@/lib/numberUtils";
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Calendar,
   Coins,
   Download,
@@ -24,18 +30,12 @@ import {
   Gift,
   Loader2,
   Plus,
-  Printer,
   Search,
   Trash2,
-  TrendingUp,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown
+  TrendingUp
 } from "lucide-react";
 import { useState } from "react";
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 export default function Sales() {
   const { canEdit } = usePermissions();
@@ -51,6 +51,7 @@ export default function Sales() {
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [deletingSale, setDeletingSale] = useState<any | null>(null);
 
   const { data: sales, isLoading } = useSales();
   const { data: payments } = useMachinePayments();
@@ -117,23 +118,26 @@ export default function Sales() {
   };
 
   const filteredSales = sales?.filter(sale => {
-    const matchesSearch = sale.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sale.machines?.machine_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sale.franchises?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const payToClowee = calculatePayToClowee(sale);
+    const matchesSearch = sale.invoice_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sale.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(sale.sales_amount || '').includes(searchQuery) ||
+      String(payToClowee.toFixed(2)).includes(searchQuery);
     
     // Apply date filter if any date is selected
     if (fromDate || toDate) {
       if (!sale.sales_date) return false;
       try {
-        const saleDate = new Date(sale.sales_date).toISOString().split('T')[0];
+        const saleDate = new Date(sale.sales_date);
+        const saleDateLocal = new Date(saleDate.getTime() - saleDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
         let matchesDateRange = true;
         
         if (fromDate && toDate) {
-          matchesDateRange = saleDate >= fromDate && saleDate <= toDate;
+          matchesDateRange = saleDateLocal >= fromDate && saleDateLocal <= toDate;
         } else if (fromDate) {
-          matchesDateRange = saleDate >= fromDate;
+          matchesDateRange = saleDateLocal >= fromDate;
         } else if (toDate) {
-          matchesDateRange = saleDate <= toDate;
+          matchesDateRange = saleDateLocal <= toDate;
         }
         
         return matchesSearch && matchesDateRange;
@@ -390,7 +394,7 @@ export default function Sales() {
                 <div className="text-xl sm:text-2xl font-bold text-success truncate">
                   ৳{formatCurrency(dateRangeStats.totalSalesAmount)}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Sales</div>
+                <div className="text-sm text-muted-foreground">Total Sales Amount</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -401,7 +405,7 @@ export default function Sales() {
                 <div className="text-2xl font-bold text-primary truncate">
                   {formatNumber(dateRangeStats.totalCoinSales)}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Coins</div>
+                <div className="text-sm text-muted-foreground">Total Coins Sales (pcs)</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -412,7 +416,7 @@ export default function Sales() {
                 <div className="text-2xl font-bold text-accent truncate">
                   {formatNumber(dateRangeStats.totalPrizeOut)}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Prizes</div>
+                <div className="text-sm text-muted-foreground">Total Prizes Out (Qty)</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -423,7 +427,7 @@ export default function Sales() {
                 <div className="text-2xl font-bold text-warning truncate">
                   ৳{formatCurrency(dateRangeStats.totalPayToClowee)}
                 </div>
-                <div className="text-sm text-muted-foreground">Pay To Clowee</div>
+                <div className="text-sm text-muted-foreground">Pay To Clowee Amount</div>
               </div>
             </div>
           </div>
@@ -437,7 +441,7 @@ export default function Sales() {
             <div className="relative flex-1 lg:max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search sales..."
+                placeholder="Search by invoice, machine, amount, pay to clowee..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-secondary/30 border-border"
@@ -663,11 +667,7 @@ export default function Sales() {
                         variant="outline" 
                         size="sm"
                         className="border-destructive text-destructive hover:bg-destructive/10 p-2 h-8 w-8"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this sales record?')) {
-                            deleteSale.mutate(sale.id);
-                          }
-                        }}
+                        onClick={() => setDeletingSale(sale)}
                         title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -822,11 +822,7 @@ export default function Sales() {
                     variant="outline" 
                     size="sm"
                     className="border-destructive text-destructive hover:bg-destructive/10 p-2"
-                    onClick={() => {
-                      if (confirm('Are you sure you want to delete this sales record?')) {
-                        deleteSale.mutate(sale.id);
-                      }
-                    }}
+                    onClick={() => setDeletingSale(sale)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -876,6 +872,22 @@ export default function Sales() {
           onClose={() => setViewingInvoice(null)}
         />
       )}
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletingSale}
+        onOpenChange={(open) => !open && setDeletingSale(null)}
+        onConfirm={() => deleteSale.mutate(deletingSale.id)}
+        title="Delete Sales Record"
+        description="Are you sure you want to delete this sales record?"
+        details={[
+          { label: "Invoice No", value: deletingSale?.invoice_number || 'Pending' },
+          { label: "Machine", value: deletingSale?.machines?.machine_name || 'Unknown' },
+          { label: "Sales Date", value: deletingSale ? formatDate(deletingSale.sales_date) : '' },
+          { label: "Sales Amount", value: deletingSale ? `৳${formatCurrency(deletingSale.sales_amount)}` : '' },
+          { label: "Pay To Clowee", value: deletingSale ? `৳${formatCurrency(calculatePayToClowee(deletingSale))}` : '' }
+        ]}
+      />
     </div>
   );
 }

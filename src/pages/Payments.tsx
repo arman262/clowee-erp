@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ export default function Payments() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingPayment, setViewingPayment] = useState<any | null>(null);
   const [editingPayment, setEditingPayment] = useState<any | null>(null);
+  const [deletingPayment, setDeletingPayment] = useState<any | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -304,11 +306,7 @@ export default function Payments() {
                         variant="outline" 
                         size="sm" 
                         className="border-destructive text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this payment?')) {
-                            deletePayment.mutate(payment.id);
-                          }
-                        }}
+                        onClick={() => setDeletingPayment(payment)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -373,6 +371,21 @@ export default function Payments() {
         </div>
       )}
       
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletingPayment}
+        onOpenChange={(open) => !open && setDeletingPayment(null)}
+        onConfirm={() => deletePayment.mutate(deletingPayment.id)}
+        title="Delete Payment"
+        description="Are you sure you want to delete this payment?"
+        details={[
+          { label: "Invoice No", value: deletingPayment?.sales?.invoice_number || 'N/A' },
+          { label: "Machine", value: deletingPayment?.machines?.machine_name || '' },
+          { label: "Payment Date", value: deletingPayment ? formatDate(deletingPayment.payment_date) : '' },
+          { label: "Amount", value: deletingPayment ? `৳${deletingPayment.amount.toLocaleString()}` : '' },
+          { label: "Bank", value: deletingPayment?.banks?.bank_name || '' }
+        ]}
+      />
 
     </div>
   );

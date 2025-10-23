@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export default function Franchises() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingFranchise, setEditingFranchise] = useState<any | null>(null);
   const [viewingFranchise, setViewingFranchise] = useState<any | null>(null);
+  const [deletingFranchise, setDeletingFranchise] = useState<any | null>(null);
 
   const { data: franchises, isLoading } = useFranchises();
   const { data: machines } = useMachines();
@@ -106,11 +108,7 @@ export default function Franchises() {
             variant="outline" 
             size="sm" 
             className="border-destructive text-destructive hover:bg-destructive/10"
-            onClick={() => {
-              if (confirm('Are you sure you want to delete this franchise?')) {
-                deleteFranchise.mutate(franchise?.id);
-              }
-            }}
+            onClick={() => setDeletingFranchise(franchise)}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -332,6 +330,22 @@ export default function Franchises() {
         franchise={viewingFranchise}
         open={!!viewingFranchise}
         onOpenChange={(open) => !open && setViewingFranchise(null)}
+      />
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletingFranchise}
+        onOpenChange={(open) => !open && setDeletingFranchise(null)}
+        onConfirm={() => deleteFranchise.mutate(deletingFranchise?.id)}
+        title="Delete Franchise"
+        description="Are you sure you want to delete this franchise?"
+        details={[
+          { label: "Franchise Name", value: deletingFranchise?.name || '' },
+          { label: "Coin Price", value: deletingFranchise ? `৳${deletingFranchise.coin_price}` : '' },
+          { label: "Doll Price", value: deletingFranchise ? `৳${deletingFranchise.doll_price}` : '' },
+          { label: "Share Split", value: deletingFranchise ? `${deletingFranchise.franchise_share}% / ${deletingFranchise.clowee_share}%` : '' },
+          { label: "Payment Duration", value: deletingFranchise?.payment_duration || 'N/A' }
+        ]}
       />
     </div>
   );

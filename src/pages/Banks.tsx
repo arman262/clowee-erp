@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,8 +42,10 @@ export default function Banks() {
   const [showAddMoneyForm, setShowAddMoneyForm] = useState(false);
   const [viewingBank, setViewingBank] = useState<any | null>(null);
   const [editingBank, setEditingBank] = useState<any | null>(null);
+  const [deletingBank, setDeletingBank] = useState<any | null>(null);
   const [viewingMoneyLog, setViewingMoneyLog] = useState<any | null>(null);
   const [editingMoneyLog, setEditingMoneyLog] = useState<any | null>(null);
+  const [deletingMoneyLog, setDeletingMoneyLog] = useState<any | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [moneyFormData, setMoneyFormData] = useState({
@@ -445,11 +448,7 @@ export default function Banks() {
                             variant="outline" 
                             size="sm" 
                             className="border-destructive text-destructive hover:bg-destructive/10"
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this bank?')) {
-                                deleteBank.mutate(bank.id);
-                              }
-                            }}
+                            onClick={() => setDeletingBank(bank)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -606,11 +605,7 @@ export default function Banks() {
                               variant="outline" 
                               size="sm" 
                               className="border-destructive text-destructive hover:bg-destructive/10"
-                              onClick={() => {
-                                if (confirm('Are you sure you want to delete this money log?')) {
-                                  deleteMoneyLog.mutate(log.id);
-                                }
-                              }}
+                              onClick={() => setDeletingMoneyLog(log)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -747,6 +742,38 @@ export default function Banks() {
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* Delete Bank Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletingBank}
+        onOpenChange={(open) => !open && setDeletingBank(null)}
+        onConfirm={() => deleteBank.mutate(deletingBank.id)}
+        title="Delete Bank"
+        description="Are you sure you want to delete this bank?"
+        details={[
+          { label: "Bank Name", value: deletingBank?.bank_name || '' },
+          { label: "Account Number", value: deletingBank?.account_number || '' },
+          { label: "Account Holder", value: deletingBank?.account_holder_name || '' },
+          { label: "Branch", value: deletingBank?.branch_name || '' },
+          { label: "Current Balance", value: deletingBank ? `৳${formatCurrency(calculateBankBalance(deletingBank.id))}` : '' }
+        ]}
+      />
+      
+      {/* Delete Money Log Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletingMoneyLog}
+        onOpenChange={(open) => !open && setDeletingMoneyLog(null)}
+        onConfirm={() => deleteMoneyLog.mutate(deletingMoneyLog.id)}
+        title="Delete Money Log"
+        description="Are you sure you want to delete this money log?"
+        details={[
+          { label: "Bank", value: deletingMoneyLog ? (banks?.find((b: any) => b.id === deletingMoneyLog.bank_id)?.bank_name || 'Unknown') : '' },
+          { label: "Type", value: deletingMoneyLog?.action_type === 'add' ? 'Add' : 'Deduct' },
+          { label: "Amount", value: deletingMoneyLog ? `৳${formatCurrency(deletingMoneyLog.amount)}` : '' },
+          { label: "Date", value: deletingMoneyLog ? formatDate(deletingMoneyLog.transaction_date) : '' },
+          { label: "Remarks", value: deletingMoneyLog?.remarks || '-' }
+        ]}
+      />
     </div>
   );
 }

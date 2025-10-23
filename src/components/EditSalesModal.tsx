@@ -15,7 +15,8 @@ interface EditSalesModalProps {
 
 export function EditSalesModal({ sale, onClose, onUpdate }: EditSalesModalProps) {
   const [salesDate, setSalesDate] = useState(() => {
-    return toBangladeshDate(sale.sales_date) || new Date().toISOString().split('T')[0];
+    const date = new Date(sale.sales_date);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
   });
   const [coinSales, setCoinSales] = useState(sale.coin_sales.toString());
   const [prizeOut, setPrizeOut] = useState(sale.prize_out_quantity.toString());
