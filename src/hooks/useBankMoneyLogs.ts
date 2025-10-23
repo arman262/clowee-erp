@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-const API_URL = 'http://202.59.208.112:3008/api';
+const API_URL = `${import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008'}/api`;
 
 export function useBankMoneyLogs() {
   return useQuery({

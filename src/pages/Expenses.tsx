@@ -22,13 +22,14 @@ import { ExpenseForm } from "@/components/forms/ExpenseForm";
 import { useMachineExpenses, useCreateMachineExpense, useUpdateMachineExpense, useDeleteMachineExpense } from "@/hooks/useMachineExpenses";
 import { TablePager } from "@/components/TablePager";
 import { usePagination } from "@/hooks/usePagination";
-import { formatDate } from "@/lib/dateUtils";
+import { formatDate, formatDateTime } from "@/lib/dateUtils";
 import { formatCurrency, formatNumber } from "@/lib/numberUtils";
 
 export default function Expenses() {
   const { canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingExpense, setViewingExpense] = useState<any | null>(null);
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
@@ -51,9 +52,17 @@ export default function Expenses() {
 
   const filteredExpenses = expenses?.filter((expense: any) => {
     const matchesSearch = expense.expense_details?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expense.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDate = !dateFilter || expense.expense_date?.split('T')[0] === dateFilter;
-    return matchesSearch && matchesDate;
+      expense.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.expense_categories?.category_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (fromDate || toDate) {
+      const expenseDate = expense.expense_date?.split('T')[0];
+      if (!expenseDate) return false;
+      const matchesDateRange = (!fromDate || expenseDate >= fromDate) && (!toDate || expenseDate <= toDate);
+      return matchesSearch && matchesDateRange;
+    }
+    
+    return matchesSearch;
   }) || [];
 
   const sortedExpenses = [...filteredExpenses].sort((a, b) => {
@@ -93,16 +102,12 @@ export default function Expenses() {
     }
   });
 
-  // Today's summary calculations
-  const todayExpenses = expenses?.filter((expense: any) => 
-    expense.expense_date?.split('T')[0] === dateFilter
-  ) || [];
-  
-  const todayStats = {
-    totalExpenses: todayExpenses.length,
-    totalAmount: todayExpenses.reduce((sum, exp) => sum + (exp.total_amount || 0), 0),
-    avgAmount: todayExpenses.length > 0 ? todayExpenses.reduce((sum, exp) => sum + (exp.total_amount || 0), 0) / todayExpenses.length : 0,
-    categories: [...new Set(todayExpenses.map(exp => exp.expense_categories?.category_name).filter(Boolean))].length
+  // Filtered summary calculations
+  const filteredStats = {
+    totalExpenses: filteredExpenses.length,
+    totalAmount: filteredExpenses.reduce((sum, exp) => sum + Number(exp.total_amount || 0), 0),
+    avgAmount: filteredExpenses.length > 0 ? filteredExpenses.reduce((sum, exp) => sum + Number(exp.total_amount || 0), 0) / filteredExpenses.length : 0,
+    categories: [...new Set(filteredExpenses.map(exp => exp.expense_categories?.category_name).filter(Boolean))].length
   };
 
   const {
@@ -138,10 +143,12 @@ export default function Expenses() {
         )}
       </div>
 
-      {/* Today Summary */}
+      {/* Filtered Summary */}
       <Card className="bg-gradient-glass border-border shadow-card">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Today Summary - {formatDate(dateFilter)}</CardTitle>
+          <CardTitle className="text-lg font-semibold">
+            {fromDate && toDate ? `Summary: ${formatDate(fromDate)} to ${formatDate(toDate)}` : fromDate ? `Summary from ${formatDate(fromDate)}` : toDate ? `Summary to ${formatDate(toDate)}` : 'All Expenses Summary'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -150,7 +157,7 @@ export default function Expenses() {
                 <Receipt className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-primary">{todayStats.totalExpenses}</div>
+                <div className="text-2xl font-bold text-primary">{filteredStats.totalExpenses}</div>
                 <div className="text-sm text-muted-foreground">Total Expenses</div>
               </div>
             </div>
@@ -159,7 +166,7 @@ export default function Expenses() {
                 <Receipt className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-success">৳{formatCurrency(todayStats.totalAmount)}</div>
+                <div className="text-2xl font-bold text-success">৳{formatCurrency(filteredStats.totalAmount)}</div>
                 <div className="text-sm text-muted-foreground">Total Amount</div>
               </div>
             </div>
@@ -168,7 +175,7 @@ export default function Expenses() {
                 <Calendar className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-accent">৳{formatCurrency(todayStats.avgAmount)}</div>
+                <div className="text-2xl font-bold text-accent">৳{formatCurrency(filteredStats.avgAmount)}</div>
                 <div className="text-sm text-muted-foreground">Avg Amount</div>
               </div>
             </div>
@@ -177,7 +184,7 @@ export default function Expenses() {
                 <Receipt className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-warning">{todayStats.categories}</div>
+                <div className="text-2xl font-bold text-warning">{filteredStats.categories}</div>
                 <div className="text-sm text-muted-foreground">Categories Used</div>
               </div>
             </div>
@@ -192,19 +199,28 @@ export default function Expenses() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search expenses by details or machine..."
+                placeholder="Search by category, machine, or details..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-secondary/30 border-border"
               />
             </div>
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-white" />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">From:</span>
               <Input
                 type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-40 bg-secondary/30 border-border"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="w-36 bg-secondary/30 border-border"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">To:</span>
+              <Input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="w-36 bg-secondary/30 border-border"
               />
             </div>
           </div>
@@ -268,6 +284,7 @@ export default function Expenses() {
                   {sortColumn === 'bank' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
+              <TableHead>Entry Date</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -293,6 +310,9 @@ export default function Expenses() {
                   <TableCell>৳{formatCurrency(expense.item_price)}</TableCell>
                   <TableCell>৳{formatCurrency(expense.total_amount)}</TableCell>
                   <TableCell>{expense.banks?.bank_name || '-'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {expense.created_at ? formatDateTime(expense.created_at) : '-'}
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button 

@@ -55,6 +55,24 @@ app.use(express.json());
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
 
+// Employee API proxy
+app.get('/api/employees', async (req, res) => {
+  const https = require('https');
+  https.get('https://emp.sohub.com.bd/api/get_staff_info?staff_ids=10,13,14,17,28', (response) => {
+    let data = '';
+    response.on('data', (chunk) => { data += chunk; });
+    response.on('end', () => {
+      try {
+        res.json(JSON.parse(data));
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+  }).on('error', (error) => {
+    res.status(500).json({ error: error.message });
+  });
+});
+
 const pool = new Pool({
   host: 'localhost',
   port: 5433,
@@ -84,6 +102,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 });
 
 app.get('/api/:table', async (req, res) => {
+  if (req.params.table === 'employees') return;
   try {
     const { table } = req.params;
     const result = await pool.query(`SELECT * FROM ${table} ORDER BY created_at DESC`);

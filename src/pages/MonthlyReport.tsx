@@ -21,12 +21,12 @@ export default function MonthlyReport() {
       electricityVatOthers: 3252.75,
     },
     salesBreakdown: [
-      { location: "Sales Cafe Rio", sales: 141080.63, profitShare: 56432.25 },
-      { location: "SHANG HIGH", sales: 98750.50, profitShare: 39500.20 },
-      { location: "Dining Lounge", sales: 87650.25, profitShare: 35060.10 },
-      { location: "City Center Mall", sales: 76540.00, profitShare: 30616.00 },
-      { location: "Airport Terminal", sales: 65430.75, profitShare: 26172.30 },
-      { location: "Shopping Plaza", sales: 54320.50, profitShare: 21728.20 },
+      { location: "Sharif Plaza", sales: 141080.63, profitShare: 56432.25 },
+      { location: "Bashundhara City", sales: 98750.50, profitShare: 39500.20 },
+      { location: "Jamuna Future Park", sales: 87650.25, profitShare: 35060.10 },
+      { location: "Uttara Sector 7", sales: 76540.00, profitShare: 30616.00 },
+      { location: "Dhanmondi 27", sales: 65430.75, profitShare: 26172.30 },
+      { location: "Others (8 franchises)", sales: 154641.87, profitShare: 61856.75 },
     ],
   };
 

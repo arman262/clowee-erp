@@ -163,8 +163,8 @@ export default function Dashboard() {
   const totalPaymentReceived = filteredPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
   //const totalDue = filteredSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
 
-  const totalPrizePurchase = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.total_amount || 0), 0);
-  const totalPrizeQuantity = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0);
+  const totalPrizePurchase = expenses?.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
+  const totalPrizeQuantity = expenses?.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0) || 0;
   
   // Total expenses excluding Profit Share (Share Holders)
   const totalExpenses = filteredExpenses

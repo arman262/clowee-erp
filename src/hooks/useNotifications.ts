@@ -17,8 +17,8 @@ export const useNotifications = () => {
     queryKey: ["notifications"],
     queryFn: async () => {
       const [notifications, users] = await Promise.all([
-        db.from("notifications").select("*").order("created_at", { ascending: false }).execute(),
-        db.from("users").select("*").execute()
+        db.from("notifications").select("*").order("created_at", { ascending: false }),
+        db.from("users").select("*")
       ]);
 
       const userMap = new Map();
@@ -84,8 +84,7 @@ export const useDeleteNotification = () => {
       await db
         .from("notifications")
         .delete()
-        .eq("id", id)
-        .execute();
+        .eq("id", id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
@@ -108,8 +107,7 @@ export const createNotification = async (
         related_module: module,
         user_id: userId || null,
         status: 'unread'
-      }])
-      .execute();
+      }]);
   } catch (error) {
     console.error('Failed to create notification:', error);
   }

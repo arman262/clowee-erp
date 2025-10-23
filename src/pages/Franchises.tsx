@@ -119,15 +119,6 @@ export default function Franchises() {
     );
   };
 
-  const handleCleanupFiles = async () => {
-    setIsCleaningUp(true);
-    try {
-      await cleanupPlaceholderFiles();
-      queryClient.invalidateQueries({ queryKey: ['franchises'] });
-    } finally {
-      setIsCleaningUp(false);
-    }
-  };
 
   const filteredFranchises = franchises?.filter(franchise =>
     franchise?.name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -228,23 +219,6 @@ export default function Franchises() {
                 className="pl-10 bg-secondary/30 border-border"
               />
             </div>
-            <Button variant="outline" className="border-border hover:bg-secondary/50">
-              Export Data
-              <Download className="h-4 w-4 ml-2" />
-            </Button>
-            <Button 
-              variant="outline" 
-              className="border-border hover:bg-secondary/50"
-              onClick={handleCleanupFiles}
-              disabled={isCleaningUp}
-            >
-              {isCleaningUp ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Cleanup Files
-            </Button>
           </div>
         </CardContent>
       </Card>

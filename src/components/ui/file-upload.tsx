@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Upload, X, FileText, Download, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008';
+
 interface FileUploadProps {
   label: string;
   accept?: string;
@@ -30,7 +32,7 @@ export function FileUpload({
     formData.append('file', file);
     
     try {
-      const response = await fetch('http://202.59.208.112:3008/api/upload', {
+      const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         body: formData
       });

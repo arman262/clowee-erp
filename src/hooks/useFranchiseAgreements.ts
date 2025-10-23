@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/integrations/postgres/client";
 import { toast } from "sonner";
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008';
+
 // Try to use franchise_agreements table, fallback to franchises table
 export function useFranchiseAgreements(franchiseId?: string) {
   return useQuery({
@@ -11,7 +13,7 @@ export function useFranchiseAgreements(franchiseId?: string) {
       
       try {
         // Get from franchise_agreements table using direct API call
-        const response = await fetch(`http://202.59.208.112:3008/api/franchise_agreements`);
+        const response = await fetch(`${API_URL}/api/franchise_agreements`);
         const result = await response.json();
         
         if (result.error) {
@@ -46,7 +48,7 @@ export function useUpdateFranchiseAgreement() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: any) => {
-      const response = await fetch(`http://202.59.208.112:3008/api/franchise_agreements/${id}`, {
+      const response = await fetch(`${API_URL}/api/franchise_agreements/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -106,7 +108,7 @@ export function useDeleteFranchiseAgreement() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`http://202.59.208.112:3008/api/franchise_agreements/${id}`, {
+      const response = await fetch(`${API_URL}/api/franchise_agreements/${id}`, {
         method: 'DELETE'
       });
       
@@ -138,7 +140,7 @@ export function useCreateFranchiseAgreement() {
       console.log('Creating franchise agreement with data:', data);
       
       // Insert into franchise_agreements table using direct API call
-      const agreementResponse = await fetch('http://202.59.208.112:3008/api/franchise_agreements', {
+      const agreementResponse = await fetch(`${API_URL}/api/franchise_agreements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

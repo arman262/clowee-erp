@@ -10,6 +10,12 @@ import { useMachines } from "@/hooks/useMachines";
 import { useActiveExpenseCategories } from "@/hooks/useExpenseCategories";
 import { useBanks } from "@/hooks/useBanks";
 
+interface Employee {
+  employee_id: string;
+  name: string;
+  designation: string;
+}
+
 interface ExpenseFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
@@ -26,23 +32,27 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
     machine_id: initialData?.machine_id ? String(initialData.machine_id) : "",
     bank_id: initialData?.bank_id ? String(initialData.bank_id) : "",
     expense_date: initialData?.expense_date ? new Date(initialData.expense_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    expense_month: initialData?.expense_month || new Date().toISOString().slice(0, 7),
+    expense_month: initialData?.expense_date ? new Date(initialData.expense_date).toISOString().slice(0, 7) : new Date().toISOString().slice(0, 7),
     total_amount: initialData?.total_amount || 0,
     expense_details: initialData?.expense_details || "",
-    reference_id: initialData?.reference_id || "",
+    reference_id: initialData?.unique_id || "",
     quantity: initialData?.quantity || 1,
+    employee_id: initialData?.employee_id || "",
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isMonthlyExpense, setIsMonthlyExpense] = useState(false);
   const [prizeQuantity, setPrizeQuantity] = useState(initialData?.quantity || 1);
   const [prizeRate, setPrizeRate] = useState(initialData?.item_price || 0);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isEmployeeSalary, setIsEmployeeSalary] = useState(false);
 
   const monthlyCategories = ["Employee Salary", "Factory Rent", "Office Rent", "Server Bill"];
 
   useEffect(() => {
     const selectedCategory = categories?.find(cat => String(cat.id) === formData.category_id);
     setIsMonthlyExpense(selectedCategory ? monthlyCategories.includes(selectedCategory.category_name) : false);
+    setIsEmployeeSalary(selectedCategory?.category_name === 'Employee Salary');
     
     // Auto-calculate total for Prize Purchase
     if (selectedCategory?.category_name === 'Prize Purchase') {
@@ -51,6 +61,15 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
     }
   }, [formData.category_id, categories, prizeQuantity, prizeRate]);
 
+  useEffect(() => {
+    if (isEmployeeSalary) {
+      fetch('http://202.59.208.112:3008/api/employees')
+        .then(res => res.json())
+        .then(result => setEmployees(result.data || []))
+        .catch(err => console.error('Error fetching employees:', err));
+    }
+  }, [isEmployeeSalary]);
+
   const isPrizePurchase = categories?.find(cat => String(cat.id) === formData.category_id)?.category_name === 'Prize Purchase';
 
   const validateForm = () => {
@@ -58,6 +77,10 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
     
     if (!formData.category_id) {
       newErrors.category_id = "Category is required";
+    }
+    
+    if (isEmployeeSalary && !formData.employee_id) {
+      newErrors.employee_id = "Employee Name is required for Employee Salary";
     }
     
     if (!formData.total_amount || formData.total_amount <= 0) {
@@ -85,6 +108,7 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
       quantity: isPrizePurchase ? prizeQuantity : (formData.quantity || 1),
       item_price: isPrizePurchase ? prizeRate : (formData.total_amount / (formData.quantity || 1)),
       total_amount: formData.total_amount,
+      employee_id: isEmployeeSalary ? formData.employee_id : null,
     };
     
     onSubmit(submitData);
@@ -131,26 +155,53 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
             )}
           </div>
 
-          {/* Machine Field - Optional */}
-          <div className="space-y-2">
-            <Label htmlFor="machine_id">Machine</Label>
-            <Select 
-              value={formData.machine_id} 
-              onValueChange={(value) => setFormData({ ...formData, machine_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select machine (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No machine selected</SelectItem>
-                {machines?.map((machine) => (
-                  <SelectItem key={machine.id} value={String(machine.id)}>
-                    {machine.machine_name} ({machine.machine_number})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Employee or Machine Field */}
+          {isEmployeeSalary ? (
+            <div className="space-y-2">
+              <Label htmlFor="employee_id">Employee Name*</Label>
+              <Select 
+                value={formData.employee_id} 
+                onValueChange={(value) => {
+                  setFormData({ ...formData, employee_id: value });
+                  setErrors({ ...errors, employee_id: "" });
+                }}
+              >
+                <SelectTrigger className={errors.employee_id ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.employee_id} value={emp.employee_id}>
+                      {emp.name} - {emp.designation}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.employee_id && (
+                <p className="text-sm text-destructive">{errors.employee_id}</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="machine_id">Machine</Label>
+              <Select 
+                value={formData.machine_id} 
+                onValueChange={(value) => setFormData({ ...formData, machine_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select machine (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No machine selected</SelectItem>
+                  {machines?.map((machine) => (
+                    <SelectItem key={machine.id} value={String(machine.id)}>
+                      {machine.machine_name} ({machine.machine_number})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Dynamic Date/Month Field */}
           <div className="space-y-2">
@@ -280,8 +331,8 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
             />
           </div>
 
-          {/* Quantity and Reference ID - Hidden for Prize Purchase */}
-          {!isPrizePurchase && (
+          {/* Quantity and Reference ID - Hidden for Prize Purchase and Employee Salary */}
+          {!isPrizePurchase && !isEmployeeSalary && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="quantity">Quantity</Label>
@@ -304,6 +355,19 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
                   placeholder="Optional reference"
                 />
               </div>
+            </div>
+          )}
+
+          {/* Reference ID for Employee Salary */}
+          {isEmployeeSalary && (
+            <div className="space-y-2">
+              <Label htmlFor="reference_id">Reference ID</Label>
+              <Input
+                id="reference_id"
+                value={formData.reference_id}
+                onChange={(e) => setFormData({ ...formData, reference_id: e.target.value })}
+                placeholder="Optional reference"
+              />
             </div>
           )}
 

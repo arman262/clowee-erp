@@ -1,4 +1,4 @@
-const API_BASE = 'http://202.59.208.112:3008/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
 
 const apiCall = async (url: string, options?: RequestInit) => {
   try {

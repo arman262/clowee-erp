@@ -11,9 +11,10 @@ module.exports = {
     {
       name: 'clowee-erp-client',
       script: 'npm',
-      args: 'run build && npx serve -s dist -l 8081',
+      args: 'run build && npx serve -s dist -l 9990',
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        PORT: '9990'
       }
     }
   ]

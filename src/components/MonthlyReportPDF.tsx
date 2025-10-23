@@ -48,24 +48,57 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
           <title>Clowee Monthly Report - ${data.reportMonth}</title>
           <style>
             @media print {
-              @page { margin: 0.5in; size: A4; }
-              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              @page { margin: 0.3in 0.4in; size: A4; }
+              body { -webkit-print-color-adjust: exact; }
             }
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #000; background: white; }
-            .page-break { page-break-after: always; }
-            table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-            th, td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
-            th { background-color: #f9fafb; font-weight: 600; }
-            .text-right { text-align: right; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; background: white; font-size: 9px; }
+            * { box-sizing: border-box; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            .items-center { align-items: center; }
             .text-center { text-align: center; }
+            .text-right { text-align: right; }
             .font-bold { font-weight: bold; }
-            .bg-green-100 { background-color: #dcfce7; }
-            .bg-red-100 { background-color: #fee2e2; }
-            .bg-blue-50 { background-color: #eff6ff; }
-            .text-green-700 { color: #15803d; }
-            .border-blue-600 { border-color: #2563eb; }
+            .font-semibold { font-weight: 600; }
+            .text-sm { font-size: 0.7rem; }
+            .text-lg { font-size: 0.85rem; }
+            .text-xl { font-size: 0.95rem; }
+            .text-2xl { font-size: 1.1rem; }
+            .text-3xl { font-size: 1.4rem; }
+            .mb-2 { margin-bottom: 0.15rem; }
+            .mb-4 { margin-bottom: 0.25rem; }
+            .mb-6 { margin-bottom: 0.35rem; }
+            .mt-6 { margin-top: 0.35rem; }
+            .p-4 { padding: 0.3rem; }
+            .px-4 { padding-left: 0.45rem; padding-right: 0.45rem; }
+            .py-3 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
             .border-b-2 { border-bottom: 2px solid; }
+            .border-t { border-top: 1px solid #e5e7eb; }
+            .border-t-2 { border-top: 2px solid; }
+            .border-blue-600 { border-color: #2563eb; }
+            .border-gray-200 { border-color: #e5e7eb; }
+            .rounded-lg { border-radius: 0.5rem; }
+            .bg-gray-50 { background-color: #f9fafb; }
+            .bg-blue-50 { background-color: #eff6ff; }
+            .bg-white { background-color: #fff; }
+            .text-gray-600 { color: #4b5563; }
+            .text-gray-700 { color: #374151; }
+            .text-gray-900 { color: #111827; }
+            .text-blue-600 { color: #2563eb; }
+            .text-green-600 { color: #16a34a; }
+            .text-red-600 { color: #dc2626; }
+            .space-x-4 > * + * { margin-left: 0.45rem; }
+            .h-12 { height: 1.8rem; }
+            .w-auto { width: auto; }
+            .object-contain { object-fit: contain; }
+            table { border-collapse: collapse; width: 100%; margin-top: 0.4rem; margin-bottom: 1rem; }
+            th, td { border: none; padding: 1rem 1rem; text-align: left; vertical-align: top; font-size: 0.7rem; }
+            th { background-color: #f9fafb; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+            .divide-y > * + * { border-top: 1px solid #e5e7eb; }
+            .hover\\:bg-gray-50:hover { background-color: #f9fafb; }
             img { max-width: 100%; height: auto; }
+            .border { border: 1px solid #e5e7eb; }
+            .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
           </style>
         </head>
         <body>
@@ -120,7 +153,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
         heightLeft -= pdfHeight;
       }
 
-      pdf.save(`Clowee-Monthly-Report-${data.reportMonth}.pdf`);
+      pdf.save(`Clowee-Monthly-Report-${data.reportMonth.replace(/\s+/g, '-')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       window.print();
@@ -132,193 +165,218 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
         <DialogTitle className="sr-only">Monthly Report Preview</DialogTitle>
         
-        <div className="p-6">
-          {/* Controls */}
-          <div className="flex justify-between items-center gap-3 mb-6 no-print">
-            <h2 className="text-2xl font-bold">Report Preview</h2>
-            <div className="flex gap-2">
-              <Button onClick={handlePrint} className="border-2 border-blue-600 text-blue-600 bg-blue-50 hover:bg-blue-100">
-                <Printer className="h-4 w-4 mr-2" />
-                Print
+        <div className="p-3 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold">Report Preview</h2>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <Button onClick={handlePrint} className="border-2 border-blue-600 text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm flex-1 sm:flex-none">
+                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Print Report</span>
+                <span className="sm:hidden">Print</span>
               </Button>
-              <Button onClick={handleDownloadPDF} className="border-2 border-green-600 text-green-600 bg-green-50 hover:bg-green-100">
-                <Download className="h-4 w-4 mr-2" />
-                PDF
+              <Button onClick={handleDownloadPDF} className="border-2 border-green-600 text-green-600 bg-green-50 hover:bg-green-100 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm flex-1 sm:flex-none">
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Download PDF</span>
+                <span className="sm:hidden">PDF</span>
               </Button>
-              <Button onClick={onClose} variant="outline">
-                <X className="h-4 w-4 mr-2" />
-                Close
+              <Button onClick={onClose} variant="outline" className="text-xs sm:text-sm px-2 sm:px-4">
+                <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Close</span>
+                <span className="sm:hidden">X</span>
               </Button>
             </div>
           </div>
 
-          {/* Report Content */}
-          <div id="report-content" className="bg-white p-8 max-w-4xl mx-auto">
-            
-            {/* PAGE 1 - Monthly Report Summary */}
-            <div>
-              {/* Header */}
-              <div className="border-b-2 border-blue-600 pb-4 mb-6">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center space-x-4">
-                    <img src="/clowee logo.png" alt="Clowee Logo" className="h-16 w-auto object-contain" />
-                    <div>
-                      <h1 className="text-3xl font-bold text-gray-900">CLOWEE</h1>
-                      <p className="text-sm text-gray-600">I3 Technologies</p>
-                    </div>
-                  </div>
-                  <img src="/i3 technologies logo.png" alt="i3 Technologies" className="h-16 w-auto object-contain" />
-                </div>
-              </div>
+          <div id="report-content" className="bg-white p-3 sm:p-6 max-w-4xl mx-auto">
 
-              {/* Title */}
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-blue-600 mb-2">Clowee Monthly Report | {data.reportMonth}</h2>
-                <p className="text-gray-600">Prepared by: {data.preparedBy}</p>
-              </div>
-
-              {/* Monthly Report Section */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4 bg-blue-50 p-3 rounded">Monthly Report</h3>
-                
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-gray-300 px-4 py-3 text-left font-bold">Income</th>
-                      <th className="border border-gray-300 px-4 py-3 text-right font-bold">Taka</th>
-                      <th className="border border-gray-300 px-4 py-3 text-left font-bold">Expense</th>
-                      <th className="border border-gray-300 px-4 py-3 text-right font-bold">Taka</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="bg-green-100">
-                      <td className="border border-gray-300 px-4 py-3">Profit Share Clowee</td>
-                      <td className="border border-gray-300 px-4 py-3 text-right font-medium">৳{formatCurrency(data.income.profitShareClowee)}</td>
-                      <td className="border border-gray-300 px-4 py-3 bg-red-100">Fixed Cost</td>
-                      <td className="border border-gray-300 px-4 py-3 text-right font-medium bg-red-100">৳{formatCurrency(data.expense.fixedCost)}</td>
-                    </tr>
-                    <tr className="bg-green-100">
-                      <td className="border border-gray-300 px-4 py-3">Prize Income</td>
-                      <td className="border border-gray-300 px-4 py-3 text-right font-medium">৳{formatCurrency(data.income.prizeIncome)}</td>
-                      <td className="border border-gray-300 px-4 py-3 bg-red-100">Variable Cost</td>
-                      <td className="border border-gray-300 px-4 py-3 text-right font-medium bg-red-100">৳{formatCurrency(data.expense.variableCost)}</td>
-                    </tr>
-                    <tr className="bg-green-100">
-                      <td className="border border-gray-300 px-4 py-3">Maintenance Charge</td>
-                      <td className="border border-gray-300 px-4 py-3 text-right font-medium">৳{formatCurrency(data.income.maintenanceCharge)}</td>
-                      <td className="border border-gray-300 px-4 py-3 bg-red-100">Electricity + VAT + Others</td>
-                      <td className="border border-gray-300 px-4 py-3 text-right font-medium bg-red-100">৳{formatCurrency(data.expense.electricityVatOthers)}</td>
-                    </tr>
-                    <tr className="bg-blue-50">
-                      <td className="border border-gray-300 px-4 py-3 font-bold">Total Income</td>
-                      <td className="border border-gray-300 px-4 py-3 text-right font-bold">৳{formatCurrency(totalIncome)}</td>
-                      <td className="border border-gray-300 px-4 py-3 font-bold">Total Expenses</td>
-                      <td className="border border-gray-300 px-4 py-3 text-right font-bold">৳{formatCurrency(totalExpense)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border-0 px-4 py-2"></td>
-                      <td className="border-0 px-4 py-2"></td>
-                      <td className="border-0 px-4 py-2"></td>
-                      <td className="border-0 px-4 py-2"></td>
-                    </tr>
-                    <tr className={netProfitLoss >= 0 ? "bg-green-200" : "bg-red-200"}>
-                      <td className="border border-gray-300 px-4 py-4 font-bold text-lg" colSpan={3}>
-                        Net {netProfitLoss >= 0 ? "Profit" : "Loss"}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-4 text-right font-bold text-xl text-green-700">
-                        ৳{formatCurrency(Math.abs(netProfitLoss))}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Signatures */}
-              <div className="mt-12 grid grid-cols-2 gap-8">
-                <div>
-                  <p className="text-sm text-gray-600 mb-8">Prepared by:</p>
-                  <div className="border-t border-gray-400 pt-2">
-                    <p className="font-medium">{data.preparedBy}</p>
+            {/* Header - Matching Invoice */}
+            <div className="border-b-2 border-blue-600 pb-4 mb-6">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center space-x-4">
+                  <img src="clowee logo.png" alt="Clowee Logo" className="h-12 w-auto object-contain" />
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">CLOWEE</h1>
+                    <p className="text-sm text-gray-600 mt-0">I3 Technologies</p>
                   </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-8">Approved by:</p>
-                  <div className="border-t border-gray-400 pt-2">
-                    <p className="font-medium text-gray-400">(Signature)</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-gray-200 pt-4 mt-8">
-                <div className="flex justify-between items-center text-xs text-gray-500">
-                  <p>Clowee ERP System | I3 Technologies | Mobile: 01325-886868</p>
-                  <p>Page 1 of 2</p>
+                <div className="text-right">
+                  <h2 className="text-3xl font-bold text-blue-600 mb-1">MONTHLY REPORT</h2>
                 </div>
               </div>
             </div>
 
-            {/* PAGE 2 - Sales Breakdown */}
-            <div className="page-break mt-12">
-              {/* Header */}
-              <div className="border-b-2 border-blue-600 pb-4 mb-6">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center space-x-4">
-                    <img src="/clowee logo.png" alt="Clowee Logo" className="h-16 w-auto object-contain" />
-                    <div>
-                      <h1 className="text-3xl font-bold text-gray-900">CLOWEE</h1>
-                      <p className="text-sm text-gray-600">I3 Technologies</p>
+            {/* Report Info Card - Matching Invoice */}
+            <div className="bg-gray-50 p-4 rounded-lg mb-4 sm:mb-6">
+              <table style={{ width: '100%', border: 'none' }}>
+                <tr>
+                  <td style={{ width: '50%', verticalAlign: 'top', border: 'none', padding: '0.5rem' }}>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">REPORT PERIOD</h3>
+                    <div className="text-sm text-gray-900">
+                      <p className="font-medium text-lg">{data.reportMonth}</p>
                     </div>
-                  </div>
-                  <img src="/i3 technologies logo.png" alt="i3 Technologies" className="h-16 w-auto object-contain" />
+                  </td>
+                  <td style={{ width: '50%', verticalAlign: 'top', border: 'none', padding: '0.5rem' }}>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">PREPARED BY</h3>
+                    <div className="text-sm text-gray-900">
+                      <p className="font-medium">{data.preparedBy}</p>
+                      <p className="text-xs text-gray-600">Generated: {new Date().toLocaleDateString('en-GB')}</p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            {/* Financial Summary - Matching Invoice Table Style */}
+            <div className="mb-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-blue-50 px-4 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">Financial Summary</h3>
                 </div>
-              </div>
-
-              {/* Title */}
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-blue-600">Sales Summary — {data.reportMonth}</h2>
-              </div>
-
-              {/* Sales Breakdown Table */}
-              <div className="mb-8">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-blue-50">
-                      <th className="border border-gray-300 px-4 py-3 text-left font-bold">Location</th>
-                      <th className="border border-gray-300 px-4 py-3 text-right font-bold">Sales Amount</th>
-                      <th className="border border-gray-300 px-4 py-3 text-right font-bold">Profit Share</th>
+                
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Income Category</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Amount</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Expense Category</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Amount</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    <tr className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">Profit Share Clowee</td>
+                      <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(data.income.profitShareClowee)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">Fixed Cost</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">৳{formatCurrency(data.expense.fixedCost)}</td>
+                    </tr>
+                    <tr className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">Prize Income</td>
+                      <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(data.income.prizeIncome)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">Variable Cost</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">৳{formatCurrency(data.expense.variableCost)}</td>
+                    </tr>
+                    <tr className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">Maintenance Charge</td>
+                      <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(data.income.maintenanceCharge)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">Electricity + VAT + Others</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">৳{formatCurrency(data.expense.electricityVatOthers)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                
+                <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                      <span className="text-sm font-medium text-gray-900">Total Income</span>
+                      <span className="text-lg font-semibold text-green-600">৳{formatCurrency(totalIncome)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                      <span className="text-sm font-medium text-gray-900">Total Expenses</span>
+                      <span className="text-lg font-semibold text-red-600">৳{formatCurrency(totalExpense)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 border-t-2 border-blue-600 mt-3">
+                      <span className="text-base font-semibold text-gray-900">Net {netProfitLoss >= 0 ? 'Profit' : 'Loss'}</span>
+                      <span 
+                        className="text-3xl font-bold"
+                        style={{
+                          border: `2px solid ${netProfitLoss >= 0 ? '#16a34a' : '#dc2626'}`,
+                          backgroundColor: netProfitLoss >= 0 ? '#dcfce7' : '#fee2e2',
+                          color: netProfitLoss >= 0 ? '#16a34a' : '#dc2626',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textAlign: 'center',
+                          lineHeight: '1.2'
+                        }}
+                      >
+                        ৳{formatCurrency(Math.abs(netProfitLoss))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sales Breakdown - Matching Invoice Table Style */}
+            <div className="mb-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-blue-50 px-4 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">Sales Breakdown by Location</h3>
+                </div>
+                
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Location</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Sales Amount</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Profit Share</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
                     {data.salesBreakdown.map((item, index) => (
-                      <tr key={index} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                        <td className="border border-gray-300 px-4 py-3">{item.location}</td>
-                        <td className="border border-gray-300 px-4 py-3 text-right">৳{formatCurrency(item.sales)}</td>
-                        <td className="border border-gray-300 px-4 py-3 text-right font-medium text-green-700">৳{formatCurrency(item.profitShare)}</td>
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-900">{item.location}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{formatCurrency(item.sales)}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(item.profitShare)}</td>
                       </tr>
                     ))}
-                    <tr className="bg-blue-100">
-                      <td className="border border-gray-300 px-4 py-4 font-bold text-lg">Total</td>
-                      <td className="border border-gray-300 px-4 py-4 text-right font-bold text-lg">
-                        ৳{formatCurrency(data.salesBreakdown.reduce((sum, item) => sum + item.sales, 0))}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-4 text-right font-bold text-lg text-green-700">
-                        ৳{formatCurrency(data.salesBreakdown.reduce((sum, item) => sum + item.profitShare, 0))}
-                      </td>
-                    </tr>
                   </tbody>
                 </table>
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-gray-200 pt-4 mt-8">
-                <div className="flex justify-between items-center text-xs text-gray-500">
-                  <p>Clowee ERP System | I3 Technologies | Mobile: 01325-886868</p>
-                  <p>Page 2 of 2</p>
+                
+                <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-semibold text-gray-900">Total Sales</span>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-600">Sales: ৳{formatCurrency(data.salesBreakdown.reduce((sum, item) => sum + item.sales, 0))}</div>
+                      <div className="text-lg font-semibold text-green-600">Profit: ৳{formatCurrency(data.salesBreakdown.reduce((sum, item) => sum + item.profitShare, 0))}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
+            {/* Signature Section */}
+            <div className="mb-4">
+              <table style={{ width: '100%', border: 'none', borderSpacing: '0.5rem' }}>
+                <tr>
+                  <td style={{ width: '50%', verticalAlign: 'top', border: 'none' }}>
+                    <div className="bg-white rounded-lg border border-gray-200 p-4">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-6">Prepared by</h3>
+                      <div className="border-t-2 border-gray-400 pt-2">
+                        <p className="font-medium text-gray-900">{data.preparedBy}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ width: '50%', verticalAlign: 'top', border: 'none' }}>
+                    <div className="bg-white rounded-lg border border-gray-200 p-4">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-6">Approved by</h3>
+                      <div className="border-t-2 border-gray-400 pt-2">
+                        <p className="font-medium text-gray-400">_____________________</p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            {/* Footer - Matching Invoice */}
+            <div className="border-t border-gray-200 pt-4 mt-6">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-4">
+                  <img src="i3 technologies logo.png" alt="i3 Technologies" className="h-8 w-auto object-contain opacity-60" />
+                  <div className="text-xs text-gray-500">
+                    <p>Powered by Clowee ERP System</p>
+                    <p>Clowee, I3 Technologies, Mobile: 01325-886868</p>
+                  </div>
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                  <p>This is a computer generated report</p>
+                  <p>No signature required</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </DialogContent>
