@@ -14,6 +14,7 @@ export default function MonthlyReport() {
   const [showReport, setShowReport] = useState(false);
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [yearlyData, setYearlyData] = useState<any[]>([]);
 
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
   const months = [
@@ -39,27 +40,35 @@ export default function MonthlyReport() {
 
   useEffect(() => {
     fetchReportData();
+    fetchYearlyData();
   }, [selectedYear, selectedMonth]);
 
   const fetchReportData = async () => {
     setLoading(true);
     try {
       const startDate = `${selectedYear}-${selectedMonth.padStart(2, '0')}-01`;
-      const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).toISOString().split('T')[0];
+      const lastDay = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).getDate();
+      const endDate = `${selectedYear}-${selectedMonth.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
 
-      const [salesResult, machinesResult, franchisesResult, expensesResult, categoriesResult] = await Promise.all([
-        db.from('sales').select('*').gte('sales_date', startDate).lte('sales_date', endDate).execute(),
+      const [allSales, machines, franchises, allExpenses, expenseCategories] = await Promise.all([
+        db.from('sales').select('*').execute(),
         db.from('machines').select('*').execute(),
         db.from('franchises').select('*').execute(),
-        db.from('machine_expenses').select('*').gte('expense_date', startDate).lte('expense_date', endDate).execute(),
+        db.from('machine_expenses').select('*').execute(),
         db.from('expense_categories').select('*').execute()
       ]);
 
-      const sales = salesResult?.data || salesResult || [];
-      const machines = machinesResult?.data || machinesResult || [];
-      const franchises = franchisesResult?.data || franchisesResult || [];
-      const expenses = expensesResult?.data || expensesResult || [];
-      const expenseCategories = categoriesResult?.data || categoriesResult || [];
+      const sales = (allSales || []).filter((sale: any) => {
+        const saleDate = sale.sales_date;
+        return saleDate >= startDate && saleDate <= endDate;
+      });
+
+      const expenses = (allExpenses || []).filter((expense: any) => {
+        if (!expense.expense_date) return false;
+        const date = new Date(expense.expense_date);
+        const expenseDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        return expenseDateLocal >= startDate && expenseDateLocal <= endDate;
+      });
 
       console.log('Sales data:', sales);
       console.log('Machines data:', machines);
@@ -101,25 +110,19 @@ export default function MonthlyReport() {
         franchiseData[franchiseName].profitShare += cloweeProfit;
       });
 
-      let fixedCost = 0;
-      let variableCost = 0;
-      let totalPrizeExpense = 0;
+      let totalExpenses = 0;
 
       expenses?.forEach((expense: any) => {
-        const category = categoryMap.get(expense.category_id);
+        const category = categoryMap.get(Number(expense.category_id));
         const categoryName = category?.category_name || '';
         const amount = Number(expense.total_amount) || 0;
         
-        if (categoryName === 'Employee Salary' || categoryName === 'Rent' || categoryName === 'HR & Admin Cost') {
-          fixedCost += amount;
-        } else if (categoryName === 'Prize Purchase') {
-          totalPrizeExpense += amount;
-        } else if (categoryName === 'Conveyance' || categoryName === 'Local Accessories' || categoryName === 'Import Accessories' || categoryName === 'Prize Delivery Cost' || categoryName === 'Carrying Cost' || categoryName === 'Digital Marketing') {
-          variableCost += amount;
+        if (categoryName !== 'Profit Share(Share Holders)') {
+          totalExpenses += amount;
         }
       });
 
-      const prizeIncome = totalPrizeOutSales - totalPrizeExpense;
+
 
       const salesBreakdown = Object.entries(franchiseData)
         .map(([location, data]: [string, any]) => ({
@@ -134,12 +137,11 @@ export default function MonthlyReport() {
         preparedBy: "Md. Asif Sahariwar",
         income: {
           profitShareClowee,
-          prizeIncome,
           maintenanceCharge,
         },
         expense: {
-          fixedCost,
-          variableCost,
+          fixedCost: totalExpenses,
+          variableCost: 0,
         },
         salesBreakdown: salesBreakdown.length > 0 ? salesBreakdown : [{ location: 'No Data', sales: 0, profitShare: 0 }],
       });
@@ -148,12 +150,115 @@ export default function MonthlyReport() {
       setReportData({
         reportMonth: selectedMonthYear,
         preparedBy: "Md. Asif Sahariwar",
-        income: { profitShareClowee: 0, prizeIncome: 0, maintenanceCharge: 0 },
+        income: { profitShareClowee: 0, maintenanceCharge: 0 },
         expense: { fixedCost: 0, variableCost: 0 },
         salesBreakdown: [{ location: 'No Data', sales: 0, profitShare: 0 }],
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchYearlyData = async () => {
+    try {
+      const [allSales, machines, franchises, allExpenses, expenseCategories] = await Promise.all([
+        db.from('sales').select('*').execute(),
+        db.from('machines').select('*').execute(),
+        db.from('franchises').select('*').execute(),
+        db.from('machine_expenses').select('*').execute(),
+        db.from('expense_categories').select('*').execute()
+      ]);
+
+      const machineMap = new Map();
+      machines?.forEach(machine => machineMap.set(machine.id, machine));
+
+      const franchiseMap = new Map();
+      franchises?.forEach(franchise => franchiseMap.set(franchise.id, franchise));
+
+      const categoryMap = new Map();
+      expenseCategories?.forEach(category => categoryMap.set(category.id, category));
+
+      const monthlyData = months.map((month, index) => {
+        const monthNum = index + 1;
+        const startDate = `${selectedYear}-${monthNum.toString().padStart(2, '0')}-01`;
+        const lastDay = new Date(parseInt(selectedYear), monthNum, 0).getDate();
+        const endDate = `${selectedYear}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+
+        const monthSales = (allSales || []).filter((sale: any) => {
+          const saleDate = sale.sales_date;
+          return saleDate >= startDate && saleDate <= endDate;
+        });
+
+        const monthExpenses = (allExpenses || []).filter((expense: any) => {
+          if (!expense.expense_date) return false;
+          const date = new Date(expense.expense_date);
+          const expenseDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+          return expenseDateLocal >= startDate && expenseDateLocal <= endDate;
+        });
+
+        let totalSalesAmount = 0;
+        let totalPrizeOutCost = 0;
+        let totalMaintenanceCost = 0;
+        let totalCloweeProfit = 0;
+        let totalNetSales = 0;
+        let totalVatAmount = 0;
+
+        monthSales.forEach((sale: any) => {
+          const machine = machineMap.get(sale.machine_id);
+          const franchise = machine ? franchiseMap.get(machine.franchise_id) : null;
+          const maintenancePercentage = Number(franchise?.maintenance_percentage) || 0;
+          const cloweeShare = Number(franchise?.clowee_share) || 40;
+          const netProfit = (Number(sale.sales_amount) || 0) - (Number(sale.vat_amount) || 0) - (Number(sale.prize_out_cost) || 0);
+          const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+          const profitAfterMaintenance = netProfit - maintenanceAmount;
+          const cloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
+          totalVatAmount += Number(sale.vat_amount) || 0;
+
+          totalSalesAmount += Number(sale.sales_amount) || 0;
+          totalPrizeOutCost += Number(sale.prize_out_cost) || 0;
+          totalMaintenanceCost += maintenanceAmount;
+          totalCloweeProfit += cloweeProfit;
+          totalNetSales += Number(sale.net_sales_amount) || 0;
+        });
+
+        let totalExpenses = 0;
+        let totalPrizePurchaseExpense = 0;
+        monthExpenses.forEach((expense: any) => {
+          const category = categoryMap.get(Number(expense.category_id));
+          const categoryName = category?.category_name || '';
+          const amount = Number(expense.total_amount) || 0;
+          
+          if (categoryName === 'Prize Purchase') {
+            totalPrizePurchaseExpense += amount;
+          } else if (categoryName !== 'Profit Share(Share Holders)') {
+            totalExpenses += amount;
+          }
+        });
+
+        const prizeProfit = totalPrizeOutCost - totalPrizePurchaseExpense;
+        const totalRevenue = totalNetSales - totalPrizeOutCost - totalMaintenanceCost;
+        const totalFranchiseeProfit = totalNetSales - totalCloweeProfit - totalPrizeOutCost;
+        const totalIncome = totalCloweeProfit + totalMaintenanceCost + prizeProfit;
+        const netProfit = totalIncome - totalExpenses;
+
+        return {
+          month: month.label,
+          totalSalesAmount,
+          totalVatAmount,
+          totalPrizeCost: totalPrizeOutCost,
+          totalMaintenanceCost,
+          totalRevenue,
+          totalFranchiseeProfit,
+          totalCloweeProfit,
+          prizeProfit,
+          totalExpenses,
+          netProfit
+        };
+      });
+
+      setYearlyData(monthlyData);
+    } catch (error) {
+      console.error('Error fetching yearly data:', error);
     }
   };
 
@@ -197,6 +302,51 @@ export default function MonthlyReport() {
       </div>
 
       <div className="grid gap-6">
+        {/* Yearly Profit Summary Table */}
+        <div className="bg-gradient-card border-border rounded-lg p-6 shadow-card">
+          <h3 className="text-xl font-semibold mb-4">Profit Summary - {selectedYear}</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/50">
+                <tr>
+                  <th className="px-4 py-2 text-left">Month</th>
+                  <th className="px-4 py-2 text-right font-bold">Net Profit</th>
+                  <th className="px-4 py-2 text-right">Sales Amount</th>
+                  <th className="px-4 py-2 text-right">Vat Amount</th>
+                  <th className="px-4 py-2 text-right">Prize Cost</th>
+                  <th className="px-4 py-2 text-right">Maintenance</th>
+                  <th className="px-4 py-2 text-right">Total Net Profit</th>
+                  <th className="px-4 py-2 text-right">Franchisee Profit</th>
+                  <th className="px-4 py-2 text-right">Clowee Profit</th>
+                  <th className="px-4 py-2 text-right">Prize Profit</th>
+                  <th className="px-4 py-2 text-right">Expenses</th>
+                </tr>
+              </thead>
+              <tbody>
+                {yearlyData.map((data, index) => (
+                  <tr key={index} className="border-t border-border hover:bg-secondary/30">
+                    <td className="px-4 py-2 font-medium">{data.month}</td>
+                      <td className="px-4 py-2 text-right font-bold text-lg">
+                      <span className={data.netProfit >= 0 ? 'text-success' : 'text-destructive'}>
+                        ৳{data.netProfit.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right">৳{data.totalSalesAmount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right">৳{data.totalVatAmount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right text-red-600">৳{data.totalPrizeCost.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right">৳{data.totalMaintenanceCost.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right text-primary">৳{data.totalRevenue.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right text-green-600">৳{data.totalFranchiseeProfit.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right text-success">৳{data.totalCloweeProfit.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right text-blue-600">৳{data.prizeProfit.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right text-destructive">৳{data.totalExpenses.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div className="bg-gradient-card border-border rounded-lg p-6 shadow-card">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
@@ -211,7 +361,7 @@ export default function MonthlyReport() {
                   <div>
                     <span className="text-muted-foreground">Total Income:</span>
                     <span className="ml-2 font-semibold text-success">
-                      ৳{(reportData.income.profitShareClowee + reportData.income.prizeIncome + reportData.income.maintenanceCharge).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ৳{(reportData.income.profitShareClowee + reportData.income.maintenanceCharge).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div>
@@ -223,7 +373,7 @@ export default function MonthlyReport() {
                   <div>
                     <span className="text-muted-foreground">Net Profit:</span>
                     <span className="ml-2 font-semibold text-primary">
-                      ৳{((reportData.income.profitShareClowee + reportData.income.prizeIncome + reportData.income.maintenanceCharge) - (reportData.expense.fixedCost + reportData.expense.variableCost)).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ৳{((reportData.income.profitShareClowee + reportData.income.maintenanceCharge) - (reportData.expense.fixedCost + reportData.expense.variableCost)).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>

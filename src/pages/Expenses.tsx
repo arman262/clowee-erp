@@ -23,7 +23,7 @@ import {
   Search,
   Trash2
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Expenses() {
   const { canEdit } = usePermissions();
@@ -32,22 +32,37 @@ export default function Expenses() {
   const [toDate, setToDate] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingExpense, setViewingExpense] = useState<any | null>(null);
+  const [employeeName, setEmployeeName] = useState<string>('');
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<any | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortDirection, setSortDirection] = useState<'desc' | 'desc'>('desc');
 
   const { data: expenses, isLoading } = useMachineExpenses();
+
+  useEffect(() => {
+    if (viewingExpense?.employee_id) {
+      fetch('http://202.59.208.112:3008/api/employees')
+        .then(res => res.json())
+        .then(result => {
+          const employee = result.data?.find((emp: any) => emp.employee_id === viewingExpense.employee_id);
+          setEmployeeName(employee ? `${employee.name} - ${employee.designation}` : viewingExpense.employee_id);
+        })
+        .catch(() => setEmployeeName(viewingExpense.employee_id));
+    } else {
+      setEmployeeName('');
+    }
+  }, [viewingExpense]);
   const createExpense = useCreateMachineExpense();
   const updateExpense = useUpdateMachineExpense();
   const deleteExpense = useDeleteMachineExpense();
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === 'desc' ? 'desc' : 'desc');
     } else {
       setSortColumn(column);
-      setSortDirection('asc');
+      setSortDirection('desc');
     }
   };
 
@@ -73,31 +88,31 @@ export default function Expenses() {
       case 'category':
         aVal = a.expense_categories?.category_name || '';
         bVal = b.expense_categories?.category_name || '';
-        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        return sortDirection === 'desc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       case 'machine':
         aVal = a.machines?.machine_name || '';
         bVal = b.machines?.machine_name || '';
-        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        return sortDirection === 'desc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       case 'date':
         aVal = new Date(a.expense_date).getTime();
         bVal = new Date(b.expense_date).getTime();
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        return sortDirection === 'desc' ? aVal - bVal : bVal - aVal;
       case 'qty':
         aVal = a.quantity || 0;
         bVal = b.quantity || 0;
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        return sortDirection === 'desc' ? aVal - bVal : bVal - aVal;
       case 'itemPrice':
         aVal = Number(a.item_price) || 0;
         bVal = Number(b.item_price) || 0;
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        return sortDirection === 'desc' ? aVal - bVal : bVal - aVal;
       case 'total':
         aVal = Number(a.total_amount) || 0;
         bVal = Number(b.total_amount) || 0;
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        return sortDirection === 'desc' ? aVal - bVal : bVal - aVal;
       case 'bank':
         aVal = a.banks?.bank_name || '';
         bVal = b.banks?.bank_name || '';
-        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        return sortDirection === 'desc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       default:
         return 0;
     }
@@ -241,51 +256,49 @@ export default function Expenses() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16">#</TableHead>
+                <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
+                <div className="flex items-center gap-1">
+                  Expense Date
+                  {sortColumn === 'date' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
+              <TableHead>Expense Id</TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('category')}>
                 <div className="flex items-center gap-1">
                   Category
-                  {sortColumn === 'category' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                  {sortColumn === 'category' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('machine')}>
                 <div className="flex items-center gap-1">
-                  Machine
-                  {sortColumn === 'machine' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                  Description
+                  {sortColumn === 'machine' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
-              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
-                <div className="flex items-center gap-1">
-                  Expense Date
-                  {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
-                </div>
-              </TableHead>
-              <TableHead>Details</TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('qty')}>
                 <div className="flex items-center gap-1">
                   Qty
-                  {sortColumn === 'qty' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                  {sortColumn === 'qty' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('itemPrice')}>
                 <div className="flex items-center gap-1">
                   Unit Price
-                  {sortColumn === 'itemPrice' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                  {sortColumn === 'itemPrice' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('total')}>
                 <div className="flex items-center gap-1">
                   Total Amount
-                  {sortColumn === 'total' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                  {sortColumn === 'total' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('bank')}>
                 <div className="flex items-center gap-1">
                   Bank
-                  {sortColumn === 'bank' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                  {sortColumn === 'bank' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
-              <TableHead>Entry Date</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -299,20 +312,14 @@ export default function Expenses() {
             ) : (
               paginatedExpenses.map((expense: any, index: number) => (
                 <TableRow key={expense.id}>
-                  <TableCell className="font-medium text-muted-foreground">
-                    {getSerialNumber(index)}
-                  </TableCell>
-                  <TableCell>{expense.expense_categories?.category_name || '-'}</TableCell>
-                  <TableCell>{expense.machines?.machine_name}</TableCell>
                   <TableCell>{formatDate(expense.expense_date)}</TableCell>
-                  <TableCell>{expense.expense_details}</TableCell>
+                  <TableCell className="font-mono text-sm">{expense.expense_number || '-'}</TableCell>
+                  <TableCell>{expense.expense_categories?.category_name || '-'}</TableCell>
+                  <TableCell className="h-4 w-4">{expense.expense_details || '-'}</TableCell>
                   <TableCell>{expense.quantity}</TableCell>
                   <TableCell>৳{formatCurrency(expense.item_price)}</TableCell>
                   <TableCell>৳{formatCurrency(expense.total_amount)}</TableCell>
                   <TableCell>{expense.banks?.bank_name || '-'}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {expense.created_at ? formatDateTime(expense.created_at) : '-'}
-                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button 
@@ -401,10 +408,17 @@ export default function Expenses() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="text-sm text-muted-foreground">Machine</div>
-                <div className="font-medium">{viewingExpense.machines?.machine_name}</div>
-              </div>
+              {viewingExpense.employee_id ? (
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">Employee</div>
+                  <div className="font-medium">{employeeName || 'Loading...'}</div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">Machine</div>
+                  <div className="font-medium">{viewingExpense.machines?.machine_name || '-'}</div>
+                </div>
+              )}
               <div className="space-y-2">
                 <div className="text-sm text-muted-foreground">Date</div>
                 <div className="font-medium">{formatDate(viewingExpense.expense_date)}</div>
@@ -427,6 +441,15 @@ export default function Expenses() {
                 <div className="text-sm text-muted-foreground">Total Amount</div>
                 <div className="text-lg font-bold text-success">৳{formatCurrency(viewingExpense.total_amount)}</div>
               </div>
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">Entry Date</div>
+                <div className="text-lg font-bold text-success">{viewingExpense.created_at ? formatDateTime(viewingExpense.created_at) : '-'}</div>
+              </div>
+              
+              
+
+
+
               {viewingExpense.banks && (
                 <div className="space-y-2">
                   <div className="text-sm text-muted-foreground">Bank</div>

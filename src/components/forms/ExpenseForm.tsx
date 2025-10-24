@@ -46,7 +46,6 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
       expense_month: expenseMonth,
       total_amount: initialData?.total_amount || 0,
       expense_details: initialData?.expense_details || "",
-      reference_id: initialData?.unique_id || "",
       quantity: initialData?.quantity || 1,
       employee_id: initialData?.employee_id || "",
     };
@@ -74,13 +73,13 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
   }, [formData.category_id, categories, prizeQuantity, prizeRate]);
 
   useEffect(() => {
-    if (isEmployeeSalary) {
+    if (isEmployeeSalary || initialData?.employee_id) {
       fetch('http://202.59.208.112:3008/api/employees')
         .then(res => res.json())
         .then(result => setEmployees(result.data || []))
         .catch(err => console.error('Error fetching employees:', err));
     }
-  }, [isEmployeeSalary]);
+  }, [isEmployeeSalary, initialData?.employee_id]);
 
   const isPrizePurchase = categories?.find(cat => String(cat.id) === formData.category_id)?.category_name === 'Prize Purchase';
 
@@ -116,7 +115,6 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
       bank_id: formData.bank_id || null,
       expense_date: isMonthlyExpense ? formData.expense_month + "-01" : formData.expense_date,
       expense_details: formData.expense_details || "Expense",
-      unique_id: formData.reference_id || null,
       quantity: isPrizePurchase ? prizeQuantity : (formData.quantity || 1),
       item_price: isPrizePurchase ? prizeRate : (formData.total_amount / (formData.quantity || 1)),
       total_amount: formData.total_amount,
@@ -343,55 +341,17 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
             />
           </div>
 
-          {/* Quantity and Reference ID - Hidden for Prize Purchase and Employee Salary */}
+          {/* Quantity - Hidden for Prize Purchase and Employee Salary */}
           {!isPrizePurchase && !isEmployeeSalary && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                  placeholder="1"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="reference_id">Reference ID</Label>
-                <Input
-                  id="reference_id"
-                  value={formData.reference_id}
-                  onChange={(e) => setFormData({ ...formData, reference_id: e.target.value })}
-                  placeholder="Optional reference"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Reference ID for Employee Salary */}
-          {isEmployeeSalary && (
             <div className="space-y-2">
-              <Label htmlFor="reference_id">Reference ID</Label>
+              <Label htmlFor="quantity">Quantity</Label>
               <Input
-                id="reference_id"
-                value={formData.reference_id}
-                onChange={(e) => setFormData({ ...formData, reference_id: e.target.value })}
-                placeholder="Optional reference"
-              />
-            </div>
-          )}
-
-          {/* Reference ID for Prize Purchase */}
-          {isPrizePurchase && (
-            <div className="space-y-2">
-              <Label htmlFor="reference_id">Reference ID</Label>
-              <Input
-                id="reference_id"
-                value={formData.reference_id}
-                onChange={(e) => setFormData({ ...formData, reference_id: e.target.value })}
-                placeholder="Optional reference"
+                id="quantity"
+                type="number"
+                min="1"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
+                placeholder="1"
               />
             </div>
           )}

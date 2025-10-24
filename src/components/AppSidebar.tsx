@@ -1,23 +1,22 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  LayoutDashboard,
   Building2,
   Cpu,
-  FileText,
-  DollarSign,
-  Package,
-  Settings,
-  Users,
-  TrendingUp,
-  ShoppingCart,
-  Receipt,
   CreditCard,
-  Landmark,
-  Tag,
-  LogOut,
+  DollarSign,
   FileBarChart,
+  FileText,
+  Landmark,
+  LayoutDashboard,
+  Package,
+  Receipt,
+  Settings,
+  ShoppingCart,
+  Tag,
+  TrendingUp,
+  Users
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { NavLink, useLocation } from "react-router-dom";
 
 import {
   Sidebar,
@@ -25,10 +24,10 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -47,7 +46,7 @@ const financeItems = [
   { title: "Expense Categories", url: "/expense-categories", icon: Tag },
   { title: "Payments", url: "/payments", icon: CreditCard },
   { title: "Banks", url: "/banks", icon: Landmark },
-  { title: "Monthly Report", url: "/monthly-report", icon: FileBarChart },
+  { title: "Reports", url: "/monthly-report", icon: FileBarChart },
   { title: "Inventory", url: "/inventory", icon: Package },
 ];
 

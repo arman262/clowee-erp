@@ -204,6 +204,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                 </div>
                 <div className="text-right">
                   <h2 className="text-3xl font-bold text-blue-600 mb-1">MONTHLY REPORT</h2>
+                  <p className="text-xl font-bold text-green-600 mb-1">{data.reportMonth}</p>
                 </div>
               </div>
             </div>

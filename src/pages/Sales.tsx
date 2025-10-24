@@ -76,6 +76,41 @@ export default function Sales() {
   const deleteSale = useDeleteSale();
   const updateSale = useUpdateSale();
 
+  // Calculate Maintenance Amount
+  const calculateMaintenanceAmount = (sale: any) => {
+    const coinPrice = sale.franchises?.coin_price || 0;
+    const dollPrice = sale.franchises?.doll_price || 0;
+    const vatPercentage = sale.franchises?.vat_percentage || 0;
+    const maintenancePercentage = sale.franchises?.maintenance_percentage || 0;
+    
+    const calculatedSalesAmount = (sale.coin_sales || 0) * coinPrice;
+    const calculatedPrizeCost = (sale.prize_out_quantity || 0) * dollPrice;
+    const calculatedVatAmount = calculatedSalesAmount * vatPercentage / 100;
+    const netProfit = calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost;
+    const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+    
+    return maintenanceAmount;
+  };
+
+  // Calculate Clowee Profit with maintenance deduction
+  const calculateCloweeProfit = (sale: any) => {
+    const coinPrice = sale.franchises?.coin_price || 0;
+    const dollPrice = sale.franchises?.doll_price || 0;
+    const vatPercentage = sale.franchises?.vat_percentage || 0;
+    const cloweeShare = sale.franchises?.clowee_share || 40;
+    const maintenancePercentage = sale.franchises?.maintenance_percentage || 0;
+    
+    const calculatedSalesAmount = (sale.coin_sales || 0) * coinPrice;
+    const calculatedPrizeCost = (sale.prize_out_quantity || 0) * dollPrice;
+    const calculatedVatAmount = calculatedSalesAmount * vatPercentage / 100;
+    const netProfit = calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost;
+    const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+    const profitAfterMaintenance = netProfit - maintenanceAmount;
+    const calculatedCloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
+    
+    return calculatedCloweeProfit;
+  };
+
   // Calculate Pay To Clowee for a sale (without fetching agreements for performance)
   const calculatePayToClowee = (sale: any) => {
     const coinPrice = sale.franchises?.coin_price || 0;
@@ -226,7 +261,9 @@ export default function Sales() {
         'Prize Cost': Number(sale.prize_out_cost || 0).toFixed(2),
         'VAT Amount': Number(sale.vat_amount || 0).toFixed(2),
         'Net Sales': Number(sale.net_sales_amount || 0).toFixed(2),
-        'Clowee Profit': Number(sale.clowee_profit || 0).toFixed(2),
+        'Maintenance Amount': Number(calculateMaintenanceAmount(sale)).toFixed(2),
+        'Clowee Profit': Number(calculateCloweeProfit(sale)).toFixed(2),
+        'Amount Adjustment': Number(sale.amount_adjustment || 0).toFixed(2),
         'Pay To Clowee': Number(calculatePayToClowee(sale)).toFixed(2),
         'Payment Status': paymentInfo.status,
         'Amount Paid': Number(paymentInfo.totalPaid).toFixed(2),
@@ -249,7 +286,9 @@ export default function Sales() {
       'Prize Cost': filteredSales.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0).toFixed(2),
       'VAT Amount': '',
       'Net Sales': '',
+      'Maintenance Amount': filteredSales.reduce((sum, sale) => sum + calculateMaintenanceAmount(sale), 0).toFixed(2),
       'Clowee Profit': '',
+      'Amount Adjustment': filteredSales.reduce((sum, sale) => sum + Number(sale.amount_adjustment || 0), 0).toFixed(2),
       'Pay To Clowee': filteredSales.reduce((sum, sale) => sum + calculatePayToClowee(sale), 0).toFixed(2),
       'Payment Status': `${totalDue} Due`,
       'Amount Paid': '',
@@ -501,7 +540,7 @@ export default function Sales() {
           <TableHeader>
             <TableRow>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('invoice')}>
-                <div className="flex items-center gap-1 w-3">
+                <div className="flex items-center gap-1">
                   Invoice No
                   {sortColumn === 'invoice' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
@@ -562,8 +601,8 @@ export default function Sales() {
               const paymentInfo = getPaymentStatus(sale);
               return (
                 <TableRow key={sale.id}>
-                  <TableCell>
-                    <div className="font-mono text-sm font-medium text-primary">
+                  <TableCell >
+                    <div className="flex font-mono text-sm font-medium text-primary">
                       {sale.invoice_number || 'Pending'}
                     </div>
                   </TableCell>

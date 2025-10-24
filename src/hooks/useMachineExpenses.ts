@@ -21,7 +21,7 @@ export function useMachineExpenses() {
     queryFn: async () => {
       // Fetch expenses, machines, categories, banks, and users separately
       const [expenses, machines, categories, banks, users] = await Promise.all([
-        db.from("machine_expenses").select("*").order("expense_date", { ascending: false }).execute(),
+        db.from("machine_expenses").select("*").order("created_at", { ascending: false }).execute(),
         db.from("machines").select("*").execute(),
         db.from("expense_categories").select("*").execute(),
         db.from("banks").select("*").execute(),
@@ -71,7 +71,13 @@ export function useCreateMachineExpense() {
     mutationFn: async (data: Omit<MachineExpense, 'id' | 'created_at'>) => {
       const storedUser = localStorage.getItem('clowee_user');
       const userId = storedUser ? JSON.parse(storedUser).user.id : null;
-      const insertData = userId ? { ...data, created_by: userId } : data;
+      
+      // Get the next expense number
+      const allExpenses = await db.from("machine_expenses").select("*").execute();
+      const nextNumber = (allExpenses?.length || 0) + 1;
+      const expenseNumber = `clw-ex-${nextNumber.toString().padStart(4, '0')}`;
+      
+      const insertData = userId ? { ...data, created_by: userId, expense_number: expenseNumber } : { ...data, expense_number: expenseNumber };
       
       const { data: result } = await db
         .from("machine_expenses")
@@ -99,23 +105,33 @@ export function useUpdateMachineExpense() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string } & Partial<MachineExpense>) => {
-      const { data: result } = await db
+      console.log('Updating expense with data:', { id, ...data });
+      
+      const cleanData = Object.fromEntries(
+        Object.entries(data).filter(([_, v]) => v !== undefined && v !== '')
+      );
+      
+      console.log('Cleaned data:', cleanData);
+      
+      const result = await db
         .from("machine_expenses")
-        .update(data)
+        .update(cleanData)
         .eq("id", id)
         .select()
         .single();
 
-      return result;
+      console.log('Update result:', result);
+      return result.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["machine_expenses"] });
       toast.success("Expense updated successfully");
       notifyUpdate("Expense");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error updating expense:", error);
-      toast.error("Failed to update expense");
+      console.error("Error details:", error?.message, error?.details);
+      toast.error(`Failed to update expense: ${error?.message || 'Unknown error'}`);
     },
   });
 }

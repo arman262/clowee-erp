@@ -5,8 +5,6 @@
   "mcpServers": {
     "clowee_erp": {
       "command": "npx",
-      "disabled": false,
-      "timeout": 60000,
       "args": [
         "-y",
         "mcp-postgres"
@@ -18,7 +16,9 @@
         "PGPASSWORD": "clowee@erp",
         "PGDATABASE": "clowee_erp",
         "PGSSL": "false"
-      }
+      },
+      "timeout": 60000,
+      "disabled": false
     }
   },
   "tools": [
@@ -35,7 +35,12 @@
     "report_issue",
     "use_aws",
     "execute_bash",
-    "fs_write"
+    "fs_write",
+    "@clowee_erp/connect_db",
+    "@clowee_erp/query",
+    "@clowee_erp/list_schemas",
+    "@clowee_erp/list_tables",
+    "@clowee_erp/describe_table"
   ],
   "toolsSettings": {
     "use_aws": {
