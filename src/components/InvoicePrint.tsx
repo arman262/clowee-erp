@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { formatDate } from "@/lib/dateUtils";
-import { formatCurrency } from "@/lib/numberUtils";
 import { Download, Image, Printer, X } from "lucide-react";
 
 interface InvoicePrintProps {
@@ -453,7 +452,59 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
 
           {/* Invoice Info Card */}
           <div className="bg-gray-50 p-4 rounded-lg mb-4 sm:mb-6">
-            <table style={{ width: '100%', border: 'none' }}>
+            {/* Mobile View */}
+            <div className="block md:hidden space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">BILL TO</h3>
+                <div className="text-sm text-gray-900">
+                  <p className="font-medium">Franchises: {sale.franchises?.name || 'Franchise Partner'}</p>
+                  <p>Branch: {sale.machines?.machine_name || 'Machine Location'}</p>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">BILLING PERIOD</h3>
+                <div className="text-sm text-gray-900">
+                  <p className="font-medium">{sale.franchises?.payment_duration || 'Monthly'}</p>
+                  <p className="text-xs">
+                      {(() => {
+                        const saleDate = new Date(sale.sales_date);
+                        const paymentDuration = sale.franchises?.payment_duration || 'Monthly';
+                        
+                        if (paymentDuration === 'Half Monthly') {
+                          const day = saleDate.getDate();
+                          const year = saleDate.getFullYear();
+                          const month = saleDate.getMonth();
+                          
+                          if (day <= 15) {
+                            const startDate = new Date(year, month, 1);
+                            const endDate = new Date(year, month, 15);
+                            return `${startDate.getDate()}${startDate.getDate() === 1 ? 'st' : 'th'} ${startDate.toLocaleString('default', { month: 'short' })} ${year} to 15th ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                          } else {
+                            const startDate = new Date(year, month, 16);
+                            const endDate = new Date(year, month + 1, 0);
+                            return `16th ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : endDate.getDate() === 30 ? 'th' : endDate.getDate() === 29 ? 'th' : endDate.getDate() === 28 ? 'th' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                          }
+                        } else {
+                          const year = saleDate.getFullYear();
+                          const month = saleDate.getMonth();
+                          const startDate = new Date(year, month, 1);
+                          const endDate = new Date(year, month + 1, 0);
+                          return `1st ${startDate.toLocaleString('default', { month: 'short' })} ${year} to ${endDate.getDate()}${endDate.getDate() === 31 ? 'st' : endDate.getDate() === 30 ? 'th' : endDate.getDate() === 29 ? 'th' : endDate.getDate() === 28 ? 'th' : 'th'} ${endDate.toLocaleString('default', { month: 'short' })} ${year}`;
+                        }
+                      })()} 
+                    </p>
+                  </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">INVOICE Details</h3>
+                <div className="text-sm text-gray-900">
+                  <p className="font-medium">No: {sale.invoice_number || `CLW-${new Date(sale.sales_date).getFullYear()}-001`}</p>
+                  <p className="font-medium">Date: {formatDate(sale.sales_date)}</p>
+                </div>
+              </div>
+            </div>
+            {/* Desktop View */}
+            <table className="hidden md:table" style={{ width: '100%', border: 'none' }}>
               <tr>
                 <td style={{ width: '33.33%', verticalAlign: 'top', border: 'none', padding: '0.5rem' }}>
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">BILL TO</h3>
@@ -528,38 +579,38 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                     <td className="px-4 py-3 text-sm text-gray-900">
                       Coin Sales
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{formatCurrency(getAgreementValue('coin_price') || 0)}/coin</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{Number(getAgreementValue('coin_price') || 0).toFixed(2)}/coin</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.coin_sales?.toLocaleString() || '0'} coins</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{formatCurrency(calculatedSalesAmount)}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{calculatedSalesAmount.toFixed(2)}</td>
                   </tr>
                   {calculatedVatAmount > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">VAT - {getAgreementValue('vat_percentage') || 0}% (Sales - {getAgreementValue('vat_percentage') || 0}% Vat)</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-center">-</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-right">-</td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{formatCurrency(calculatedVatAmount)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedVatAmount.toFixed(2)}</td>
                     </tr>
                   )}
                   {calculatedVatAmount > 0 && (
                     <tr className="bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900" colSpan={3}>Net Sales (After VAT)</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{formatCurrency(calculatedNetSales)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{calculatedNetSales.toFixed(2)}</td>
                     </tr>
                   )}
                   <tr className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
                       Prize Out Cost (Deducted)
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{formatCurrency(getAgreementValue('doll_price') || 0)}/doll</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{Number(getAgreementValue('doll_price') || 0).toFixed(2)}/doll</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.prize_out_quantity?.toLocaleString() || '0'} pcs</td>
-                    <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{formatCurrency(calculatedPrizeCost)}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{calculatedPrizeCost.toFixed(2)}</td>
                   </tr>
                   {(getAgreementValue('electricity_cost') || 0) > 0 && (
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">Electricity Cost (Deducted)</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-center">-</td>
                       <td className="px-4 py-3 text-sm text-gray-600 text-right">-</td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{formatCurrency(getAgreementValue('electricity_cost') || 0)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">-৳{Number(getAgreementValue('electricity_cost') || 0).toFixed(2)}</td>
                     </tr>
                   )}
                 </tbody>
@@ -570,7 +621,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center py-2 border-b border-gray-200">
                     <span className="text-sm font-medium text-blue-800">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost{(getAgreementValue('electricity_cost') || 0) > 0 ? ' - Electricity Cost' : ''})</span>
-                    <span className="text-lg font-semibold text-blue-700">৳{formatCurrency(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0))}</span>
+                    <span className="text-lg font-semibold text-blue-700">৳{(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0)).toFixed(2)}</span>
                   </div>
                   {(() => {
                     const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
@@ -582,16 +633,16 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                         {maintenanceAmount > 0 && (
                           <div className="flex justify-between items-center py-1">
                             <span className="text-sm text-gray-600">Maintenance ({maintenancePercentage}%)</span>
-                            <span className="text-sm font-medium text-gray-900">৳{formatCurrency(maintenanceAmount)}</span>
+                            <span className="text-sm font-medium text-gray-900">৳{maintenanceAmount.toFixed(2)}</span>
                           </div>
                         )}
                         <div className="flex justify-between items-center py-1">
                           <span className="text-sm text-gray-600">{sale.franchises?.name || 'Franchise'} Profit ({franchiseShare}%)</span>
-                          <span className="text-sm font-medium text-green-600">৳{formatCurrency(calculatedFranchiseProfit)}</span>
+                          <span className="text-sm font-medium text-green-600">৳{calculatedFranchiseProfit.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center py-1">
                           <span className="text-sm text-gray-600">Clowee Profit ({cloweeShare}%)</span>
-                          <span className="text-sm font-medium text-green-600">৳{formatCurrency(calculatedCloweeProfit)}</span>
+                          <span className="text-sm font-medium text-green-600">৳{calculatedCloweeProfit.toFixed(2)}</span>
                         </div>
                       </>
                     );
@@ -615,7 +666,11 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                         lineHeight: '1.2'
                       }}
                     >
-                      ৳{formatCurrency(calculatedCloweeProfit + calculatedPrizeCost + maintenanceAmount - (getAgreementValue('electricity_cost') || 0) - amountAdjustment)}
+                      ৳{(() => {
+                        const payToClowee = calculatedCloweeProfit + calculatedPrizeCost + maintenanceAmount - 
+                        (getAgreementValue('electricity_cost') || 0) - amountAdjustment;
+                        return payToClowee.toFixed(2);
+                      })()}
                     </span>
                   </div>
                 </div>
@@ -625,7 +680,95 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
 
           {/* Payment & Bank Information */}
           <div className="mb-4 sm:mb-6">
-            <table style={{ width: '100%', border: 'none', borderSpacing: '0.5rem' }}>
+            {/* Mobile View */}
+            <div className="block md:hidden space-y-4">
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">Payment Status</h3>
+                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        paymentInfo.status === 'Paid' 
+                          ? 'bg-green-100 text-green-800' 
+                          : paymentInfo.status === 'Partial'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {paymentInfo.status === 'Paid' ? 'FULLY PAID' : 
+                         paymentInfo.status === 'Partial' ? 'PARTIALLY PAID' : 'PAYMENT DUE'}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Total Amount:</span>
+                        <span className="font-medium text-gray-900">৳{calculatedPayToClowee.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Amount Paid:</span>
+                        <span className="font-medium text-green-600">৳{paymentInfo.totalPaid.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+                        <span className="font-medium text-gray-900">Balance Due:</span>
+                        <span 
+                          className="text-3xl font-medium"
+                          style={{
+                            border: paymentInfo.balance <= 0 ? '2px solid #16a34a' : '2px solid #dc2626',
+                            backgroundColor: paymentInfo.balance <= 0 ? '#dcfce7' : '#fee2e2',
+                            color: paymentInfo.balance <= 0 ? '#16a34a' : '#dc2626',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            textAlign: 'center',
+                            lineHeight: '1.2'
+                          }}
+                        >
+                          ৳{paymentInfo.balance.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+              </div>
+              {sale.franchises?.banks && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Payment Method Details</h3>
+                      <div className="space-y-2 text-sm">
+                        {sale.franchises.banks.bank_name && (
+                          <div>
+                            <span className="text-gray-600">Bank:</span>
+                            <span className="ml-2 font-medium text-gray-900">{sale.franchises.banks.bank_name}</span>
+                          </div>
+                        )}
+                        {sale.franchises.banks.account_holder_name && (
+                          <div>
+                            <span className="text-gray-600">Account Holder:</span>
+                            <span className="ml-2 font-medium text-gray-900">{sale.franchises.banks.account_holder_name}</span>
+                          </div>
+                        )}
+                        {sale.franchises.banks.account_number && (
+                          <div>
+                            <span className="text-gray-600">Account Number:</span>
+                            <span className="ml-2 font-mono text-gray-900">{sale.franchises.banks.account_number}</span>
+                          </div>
+                        )}
+                        {sale.franchises.banks.branch_name && (
+                          <div>
+                            <span className="text-gray-600">Branch:</span>
+                            <span className="ml-2 font-medium text-gray-900">{sale.franchises.banks.branch_name}</span>
+                          </div>
+                        )}
+                        {sale.franchises.banks.routing_number && (
+                          <div>
+                            <span className="text-gray-600">Routing:</span>
+                            <span className="ml-2 font-mono text-gray-900">{sale.franchises.banks.routing_number}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                </div>
+              )}
+            </div>
+            {/* Desktop View */}
+            <table className="hidden md:table" style={{ width: '100%', border: 'none', borderSpacing: '0.5rem' }}>
               <tr>
                 <td style={{ width: '50%', verticalAlign: 'top', border: 'none' }}>
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -645,11 +788,11 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Total Amount:</span>
-                        <span className="font-medium text-gray-900">৳{formatCurrency(calculatedPayToClowee)}</span>
+                        <span className="font-medium text-gray-900">৳{calculatedPayToClowee.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Amount Paid:</span>
-                        <span className="font-medium text-green-600">৳{formatCurrency(paymentInfo.totalPaid)}</span>
+                        <span className="font-medium text-green-600">৳{paymentInfo.totalPaid.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
                         <span className="font-medium text-gray-900">Balance Due:</span>
@@ -668,7 +811,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                             lineHeight: '1.2'
                           }}
                         >
-                          ৳{formatCurrency(paymentInfo.balance)}
+                          ৳{paymentInfo.balance.toFixed(2)}
                         </span>
                       </div>
                     </div>
