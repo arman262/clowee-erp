@@ -178,15 +178,6 @@ export default function MonthlyReport() {
       const categoryMap = new Map();
       expenseCategories?.forEach(category => categoryMap.set(category.id, category));
 
-      // Calculate average prize purchase price from ALL expenses (not month-filtered)
-      const prizePurchaseExpenses = (allExpenses || []).filter((e: any) => {
-        const category = categoryMap.get(Number(e.category_id));
-        return category?.category_name === 'Prize Purchase';
-      });
-      const totalPrizePurchaseCost = prizePurchaseExpenses.reduce((sum: number, e: any) => sum + Number(e.total_amount || 0), 0);
-      const totalPrizePurchaseQty = prizePurchaseExpenses.reduce((sum: number, e: any) => sum + Number(e.quantity || 0), 0);
-      const avgPrizePurchasePrice = totalPrizePurchaseQty > 0 ? totalPrizePurchaseCost / totalPrizePurchaseQty : 0;
-
       const monthlyData = months.map((month, index) => {
         const monthNum = index + 1;
         const startDate = `${selectedYear}-${monthNum.toString().padStart(2, '0')}-01`;
@@ -194,8 +185,10 @@ export default function MonthlyReport() {
         const endDate = `${selectedYear}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
 
         const monthSales = (allSales || []).filter((sale: any) => {
-          const saleDate = sale.sales_date;
-          return saleDate >= startDate && saleDate <= endDate;
+          if (!sale.sales_date) return false;
+          const date = new Date(sale.sales_date);
+          const saleDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+          return saleDateLocal >= startDate && saleDateLocal <= endDate;
         });
 
         const monthExpenses = (allExpenses || []).filter((expense: any) => {
@@ -205,14 +198,33 @@ export default function MonthlyReport() {
           return expenseDateLocal >= startDate && expenseDateLocal <= endDate;
         });
 
+        const machinePurchaseMap = new Map();
+        (allExpenses || []).forEach((expense: any) => {
+          if (!expense.expense_date) return;
+          const expenseDate = new Date(expense.expense_date);
+          const expenseDateLocal = new Date(expenseDate.getTime() - expenseDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+          if (expenseDateLocal > endDate) return;
+          
+          const category = categoryMap.get(Number(expense.category_id));
+          if (category?.category_name === 'Prize Purchase' && expense.machine_id) {
+            if (!machinePurchaseMap.has(expense.machine_id)) {
+              machinePurchaseMap.set(expense.machine_id, { cost: 0, qty: 0 });
+            }
+            const data = machinePurchaseMap.get(expense.machine_id);
+            data.cost += Number(expense.total_amount) || 0;
+            data.qty += Number(expense.quantity) || 0;
+          }
+        });
+
         let totalSalesAmount = 0;
         let totalPrizeOutCost = 0;
-        let totalPrizeOutQuantity = 0;
+        let totalPrizePurchaseCost = 0;
         let totalMaintenanceCost = 0;
         let totalCloweeProfit = 0;
         let totalFranchiseProfit = 0;
         let totalNetSales = 0;
         let totalVatAmount = 0;
+        let totalElectricityCost = 0;
 
         monthSales.forEach((sale: any) => {
           const machine = machineMap.get(sale.machine_id);
@@ -226,33 +238,76 @@ export default function MonthlyReport() {
           const cloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
           const franchiseProfit = (profitAfterMaintenance * franchiseShare) / 100;
           totalVatAmount += Number(sale.vat_amount) || 0;
+          totalElectricityCost += Number(sale.electricity_cost) || 0;
 
           totalSalesAmount += Number(sale.sales_amount) || 0;
           totalPrizeOutCost += Number(sale.prize_out_cost) || 0;
-          totalPrizeOutQuantity += Number(sale.prize_out_quantity) || 0;
           totalMaintenanceCost += maintenanceAmount;
           totalCloweeProfit += cloweeProfit;
           totalFranchiseProfit += franchiseProfit;
           totalNetSales += Number(sale.net_sales_amount) || 0;
+
+          const prizeOutQty = Number(sale.prize_out_quantity) || 0;
+          const purchaseData = machinePurchaseMap.get(sale.machine_id);
+
+          if (purchaseData && purchaseData.qty > 0) {
+            const unitPrice = purchaseData.cost / purchaseData.qty;
+            totalPrizePurchaseCost += prizeOutQty * unitPrice;
+          }
         });
 
         let totalExpenses = 0;
+        let totalPrizePurchaseAmount = 0;
+        let totalPrizePurchaseQty = 0;
+        let totalOtherExpenses = 0;
+
+        if (month.label === 'September') {
+          console.log(`\n=== ${month.label} Expense Details ===`);
+        }
+        
         monthExpenses.forEach((expense: any) => {
           const category = categoryMap.get(Number(expense.category_id));
           const categoryName = category?.category_name || '';
           const amount = Number(expense.total_amount) || 0;
           
-          if (categoryName !== 'Profit Share(Share Holders)') {
-            totalExpenses += amount;
+          if (month.label === 'September') {
+            console.log(`Expense: ${expense.expense_number || 'N/A'} | Category: ${categoryName} | Amount: ${amount}`);
+          }
+          
+          if (categoryName === 'Prize Purchase') {
+            totalPrizePurchaseAmount += amount;
+            totalPrizePurchaseQty += Number(expense.quantity) || 0;
+          } else if (categoryName !== 'Profit Share(Share Holders)') {
+            totalOtherExpenses += amount;
           }
         });
 
-        // Prize Profit = (Sale Price × Quantity) - (Avg Purchase Price × Quantity)
-        const prizePurchaseCost = avgPrizePurchasePrice * totalPrizeOutQuantity;
-        const prizeProfit = totalPrizeOutCost - prizePurchaseCost;
-        const totalRevenue = totalNetSales - totalPrizeOutCost - totalMaintenanceCost;
-        const totalIncome = totalCloweeProfit + totalMaintenanceCost + prizeProfit;
-        const netProfit = totalIncome - totalExpenses;
+        const avgPrizeRate = totalPrizePurchaseQty > 0 ? totalPrizePurchaseAmount / totalPrizePurchaseQty : 0;
+        let totalPrizeOutQty = 0;
+        monthSales.forEach((sale: any) => {
+          totalPrizeOutQty += Number(sale.prize_out_quantity) || 0;
+        });
+        const totalPrizePurchaseCostForMonth = totalPrizeOutQty * avgPrizeRate;
+
+        totalExpenses = totalOtherExpenses + totalElectricityCost;
+
+        console.log(`${month.label} Expenses:`, {
+          totalPrizePurchaseAmount,
+          totalPrizePurchaseQty,
+          avgPrizeRate,
+          totalPrizeOutQty,
+          totalPrizePurchaseCostForMonth,
+          totalOtherExpenses,
+          totalElectricityCost,
+          totalExpenses,
+          monthExpensesCount: monthExpenses.length
+        });
+
+        
+        const prizeProfit = totalPrizeOutCost - totalPrizePurchaseCostForMonth;
+
+        const totalRevenue = totalCloweeProfit + prizeProfit + totalMaintenanceCost;
+        const netProfit = totalRevenue - totalOtherExpenses + totalElectricityCost;
 
         return {
           month: month.label,
@@ -328,7 +383,7 @@ export default function MonthlyReport() {
                   <th className="px-4 py-2 text-right">Vat Amount</th>
                   <th className="px-4 py-2 text-right">Prize Cost</th>
                   <th className="px-4 py-2 text-right">Maintenance</th>
-                  <th className="px-4 py-2 text-right">Total Net Profit</th>
+                  <th className="px-4 py-2 text-right">Total Revenue</th>
                   <th className="px-4 py-2 text-right">Franchisee Profit</th>
                   <th className="px-4 py-2 text-right">Clowee Profit</th>
                   <th className="px-4 py-2 text-right">Prize Profit</th>
