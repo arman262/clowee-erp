@@ -178,6 +178,15 @@ export default function MonthlyReport() {
       const categoryMap = new Map();
       expenseCategories?.forEach(category => categoryMap.set(category.id, category));
 
+      // Calculate average prize purchase price from ALL expenses (not month-filtered)
+      const prizePurchaseExpenses = (allExpenses || []).filter((e: any) => {
+        const category = categoryMap.get(Number(e.category_id));
+        return category?.category_name === 'Prize Purchase';
+      });
+      const totalPrizePurchaseCost = prizePurchaseExpenses.reduce((sum: number, e: any) => sum + Number(e.total_amount || 0), 0);
+      const totalPrizePurchaseQty = prizePurchaseExpenses.reduce((sum: number, e: any) => sum + Number(e.quantity || 0), 0);
+      const avgPrizePurchasePrice = totalPrizePurchaseQty > 0 ? totalPrizePurchaseCost / totalPrizePurchaseQty : 0;
+
       const monthlyData = months.map((month, index) => {
         const monthNum = index + 1;
         const startDate = `${selectedYear}-${monthNum.toString().padStart(2, '0')}-01`;
@@ -198,8 +207,10 @@ export default function MonthlyReport() {
 
         let totalSalesAmount = 0;
         let totalPrizeOutCost = 0;
+        let totalPrizeOutQuantity = 0;
         let totalMaintenanceCost = 0;
         let totalCloweeProfit = 0;
+        let totalFranchiseProfit = 0;
         let totalNetSales = 0;
         let totalVatAmount = 0;
 
@@ -208,36 +219,38 @@ export default function MonthlyReport() {
           const franchise = machine ? franchiseMap.get(machine.franchise_id) : null;
           const maintenancePercentage = Number(franchise?.maintenance_percentage) || 0;
           const cloweeShare = Number(franchise?.clowee_share) || 40;
+          const franchiseShare = Number(franchise?.franchise_share) || 60;
           const netProfit = (Number(sale.sales_amount) || 0) - (Number(sale.vat_amount) || 0) - (Number(sale.prize_out_cost) || 0);
           const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
           const profitAfterMaintenance = netProfit - maintenanceAmount;
           const cloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
+          const franchiseProfit = (profitAfterMaintenance * franchiseShare) / 100;
           totalVatAmount += Number(sale.vat_amount) || 0;
 
           totalSalesAmount += Number(sale.sales_amount) || 0;
           totalPrizeOutCost += Number(sale.prize_out_cost) || 0;
+          totalPrizeOutQuantity += Number(sale.prize_out_quantity) || 0;
           totalMaintenanceCost += maintenanceAmount;
           totalCloweeProfit += cloweeProfit;
+          totalFranchiseProfit += franchiseProfit;
           totalNetSales += Number(sale.net_sales_amount) || 0;
         });
 
         let totalExpenses = 0;
-        let totalPrizePurchaseExpense = 0;
         monthExpenses.forEach((expense: any) => {
           const category = categoryMap.get(Number(expense.category_id));
           const categoryName = category?.category_name || '';
           const amount = Number(expense.total_amount) || 0;
           
-          if (categoryName === 'Prize Purchase') {
-            totalPrizePurchaseExpense += amount;
-          } else if (categoryName !== 'Profit Share(Share Holders)') {
+          if (categoryName !== 'Profit Share(Share Holders)') {
             totalExpenses += amount;
           }
         });
 
-        const prizeProfit = totalPrizeOutCost - totalPrizePurchaseExpense;
+        // Prize Profit = (Sale Price × Quantity) - (Avg Purchase Price × Quantity)
+        const prizePurchaseCost = avgPrizePurchasePrice * totalPrizeOutQuantity;
+        const prizeProfit = totalPrizeOutCost - prizePurchaseCost;
         const totalRevenue = totalNetSales - totalPrizeOutCost - totalMaintenanceCost;
-        const totalFranchiseeProfit = totalNetSales - totalCloweeProfit - totalPrizeOutCost;
         const totalIncome = totalCloweeProfit + totalMaintenanceCost + prizeProfit;
         const netProfit = totalIncome - totalExpenses;
 
@@ -248,7 +261,7 @@ export default function MonthlyReport() {
           totalPrizeCost: totalPrizeOutCost,
           totalMaintenanceCost,
           totalRevenue,
-          totalFranchiseeProfit,
+          totalFranchiseeProfit: totalFranchiseProfit,
           totalCloweeProfit,
           prizeProfit,
           totalExpenses,

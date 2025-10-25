@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFranchiseAgreements } from "@/hooks/useFranchiseAgreements";
+import { useMachineExpenses } from "@/hooks/useMachineExpenses";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useCreateSale, useDeleteSale, useSales, useUpdateSale } from "@/hooks/useSales";
@@ -55,6 +56,7 @@ export default function Sales() {
 
   const { data: sales, isLoading } = useSales();
   const { data: payments } = useMachinePayments();
+  const { data: expenses } = useMachineExpenses();
   // We'll fetch agreements per sale in the function below
 
   // Get agreement values for a specific sale (matching InvoicePrint logic)
@@ -109,6 +111,25 @@ export default function Sales() {
     const calculatedCloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
     
     return calculatedCloweeProfit;
+  };
+
+  // Calculate Franchise Profit with maintenance deduction
+  const calculateFranchiseProfit = (sale: any) => {
+    const coinPrice = sale.franchises?.coin_price || 0;
+    const dollPrice = sale.franchises?.doll_price || 0;
+    const vatPercentage = sale.franchises?.vat_percentage || 0;
+    const franchiseShare = sale.franchises?.franchise_share || 60;
+    const maintenancePercentage = sale.franchises?.maintenance_percentage || 0;
+    
+    const calculatedSalesAmount = (sale.coin_sales || 0) * coinPrice;
+    const calculatedPrizeCost = (sale.prize_out_quantity || 0) * dollPrice;
+    const calculatedVatAmount = calculatedSalesAmount * vatPercentage / 100;
+    const netProfit = calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost;
+    const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+    const profitAfterMaintenance = netProfit - maintenanceAmount;
+    const calculatedFranchiseProfit = (profitAfterMaintenance * franchiseShare) / 100;
+    
+    return calculatedFranchiseProfit;
   };
 
   // Calculate Pay To Clowee for a sale (without fetching agreements for performance)
@@ -247,49 +268,74 @@ export default function Sales() {
   const paginatedSales = sortedSales.slice(startIndex, startIndex + rowsPerPage);
 
   const handleExportExcel = () => {
+    // Calculate average prize purchase cost from expenses
+    const prizePurchaseExpenses = expenses?.filter(e => e.expense_categories?.category_name === 'Prize Purchase') || [];
+    const totalPrizePurchaseCost = prizePurchaseExpenses.reduce((sum, e) => sum + Number(e.total_amount || 0), 0);
+    const totalPrizePurchaseQty = prizePurchaseExpenses.reduce((sum, e) => sum + Number(e.quantity || 0), 0);
+    const avgPrizePurchasePrice = totalPrizePurchaseQty > 0 ? totalPrizePurchaseCost / totalPrizePurchaseQty : 0;
+    
     const exportData = sortedSales.map(sale => {
       const paymentInfo = getPaymentStatus(sale);
+      // Prize Profit = (Sale Price × Quantity) - (Purchase Price × Quantity)
+      const dollSalePrice = Number(sale.franchises?.doll_price || 0);
+      const prizeQuantity = Number(sale.prize_out_quantity || 0);
+      const prizeSaleRevenue = dollSalePrice * prizeQuantity;
+      const prizePurchaseCost = avgPrizePurchasePrice * prizeQuantity;
+      const prizeProfit = prizeSaleRevenue - prizePurchaseCost;
+      
       return {
         'Invoice No': sale.invoice_number || 'Pending',
         'Machine Name': sale.machines?.machine_name || 'Unknown',
         'Machine Number': sale.machines?.machine_number || '',
         'Franchise': sale.franchises?.name || '',
-        'Sales Date': formatDate(sale.sales_date),
-        'Coin Sales': sale.coin_sales || 0,
-        'Sales Amount': Number(sale.sales_amount || 0).toFixed(2),
-        'Prize Out': sale.prize_out_quantity || 0,
-        'Prize Cost': Number(sale.prize_out_cost || 0).toFixed(2),
-        'VAT Amount': Number(sale.vat_amount || 0).toFixed(2),
-        'Net Sales': Number(sale.net_sales_amount || 0).toFixed(2),
-        'Maintenance Amount': Number(calculateMaintenanceAmount(sale)).toFixed(2),
-        'Clowee Profit': Number(calculateCloweeProfit(sale)).toFixed(2),
-        'Amount Adjustment': Number(sale.amount_adjustment || 0).toFixed(2),
-        'Pay To Clowee': Number(calculatePayToClowee(sale)).toFixed(2),
+        'Sales Date': new Date(sale.sales_date),
+        'Coin Sales': Number(sale.coin_sales || 0),
+        'Sales Amount': Number(sale.sales_amount || 0),
+        'Prize Out': Number(sale.prize_out_quantity || 0),
+        'Prize Cost': Number(sale.prize_out_cost || 0),
+        'Prize Profit': Number(prizeProfit),
+        'VAT Amount': Number(sale.vat_amount || 0),
+        'Net Sales': Number(sale.net_sales_amount || 0),
+        'Maintenance Amount': Number(calculateMaintenanceAmount(sale)),
+        'Franchise Profit': Number(calculateFranchiseProfit(sale)),
+        'Clowee Profit': Number(calculateCloweeProfit(sale)),
+        'Amount Adjustment': Number(sale.amount_adjustment || 0),
+        'Pay To Clowee': Number(calculatePayToClowee(sale)),
         'Payment Status': paymentInfo.status,
-        'Amount Paid': Number(paymentInfo.totalPaid).toFixed(2),
-        'Balance Due': Number(paymentInfo.balance).toFixed(2)
+        'Amount Paid': Number(paymentInfo.totalPaid),
+        'Balance Due': Number(paymentInfo.balance)
       };
     });
 
     // Add total summary row
     const dateRange = fromDate && toDate ? `${formatDate(fromDate)} → ${formatDate(toDate)}` : fromDate ? `From ${formatDate(fromDate)}` : toDate ? `To ${formatDate(toDate)}` : 'All Dates';
     const totalDue = filteredSales.filter(sale => getPaymentStatus(sale).status === 'Due').length;
+    const totalPrizeProfit = filteredSales.reduce((sum, sale) => {
+      const dollSalePrice = Number(sale.franchises?.doll_price || 0);
+      const prizeQuantity = Number(sale.prize_out_quantity || 0);
+      const prizeSaleRevenue = dollSalePrice * prizeQuantity;
+      const prizePurchaseCost = avgPrizePurchasePrice * prizeQuantity;
+      return sum + (prizeSaleRevenue - prizePurchaseCost);
+    }, 0);
+    
     exportData.push({
       'Invoice No': 'TOTAL',
       'Machine Name': '',
       'Machine Number': '',
       'Franchise': '',
       'Sales Date': dateRange,
-      'Coin Sales': filteredSales.reduce((sum, sale) => sum + (sale.coin_sales || 0), 0),
-      'Sales Amount': filteredSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0).toFixed(2),
-      'Prize Out': filteredSales.reduce((sum, sale) => sum + (sale.prize_out_quantity || 0), 0),
-      'Prize Cost': filteredSales.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0).toFixed(2),
+      'Coin Sales': Number(filteredSales.reduce((sum, sale) => sum + (sale.coin_sales || 0), 0)),
+      'Sales Amount': Number(filteredSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0)),
+      'Prize Out': Number(filteredSales.reduce((sum, sale) => sum + (sale.prize_out_quantity || 0), 0)),
+      'Prize Cost': Number(filteredSales.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0)),
+      'Prize Profit': Number(totalPrizeProfit),
       'VAT Amount': '',
       'Net Sales': '',
-      'Maintenance Amount': filteredSales.reduce((sum, sale) => sum + calculateMaintenanceAmount(sale), 0).toFixed(2),
-      'Clowee Profit': '',
-      'Amount Adjustment': filteredSales.reduce((sum, sale) => sum + Number(sale.amount_adjustment || 0), 0).toFixed(2),
-      'Pay To Clowee': filteredSales.reduce((sum, sale) => sum + calculatePayToClowee(sale), 0).toFixed(2),
+      'Maintenance Amount': Number(filteredSales.reduce((sum, sale) => sum + calculateMaintenanceAmount(sale), 0)),
+      'Franchise Profit': Number(filteredSales.reduce((sum, sale) => sum + calculateFranchiseProfit(sale), 0)),
+      'Clowee Profit': Number(filteredSales.reduce((sum, sale) => sum + calculateCloweeProfit(sale), 0)),
+      'Amount Adjustment': Number(filteredSales.reduce((sum, sale) => sum + Number(sale.amount_adjustment || 0), 0)),
+      'Pay To Clowee': Number(filteredSales.reduce((sum, sale) => sum + calculatePayToClowee(sale), 0)),
       'Payment Status': `${totalDue} Due`,
       'Amount Paid': '',
       'Balance Due': ''

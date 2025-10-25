@@ -110,12 +110,17 @@ export default function Dashboard() {
   }) || [];
 
   const filteredExpenses = expenses?.filter(expense => {
-    const expenseDate = new Date(expense.expense_date);
+    if (!expense.expense_date) return false;
+    const date = new Date(expense.expense_date);
+    const expenseDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
     if (filterType === 'month') {
       const [year, month] = selectedMonth.split('-');
-      return expenseDate.getFullYear() === parseInt(year) && expenseDate.getMonth() === parseInt(month) - 1;
+      const startDate = `${year}-${month.padStart(2, '0')}-01`;
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+      const endDate = `${year}-${month.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+      return expenseDateLocal >= startDate && expenseDateLocal <= endDate;
     } else {
-      return expenseDate.getFullYear() === parseInt(selectedYear);
+      return expenseDateLocal.startsWith(selectedYear);
     }
   }) || [];
 
@@ -168,8 +173,8 @@ export default function Dashboard() {
   
   // Total expenses excluding Profit Share (Share Holders)
   const totalExpenses = filteredExpenses
-    .filter(expense => expense.expense_categories?.category_name !== 'Profit ShareProfit Share(Share Holders)')
-    .reduce((sum: number, expense) => sum + (expense.total_amount || 0), 0);
+    .filter(expense => expense.expense_categories?.category_name !== 'Profit Share(Share Holders)')
+    .reduce((sum: number, expense) => sum + Number(expense.total_amount || 0), 0);
   
   // Net Profit = Pay To Clowee (sum from Sales table) - total expense (except Profit Share)
   const totalPayToClowee = filteredSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
@@ -206,9 +211,14 @@ export default function Dashboard() {
       // Filter expenses for this month (excluding Profit Share)
       const monthExpenses = expenses?.filter(expense => {
         if (!expense.expense_date) return false;
-        const expenseDate = new Date(expense.expense_date);
+        const date = new Date(expense.expense_date);
+        const expenseDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const monthNum = index + 1;
+        const startDate = `${currentYear}-${monthNum.toString().padStart(2, '0')}-01`;
+        const lastDay = new Date(currentYear, monthNum, 0).getDate();
+        const endDate = `${currentYear}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
         const isNotProfitShare = expense.expense_categories?.category_name !== 'Profit Share(Share Holders)';
-        return expenseDate.getFullYear() === currentYear && expenseDate.getMonth() === index && isNotProfitShare;
+        return expenseDateLocal >= startDate && expenseDateLocal <= endDate && isNotProfitShare;
       }) || [];
       
       // Calculate totals
@@ -332,9 +342,8 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Calendar className="h-4 w-4 text-white" />
             <Select value={filterType} onValueChange={(value: 'month' | 'year') => setFilterType(value)}>
-              <SelectTrigger className="w-20 sm:w-24 bg-secondary/30 border-border">
+              <SelectTrigger className="w-40 sm:w-24 bg-secondary/30 border-border">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -368,19 +377,19 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid card */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4 md:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               Total Sales
             </CardTitle>
-            <DollarSign className="h-5 w-5 text-success" />
+            <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success mb-0">
+          <CardContent className="pb-2">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-success mb-0">
               ৳{formatCurrency(totalSales)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               {filteredSales.length} invoices
             </div>
           </CardContent>
@@ -388,19 +397,19 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Highest Machine Sales
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
+              Top Sales
             </CardTitle>
-            <div className="flex items-center gap-1">
-              <Eye className="h-5 w-5 text-primary cursor-pointer" onClick={() => setShowHighestSalesModal(true)} />
-              <TrendingUp className="h-5 w-5 text-primary" />
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <Eye className="h-3 w-3 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowHighestSalesModal(true)} />
+              <TrendingUp className="h-3 w-3 sm:h-5 sm:w-5 text-primary" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-primary mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-primary mb-0">
               ৳{formatCurrency(highestMachineSales)}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
               {highestMachine?.machineName || 'No data'}
             </div>
           </CardContent>
@@ -408,19 +417,19 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Lowest Machine Sales
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
+              Lowest Sales
             </CardTitle>
-            <div className="flex items-center gap-1">
-              <Eye className="h-5 w-5 text-primary cursor-pointer" onClick={() => setShowLowestSalesModal(true)} />
-              <ArrowDownRight className="h-5 w-5 text-warning" />
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <Eye className="h-3 w-3 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowLowestSalesModal(true)} />
+              <ArrowDownRight className="h-3 w-3 sm:h-5 sm:w-5 text-warning" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-warning mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-warning mb-0">
               ৳{formatCurrency(lowestMachineSales)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground truncate">
               {lowestMachine?.machineName || 'No data'}
             </div>
           </CardContent>
@@ -428,16 +437,16 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Average Sales/Machine
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
+              Average Sales
             </CardTitle>
-            <Cpu className="h-5 w-5 text-white" />
+            <Cpu className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-white mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-white mb-0">
               ৳{formatCurrency(avgSalesPerMachine)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               Sales Average Per active machine
             </div>
           </CardContent>
@@ -446,16 +455,16 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               Net Profit
             </CardTitle>
-            <Sprout className="h-5 w-5 text-accent"/>
+            <Sprout className="h-4 w-4 sm:h-5 sm:w-5 text-accent"/>
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-accent mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-accent mb-0">
               ৳{formatCurrency(netProfit)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               Clowee Net Profit After All Cost
             </div>
           </CardContent>
@@ -463,33 +472,33 @@ export default function Dashboard() {
 
           <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Pay To Clowee
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
+              Clowee Revenue
             </CardTitle>
-            <Receipt className="h-5 w-5 text-warning" />
+            <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-warning mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-warning mb-0">
               ৳{formatCurrency(totalPayToClowee)}
             </div>
-            <div className="text-xs text-muted-foreground">
-              Clowee Profit + Doll Sale + Maintenace Cost
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
+              Clowee Profit + Doll + Main. Cost etc.
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Payment Received
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
+              Payment Received
             </CardTitle>
-            <CreditCard className="h-5 w-5 text-success" />
+            <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-success mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-success mb-0">
               ৳{formatCurrency(totalPaymentReceived)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               Payments received
             </div>
           </CardContent>
@@ -497,19 +506,19 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               Total Due
             </CardTitle>
-            <div className="flex items-center gap-1">
-              <Eye className="h-5 w-5 text-primary cursor-pointer" onClick={() => setShowDueListModal(true)} />
-              <ArrowUpRight className="h-5 w-5 text-warning" />
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <Eye className="h-3 w-3 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowDueListModal(true)} />
+              <ArrowUpRight className="h-3 w-3 sm:h-5 sm:w-5 text-warning" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-destructive mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-destructive mb-0">
               ৳{formatCurrency(totalDue)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               Receivable Amount
             </div>
           </CardContent>
@@ -517,16 +526,33 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Prize Purchase Amount
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
+              Total Expenses
             </CardTitle>
-            <Package className="h-5 w-5 text-primary" />
+            <Package className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-primary mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-destructive mb-0">
+              ৳{formatCurrency(totalExpenses)}
+            </div>
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
+              All Expenses
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
+              Doll Purchased
+            </CardTitle>
+            <Package className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-primary mb-0">
               ৳{formatCurrency(totalPrizePurchase)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               Total Doll Qty: {totalPrizeQuantity}
             </div>
           </CardContent>
@@ -536,16 +562,16 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               Cash In Hand
             </CardTitle>
-            <Wallet className="h-5 w-5 text-success" />
+            <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-success mb-0">
-              ৳{formatCurrency(cashInHand)}
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-success mb-0">
+              ৳ {formatCurrency(cashInHand)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               Cash Amount
             </div>
           </CardContent>
@@ -553,16 +579,16 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               MDB Bank
             </CardTitle>
-            <Landmark className="h-5 w-5 text-primary" />
+            <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-primary mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-primary mb-0">
               ৳{formatCurrency(mdbBank)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               MDB Bank Balance
             </div>
           </CardContent>
@@ -570,16 +596,16 @@ export default function Dashboard() {
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               NCC Bank
             </CardTitle>
-            <Landmark className="h-5 w-5 text-accent" />
+            <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
           </CardHeader>
           <CardContent className="pb-2">
-            <div className="text-2xl font-bold text-accent mb-0">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-accent mb-0">
               ৳{formatCurrency(nccBank)}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
               NCC Bank Balance
             </div>
           </CardContent>
