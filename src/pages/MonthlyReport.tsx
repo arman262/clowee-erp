@@ -15,6 +15,8 @@ export default function MonthlyReport() {
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [yearlyData, setYearlyData] = useState<any[]>([]);
+  const [showMonthReport, setShowMonthReport] = useState(false);
+  const [monthReportData, setMonthReportData] = useState<any>(null);
 
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
   const months = [
@@ -307,7 +309,7 @@ export default function MonthlyReport() {
         const prizeProfit = totalPrizeOutCost - totalPrizePurchaseCostForMonth;
 
         const totalRevenue = totalCloweeProfit + prizeProfit + totalMaintenanceCost;
-        const netProfit = totalRevenue - totalOtherExpenses + totalElectricityCost;
+        const netProfit = totalRevenue - totalOtherExpenses - totalElectricityCost;
 
         return {
           month: month.label,
@@ -392,7 +394,30 @@ export default function MonthlyReport() {
               </thead>
               <tbody>
                 {yearlyData.map((data, index) => (
-                  <tr key={index} className="border-t border-border hover:bg-secondary/30">
+                  <tr 
+                    key={index} 
+                    className="border-t border-border hover:bg-primary/10 hover:scale-[1] cursor-pointer transition-all duration-200 ease-in-out"
+                    onClick={() => {
+                      const monthIndex = months.findIndex(m => m.label === data.month);
+                      if (monthIndex !== -1) {
+                        setMonthReportData({
+                          reportMonth: `${data.month} ${selectedYear}`,
+                          preparedBy: "Md. Asif Sahariwar",
+                          income: {
+                            profitShareClowee: data.totalCloweeProfit,
+                            prizeIncome: data.prizeProfit,
+                            maintenanceCharge: data.totalMaintenanceCost,
+                          },
+                          expense: {
+                            fixedCost: data.totalExpenses,
+                            variableCost: 0,
+                          },
+                          salesBreakdown: [{ location: 'Summary View', sales: data.totalSalesAmount, profitShare: data.totalCloweeProfit }],
+                        });
+                        setShowMonthReport(true);
+                      }
+                    }}
+                  >
                     <td className="px-4 py-2 font-medium">{data.month}</td>
                       <td className="px-4 py-2 text-right font-bold text-lg">
                       <span className={data.netProfit >= 0 ? 'text-success' : 'text-destructive'}>
@@ -463,6 +488,13 @@ export default function MonthlyReport() {
         <MonthlyReportPDF 
           data={reportData}
           onClose={() => setShowReport(false)}
+        />
+      )}
+
+      {showMonthReport && monthReportData && (
+        <MonthlyReportPDF 
+          data={monthReportData}
+          onClose={() => setShowMonthReport(false)}
         />
       )}
     </div>
