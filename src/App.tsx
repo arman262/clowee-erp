@@ -1,29 +1,29 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/components/MainLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import CounterReadings from "./pages/CounterReadings";
 import Dashboard from "./pages/Dashboard";
 import Franchises from "./pages/Franchises";
 import Machines from "./pages/Machines";
-import CounterReadings from "./pages/CounterReadings";
 import Sales from "./pages/Sales";
-import Invoices from "./pages/Invoices";
-import Expenses from "./pages/Expenses";
-import ExpenseCategories from "./pages/ExpenseCategories";
-import Payments from "./pages/Payments";
+
 import Banks from "./pages/Banks";
-import Users from "./pages/Users";
+import ExpenseCategories from "./pages/ExpenseCategories";
+import Expenses from "./pages/Expenses";
+import Inventory from "./pages/Inventory";
+import Login from "./pages/Login";
+import MonthlyReport from "./pages/MonthlyReport";
+import NotFound from "./pages/NotFound";
+import Payments from "./pages/Payments";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
-import Login from "./pages/Login";
-import NotFound from "./pages/NotFound";
-import MonthlyReport from "./pages/MonthlyReport";
-import Inventory from "./pages/Inventory";
+import Users from "./pages/Users";
 
 const queryClient = new QueryClient();
 
@@ -50,13 +50,13 @@ function AppRoutes() {
         <Route path="/machines" element={<ProtectedRoute><Machines /></ProtectedRoute>} />
         <Route path="/counter-readings" element={<ProtectedRoute><CounterReadings /></ProtectedRoute>} />
         <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-        <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+
         <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="/expense-categories" element={<ProtectedRoute><ExpenseCategories /></ProtectedRoute>} />
         <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
         <Route path="/banks" element={<ProtectedRoute><Banks /></ProtectedRoute>} />
         <Route path="/monthly-report" element={<ProtectedRoute><MonthlyReport /></ProtectedRoute>} />
-        <Route path="/accounting" element={<ProtectedRoute><div className="p-8 text-center text-muted-foreground">Accounting - Coming Soon</div></ProtectedRoute>} />
+
         <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

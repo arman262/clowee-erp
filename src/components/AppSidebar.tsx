@@ -3,9 +3,7 @@ import {
   Building2,
   Cpu,
   CreditCard,
-  DollarSign,
   FileBarChart,
-  FileText,
   Landmark,
   LayoutDashboard,
   Package,
@@ -37,22 +35,21 @@ const mainItems = [
   { title: "Machines", url: "/machines", icon: Cpu },
   { title: "Counter Readings", url: "/counter-readings", icon: TrendingUp },
   { title: "Sales", url: "/sales", icon: ShoppingCart },
-  { title: "Invoices", url: "/invoices", icon: FileText },
 ];
 
 const financeItems = [
-  { title: "Accounting", url: "/accounting", icon: DollarSign },
   { title: "Expenses", url: "/expenses", icon: Receipt },
-  { title: "Expense Categories", url: "/expense-categories", icon: Tag },
   { title: "Payments", url: "/payments", icon: CreditCard },
-  { title: "Banks", url: "/banks", icon: Landmark },
   { title: "Reports", url: "/monthly-report", icon: FileBarChart },
   { title: "Inventory", url: "/inventory", icon: Package },
 ];
 
 const systemItems = [
   { title: "Users", url: "/users", icon: Users },
+  { title: "Expense Categories", url: "/expense-categories", icon: Tag },
+  { title: "Banks", url: "/banks", icon: Landmark },
   { title: "Settings", url: "/settings", icon: Settings },
+
 ];
 
 export function AppSidebar() {
@@ -116,7 +113,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Finance</SidebarGroupLabel>
+          <SidebarGroupLabel>Accounts</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {financeItems.map((item) => (

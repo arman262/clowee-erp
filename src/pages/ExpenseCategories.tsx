@@ -19,9 +19,12 @@ import { useExpenseCategories, useCreateExpenseCategory, useUpdateExpenseCategor
 import { TablePager } from "@/components/TablePager";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ExpenseCategories() {
   const { canEdit } = usePermissions();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingCategory, setViewingCategory] = useState<any | null>(null);
@@ -59,7 +62,7 @@ export default function ExpenseCategories() {
             Manage expense categories for better organization
           </p>
         </div>
-        {canEdit && (
+        {isSuperAdmin && (
           <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
@@ -215,7 +218,7 @@ export default function ExpenseCategories() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {canEdit && (
+                      {isSuperAdmin && (
                         <>
                           <Button 
                             variant="outline" 

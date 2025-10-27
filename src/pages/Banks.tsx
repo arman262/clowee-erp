@@ -32,11 +32,14 @@ import { useMachineExpenses } from "@/hooks/useMachineExpenses";
 import { TablePager } from "@/components/TablePager";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/numberUtils";
 
 export default function Banks() {
   const { canEdit } = usePermissions();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAddMoneyForm, setShowAddMoneyForm] = useState(false);
@@ -208,7 +211,7 @@ export default function Banks() {
             Manage bank accounts and payment methods
           </p>
         </div>
-        {canEdit && (
+        {isSuperAdmin && (
           <div className="flex gap-2">
             <Dialog open={showAddMoneyForm} onOpenChange={setShowAddMoneyForm}>
               <DialogTrigger asChild>
@@ -435,7 +438,7 @@ export default function Banks() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {canEdit && (
+                      {isSuperAdmin && (
                         <>
                           <Button 
                             variant="outline" 
@@ -583,7 +586,7 @@ export default function Banks() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {canEdit && (
+                        {isSuperAdmin && (
                           <>
                             <Button 
                               variant="outline" 

@@ -83,6 +83,11 @@ export default function MonthlyReport() {
       let totalPrizeOutSales = 0;
       let maintenanceCharge = 0;
       const franchiseData: any = {};
+      
+      // Initialize all franchises with zero values
+      franchises?.forEach((franchise: any) => {
+        franchiseData[franchise.franchise_name] = { sales: 0, profitShare: 0, salesList: [] };
+      });
 
       sales?.forEach((sale: any) => {
         const machine = machineMap.get(sale.machine_id);
@@ -98,13 +103,19 @@ export default function MonthlyReport() {
 
         const franchiseName = franchise?.franchise_name || 'Unknown';
         if (!franchiseData[franchiseName]) {
-          franchiseData[franchiseName] = { sales: 0, profitShare: 0 };
+          franchiseData[franchiseName] = { sales: 0, profitShare: 0, salesList: [] };
         }
         franchiseData[franchiseName].sales += Number(sale.sales_amount) || 0;
         franchiseData[franchiseName].profitShare += cloweeProfit;
+        franchiseData[franchiseName].salesList.push({
+          date: new Date(sale.sales_date).toLocaleDateString('en-GB'),
+          amount: Number(sale.sales_amount) || 0
+        });
       });
 
       let totalExpenses = 0;
+      let variableCost = 0;
+      const variableCategories = ['Conveyance', 'Import Accessories', 'Local Accessories', 'Digital Marketing', 'Carrying Cost', 'Prize Delivery Cost'];
 
       expenses?.forEach((expense: any) => {
         const category = categoryMap.get(Number(expense.category_id));
@@ -113,6 +124,9 @@ export default function MonthlyReport() {
         
         if (categoryName !== 'Profit Share(Share Holders)') {
           totalExpenses += amount;
+          if (variableCategories.includes(categoryName)) {
+            variableCost += amount;
+          }
         }
       });
 
@@ -123,6 +137,7 @@ export default function MonthlyReport() {
           location,
           sales: data.sales,
           profitShare: data.profitShare,
+          salesList: data.salesList.sort((a: any, b: any) => new Date(b.date.split('/').reverse().join('-')).getTime() - new Date(a.date.split('/').reverse().join('-')).getTime()),
         }))
         .sort((a, b) => b.sales - a.sales);
 
@@ -134,8 +149,8 @@ export default function MonthlyReport() {
           maintenanceCharge,
         },
         expense: {
-          fixedCost: totalExpenses,
-          variableCost: 0,
+          fixedCost: totalExpenses - variableCost,
+          variableCost: variableCost,
         },
         salesBreakdown: salesBreakdown.length > 0 ? salesBreakdown : [{ location: 'No Data', sales: 0, profitShare: 0 }],
       });
@@ -254,6 +269,8 @@ export default function MonthlyReport() {
         let totalPrizePurchaseAmount = 0;
         let totalPrizePurchaseQty = 0;
         let totalOtherExpenses = 0;
+        let variableCost = 0;
+        const variableCategories = ['Conveyance', 'Import Accessories', 'Local Accessories', 'Digital Marketing', 'Carrying Cost', 'Prize Delivery Cost'];
 
         
         monthExpenses.forEach((expense: any) => {
@@ -266,6 +283,9 @@ export default function MonthlyReport() {
             totalPrizePurchaseQty += Number(expense.quantity) || 0;
           } else if (categoryName !== 'Profit Share(Share Holders)') {
             totalOtherExpenses += amount;
+            if (variableCategories.includes(categoryName)) {
+              variableCost += amount;
+            }
           }
         });
 
@@ -307,6 +327,9 @@ export default function MonthlyReport() {
           totalCloweeProfit,
           prizeProfit,
           totalExpenses,
+          totalOtherExpenses,
+          totalElectricityCost,
+          variableCost,
           netProfit
         };
       });
@@ -366,13 +389,72 @@ export default function MonthlyReport() {
                 </tr>
               </thead>
               <tbody>
-                {yearlyData.map((data, index) => (
+                {yearlyData.filter((data, index) => {
+                  if (selectedYear === '2025') {
+                    const monthIndex = months.findIndex(m => m.label === data.month);
+                    return monthIndex >= 8;
+                  }
+                  return true;
+                }).map((data, index) => (
                   <tr 
                     key={index} 
                     className="border-t border-border hover:bg-primary/10 hover:scale-[1] cursor-pointer transition-all duration-200 ease-in-out"
-                    onClick={() => {
+                    onClick={async () => {
                       const monthIndex = months.findIndex(m => m.label === data.month);
                       if (monthIndex !== -1) {
+                        const monthNum = (monthIndex + 1).toString();
+                        const startDate = `${selectedYear}-${monthNum.padStart(2, '0')}-01`;
+                        const lastDay = new Date(parseInt(selectedYear), monthIndex + 1, 0).getDate();
+                        const endDate = `${selectedYear}-${monthNum.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+
+                        const [allSales, machines, franchises] = await Promise.all([
+                          db.from('sales').select('*').execute(),
+                          db.from('machines').select('*').execute(),
+                          db.from('franchises').select('*').execute()
+                        ]);
+
+                        const sales = (allSales || []).filter((sale: any) => {
+                          const saleDate = sale.sales_date;
+                          return saleDate >= startDate && saleDate <= endDate;
+                        });
+
+                        const machineMap = new Map();
+                        machines?.forEach(machine => machineMap.set(machine.id, machine));
+
+                        const franchiseMap = new Map();
+                        franchises?.forEach(franchise => franchiseMap.set(franchise.id, franchise));
+
+                        const franchiseData: any = {};
+                        franchises?.forEach((franchise: any) => {
+                          franchiseData[franchise.franchise_name] = { sales: 0, profitShare: 0, salesList: [] };
+                        });
+
+                        sales?.forEach((sale: any) => {
+                          const machine = machineMap.get(sale.machine_id);
+                          const franchise = machine ? franchiseMap.get(machine.franchise_id) : null;
+                          const cloweeProfit = Number(sale.clowee_profit) || 0;
+                          const franchiseName = franchise?.franchise_name || 'Unknown';
+                          
+                          if (!franchiseData[franchiseName]) {
+                            franchiseData[franchiseName] = { sales: 0, profitShare: 0, salesList: [] };
+                          }
+                          franchiseData[franchiseName].sales += Number(sale.sales_amount) || 0;
+                          franchiseData[franchiseName].profitShare += cloweeProfit;
+                          franchiseData[franchiseName].salesList.push({
+                            date: new Date(sale.sales_date).toLocaleDateString('en-GB'),
+                            amount: Number(sale.sales_amount) || 0
+                          });
+                        });
+
+                        const salesBreakdown = Object.entries(franchiseData)
+                          .map(([location, fData]: [string, any]) => ({
+                            location,
+                            sales: fData.sales,
+                            profitShare: fData.profitShare,
+                            salesList: fData.salesList.sort((a: any, b: any) => new Date(b.date.split('/').reverse().join('-')).getTime() - new Date(a.date.split('/').reverse().join('-')).getTime()),
+                          }))
+                          .sort((a, b) => b.sales - a.sales);
+
                         setMonthReportData({
                           reportMonth: `${data.month} ${selectedYear}`,
                           preparedBy: "Md. Asif Sahariwar",
@@ -380,12 +462,13 @@ export default function MonthlyReport() {
                             profitShareClowee: data.totalCloweeProfit,
                             prizeIncome: data.prizeProfit,
                             maintenanceCharge: data.totalMaintenanceCost,
+                            totalElectricityCost: data.totalElectricityCost || 0,
                           },
                           expense: {
-                            fixedCost: data.totalExpenses,
-                            variableCost: 0,
+                            fixedCost: (data.totalOtherExpenses || 0) - (data.variableCost || 0),
+                            variableCost: data.variableCost || 0,
                           },
-                          salesBreakdown: [{ location: 'Summary View', sales: data.totalSalesAmount, profitShare: data.totalCloweeProfit }],
+                          salesBreakdown,
                         });
                         setShowMonthReport(true);
                       }

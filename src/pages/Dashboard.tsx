@@ -1,4 +1,4 @@
- import { ExpenseForm } from "@/components/forms/ExpenseForm";
+import { ExpenseForm } from "@/components/forms/ExpenseForm";
 import { FranchiseForm } from "@/components/forms/FranchiseForm";
 import { MachineForm } from "@/components/forms/MachineForm";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useBankMoneyLogs } from "@/hooks/useBankMoneyLogs";
+import { useBanks } from "@/hooks/useBanks";
 import { useCreateFranchise, useFranchises } from "@/hooks/useFranchises";
 import { useMachineCounters } from "@/hooks/useMachineCounters";
 import { useCreateMachineExpense, useMachineExpenses } from "@/hooks/useMachineExpenses";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { useCreateMachine, useMachines } from "@/hooks/useMachines";
-import { useBanks } from "@/hooks/useBanks";
-import { useBankMoneyLogs } from "@/hooks/useBankMoneyLogs";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSales } from "@/hooks/useSales";
 import { formatCurrency, formatNumber } from "@/lib/numberUtils";
@@ -32,7 +32,6 @@ import {
   Landmark,
   Package,
   Receipt,
-  Sprout,
   TrendingUp,
   Users,
   Wallet
@@ -100,6 +99,7 @@ export default function Dashboard() {
   const createFranchise = useCreateFranchise();
   const createMachine = useCreateMachine();
   const createExpense = useCreateMachineExpense();
+  
 
   // Filter data based on selected period
   const filteredSales = sales?.filter(sale => {
@@ -170,45 +170,9 @@ export default function Dashboard() {
   const avgSalesPerMachine = activeMachines.length > 0 ? totalSales / activeMachines.length : 0;
   
   const totalPaymentReceived = filteredPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-  //const totalDue = filteredSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
 
-  const totalPrizePurchase = expenses?.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
-  const totalPrizeQuantity = expenses?.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0) || 0;
-  
-  // Calculate Prize Income (Prize Out Cost - Prize Purchase Cost based on avg rate from filtered period)
-  const filteredPrizePurchaseAmount = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0);
-  const filteredPrizePurchaseQty = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0);
-  const avgPrizeRate = filteredPrizePurchaseQty > 0 ? filteredPrizePurchaseAmount / filteredPrizePurchaseQty : 0;
-  const totalPrizeOutQty = filteredSales.reduce((sum, sale) => sum + (Number(sale.prize_out_quantity) || 0), 0);
-  const totalPrizePurchaseCost = totalPrizeOutQty * avgPrizeRate;
-  const totalPrizeOutCost = filteredSales.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0);
-  const prizeIncome = totalPrizeOutCost - totalPrizePurchaseCost;
-  
-  // Calculate Clowee Profit and Maintenance Charge from filtered sales
-  const totalCloweeProfit = filteredSales.reduce((sum, sale) => sum + Number(sale.clowee_profit || 0), 0);
-  const totalMaintenanceCharge = filteredSales.reduce((sum, sale) => {
-    const machine = machines?.find(m => m.id === sale.machine_id);
-    const franchise = franchises?.find(f => f.id === machine?.franchise_id);
-    return sum + (Number(franchise?.maintenance_charge) || 0);
-  }, 0);
-  
-  // Calculate Electricity Cost from filtered sales
-  const totalElectricityCost = filteredSales.reduce((sum, sale) => sum + Number(sale.electricity_cost || 0), 0);
-  
-  // Total expenses excluding Profit Share and Prize Purchase
-  const totalExpenses = filteredExpenses
-    .filter(expense => 
-      expense.expense_categories?.category_name !== 'Profit Share(Share Holders)' &&
-      expense.expense_categories?.category_name !== 'Prize Purchase'
-    )
-    .reduce((sum: number, expense) => sum + Number(expense.total_amount || 0), 0);
-  
-  // Net Profit = Total Income - Total Expenses (matching MonthlyReportPDF)
-  // Total Income = Clowee Profit + Prize Income + Maintenance Charge
-  // Total Expenses = Fixed Cost + Variable Cost (NOT including Electricity)
-  // Note: Electricity is subtracted separately after expenses
-  const totalIncome = totalCloweeProfit + prizeIncome + totalMaintenanceCharge;
-  const netProfit = totalIncome - totalExpenses;
+  const totalPrizePurchase = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0);
+  const totalPrizeQuantity = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0);
   
   const totalPayToClowee = filteredSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
   const totalDue = totalPayToClowee - totalPaymentReceived;
@@ -245,61 +209,23 @@ export default function Dashboard() {
   const nccBank = calculateBankBalance('NCC Bank');
   const bkashPersonal = calculateBankBalance('Bkash(Personal)');
 
-  // Prepare chart data with proper profit calculation
+  // Prepare chart data
   const getChartData = () => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentYear = filterType === 'year' ? parseInt(selectedYear) : new Date(selectedMonth).getFullYear();
     
     return months.map((month, index) => {
-      // Filter sales for this month
       const monthSales = sales?.filter(sale => {
         if (!sale.sales_date) return false;
         const saleDate = new Date(sale.sales_date);
         return saleDate.getFullYear() === currentYear && saleDate.getMonth() === index;
       }) || [];
       
-      // Filter expenses for this month (excluding Profit Share and Prize Purchase)
-      const monthExpenses = expenses?.filter(expense => {
-        if (!expense.expense_date) return false;
-        const date = new Date(expense.expense_date);
-        const expenseDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-        const monthNum = index + 1;
-        const startDate = `${currentYear}-${monthNum.toString().padStart(2, '0')}-01`;
-        const lastDay = new Date(currentYear, monthNum, 0).getDate();
-        const endDate = `${currentYear}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
-        const categoryName = expense.expense_categories?.category_name;
-        return expenseDateLocal >= startDate && expenseDateLocal <= endDate && 
-               categoryName !== 'Profit Share(Share Holders)' && 
-               categoryName !== 'Prize Purchase';
-      }) || [];
-      
-      // Calculate totals
       const salesAmount = monthSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0);
-      const cloweeProfit = monthSales.reduce((sum, sale) => sum + Number(sale.clowee_profit || 0), 0);
-      const prizeOutCost = monthSales.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0);
-      const prizeOutQty = monthSales.reduce((sum, sale) => sum + (Number(sale.prize_out_quantity) || 0), 0);
-      const maintenanceCharge = monthSales.reduce((sum, sale) => {
-        const machine = machines?.find(m => m.id === sale.machine_id);
-        const franchise = franchises?.find(f => f.id === machine?.franchise_id);
-        return sum + (Number(franchise?.maintenance_charge) || 0);
-      }, 0);
-      const electricityCost = monthSales.reduce((sum, sale) => sum + Number(sale.electricity_cost || 0), 0);
-      
-      // Calculate prize income
-      const prizePurchaseCost = prizeOutQty * avgPrizeRate;
-      const prizeIncome = prizeOutCost - prizePurchaseCost;
-      
-      const expensesAmount = monthExpenses.reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0);
-      
-      // Net Profit = Total Income - Total Expenses - Electricity (matching MonthlyReportPDF)
-      const totalIncome = cloweeProfit + prizeIncome + maintenanceCharge;
-      const netProfit = totalIncome - expensesAmount;
       
       return {
         month,
-        sales: Math.round(salesAmount * 100) / 100,
-        profit: Math.round(netProfit * 100) / 100,
-        expenses: Math.round(expensesAmount * 100) / 100
+        sales: Math.round(salesAmount * 100) / 100
       };
     });
   };
@@ -521,23 +447,6 @@ export default function Dashboard() {
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
-              Net Profit
-            </CardTitle>
-            <Sprout className="h-4 w-4 sm:h-5 sm:w-5 text-accent"/>
-          </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-accent mb-0">
-              ৳{formatCurrency(netProfit)}
-            </div>
-            <div className="text-[10px] sm:text-xs text-muted-foreground">
-              Clowee Net Profit After All Cost
-            </div>
-          </CardContent>
-        </Card>
-
-          <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               Clowee Revenue
             </CardTitle>
             <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
@@ -585,23 +494,6 @@ export default function Dashboard() {
             </div>
             <div className="text-[10px] sm:text-xs text-muted-foreground">
               Receivable Amount
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
-              Total Expenses
-            </CardTitle>
-            <Package className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
-          </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-destructive mb-0">
-              ৳{formatCurrency(totalExpenses)}
-            </div>
-            <div className="text-[10px] sm:text-xs text-muted-foreground">
-              All Expenses
             </div>
           </CardContent>
         </Card>
@@ -695,7 +587,7 @@ export default function Dashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/10 transition-all duration-200">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
@@ -747,72 +639,6 @@ export default function Dashboard() {
                   strokeWidth={1}
                 />
               </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/10 transition-all duration-200">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Month-Wise Net Profit
-            </CardTitle>
-            <CardDescription>Net profit after all expenses throughout {filterType === 'year' ? selectedYear : new Date(selectedMonth).getFullYear()}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#9CA3AF" 
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  stroke="#9CA3AF" 
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `৳${formatNumber(value)}`} 
-                />
-                <Tooltip 
-                  formatter={(value, name) => {
-                    const numValue = Number(value);
-                    const color = numValue >= 0 ? '#10B981' : '#EF4444';
-                    return [
-                      <span style={{ color }}>
-                        ৳{formatCurrency(Math.abs(numValue))} {numValue < 0 ? '(Loss)' : ''}
-                      </span>, 
-                      'Net Profit'
-                    ];
-                  }}
-                  labelStyle={{ color: '#F9FAFB', fontWeight: 'bold' }}
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)', 
-                    border: '1px solid #374151',
-                    borderRadius: '8px',
-                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
-                  }}
-                  cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '5 5' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="profit" 
-                  stroke="#3B82F6" 
-                  strokeWidth={3}
-                  fill="url(#profitGradient)"
-                  dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5, stroke: '#1F2937' }}
-                  activeDot={{ r: 7, stroke: '#3B82F6', strokeWidth: 2, fill: '#1F2937' }}
-                />
-              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
