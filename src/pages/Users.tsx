@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,9 +6,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Eye, Edit, Trash2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Eye, Edit, Trash2, Activity } from "lucide-react";
 import { useUsers } from "@/hooks/useUsers";
 import { toast } from "sonner";
+import { formatDateTime } from "@/lib/dateUtils";
 
 export default function Users() {
   const { users, loading, addUser, updateUser, deleteUser } = useUsers();
@@ -16,12 +18,33 @@ export default function Users() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "user"
   });
+
+  useEffect(() => {
+    fetchActivityLogs();
+  }, []);
+
+  const fetchActivityLogs = async () => {
+    setLoadingLogs(true);
+    try {
+      const response = await fetch('http://202.59.208.112:3008/api/notifications');
+      const result = await response.json();
+      if (result.data) {
+        setActivityLogs(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching activity logs:', error);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
 
   const handleAdd = async () => {
     try {
@@ -187,6 +210,62 @@ export default function Users() {
           ))}
         </TableBody>
       </Table>
+
+      {/* Activity Logs Section */}
+      <Card className="mt-8 bg-gradient-card border-border shadow-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            System Activity Logs
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingLogs ? (
+            <div className="text-center py-4">Loading activity logs...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date & Time</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Activity</TableHead>
+                  <TableHead>Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {activityLogs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      No activity logs found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  activityLogs.map((log) => {
+                    const user = users.find(u => u.id === log.user_id);
+                    return (
+                      <TableRow key={log.id}>
+                        <TableCell>{formatDateTime(log.created_at)}</TableCell>
+                        <TableCell>{user?.name || user?.email || 'Unknown'}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            log.action_type === 'create' ? 'bg-green-100 text-green-800' :
+                            log.action_type === 'update' ? 'bg-blue-100 text-blue-800' :
+                            log.action_type === 'delete' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {log.action_type?.toUpperCase()}
+                          </span>
+                        </TableCell>
+                        <TableCell>{log.message}</TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent>

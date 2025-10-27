@@ -73,8 +73,13 @@ export function useCreateMachineExpense() {
       const userId = storedUser ? JSON.parse(storedUser).user.id : null;
       
       // Get the next expense number
-      const allExpenses = await db.from("machine_expenses").select("*").execute();
-      const nextNumber = (allExpenses?.length || 0) + 1;
+      const allExpenses = await db.from("machine_expenses").select("expense_number").execute();
+      const maxNumber = allExpenses?.reduce((max, exp) => {
+        const match = exp.expense_number?.match(/clw-ex-(\d+)/);
+        const num = match ? parseInt(match[1]) : 0;
+        return Math.max(max, num);
+      }, 0) || 0;
+      const nextNumber = maxNumber + 1;
       const expenseNumber = `clw-ex-${nextNumber.toString().padStart(4, '0')}`;
       
       const insertData = userId ? { ...data, created_by: userId, expense_number: expenseNumber } : { ...data, expense_number: expenseNumber };
@@ -92,9 +97,12 @@ export function useCreateMachineExpense() {
       toast.success("Expense added successfully");
       notifyCreate("Expense");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error creating expense:", error);
-      toast.error("Failed to add expense");
+      console.error("Error message:", error?.message);
+      console.error("Error details:", error?.details);
+      console.error("Error hint:", error?.hint);
+      toast.error(`Failed to add expense: ${error?.message || 'Unknown error'}`);
     },
   });
 }

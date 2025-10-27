@@ -1,8 +1,6 @@
 import { MonthlyReportPDF } from "@/components/MonthlyReportPDF";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { db } from "@/integrations/postgres/client";
-import { FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function MonthlyReport() {
@@ -18,7 +16,7 @@ export default function MonthlyReport() {
   const [showMonthReport, setShowMonthReport] = useState(false);
   const [monthReportData, setMonthReportData] = useState<any>(null);
 
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   const months = [
     { value: "1", label: "January" },
     { value: "2", label: "February" },
@@ -71,12 +69,6 @@ export default function MonthlyReport() {
         const expenseDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
         return expenseDateLocal >= startDate && expenseDateLocal <= endDate;
       });
-
-      console.log('Sales data:', sales);
-      console.log('Machines data:', machines);
-      console.log('Franchises data:', franchises);
-      console.log('Expenses data:', expenses);
-      console.log('Categories data:', expenseCategories);
 
       const machineMap = new Map();
       machines?.forEach(machine => machineMap.set(machine.id, machine));
@@ -263,18 +255,11 @@ export default function MonthlyReport() {
         let totalPrizePurchaseQty = 0;
         let totalOtherExpenses = 0;
 
-        if (month.label === 'September') {
-          console.log(`\n=== ${month.label} Expense Details ===`);
-        }
         
         monthExpenses.forEach((expense: any) => {
           const category = categoryMap.get(Number(expense.category_id));
           const categoryName = category?.category_name || '';
           const amount = Number(expense.total_amount) || 0;
-          
-          if (month.label === 'September') {
-            console.log(`Expense: ${expense.expense_number || 'N/A'} | Category: ${categoryName} | Amount: ${amount}`);
-          }
           
           if (categoryName === 'Prize Purchase') {
             totalPrizePurchaseAmount += amount;
@@ -345,25 +330,13 @@ export default function MonthlyReport() {
         </div>
         <div className="flex gap-3">
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[120px]">
+            <SelectTrigger className="w-[130px]">
               <SelectValue placeholder="Year" />
             </SelectTrigger>
             <SelectContent>
               {years.map(year => (
                 <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map(month => (
-                <SelectItem key={month.value} value={month.value}>
-                  {month.label}
+                 Year {year}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -437,49 +410,6 @@ export default function MonthlyReport() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        <div className="bg-gradient-card border-border rounded-lg p-6 shadow-card">
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <h3 className="text-xl font-semibold">{selectedMonthYear} Report</h3>
-              <p className="text-sm text-muted-foreground">
-                Monthly financial summary and sales breakdown
-              </p>
-              {loading ? (
-                <p className="text-sm text-muted-foreground mt-4">Loading report data...</p>
-              ) : reportData ? (
-                <div className="flex gap-4 text-sm mt-4">
-                  <div>
-                    <span className="text-muted-foreground">Total Income:</span>
-                    <span className="ml-2 font-semibold text-success">
-                      ৳{(reportData.income.profitShareClowee + reportData.income.maintenanceCharge).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Total Expense:</span>
-                    <span className="ml-2 font-semibold text-destructive">
-                      ৳{(reportData.expense.fixedCost + reportData.expense.variableCost).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Net Profit:</span>
-                    <span className="ml-2 font-semibold text-primary">
-                      ৳{((reportData.income.profitShareClowee + reportData.income.maintenanceCharge) - (reportData.expense.fixedCost + reportData.expense.variableCost)).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-            <Button 
-              onClick={() => setShowReport(true)}
-              className="bg-gradient-primary hover:opacity-90"
-              disabled={loading}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              View Report
-            </Button>
           </div>
         </div>
       </div>

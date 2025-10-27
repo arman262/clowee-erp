@@ -12,6 +12,8 @@ import { useMachineCounters } from "@/hooks/useMachineCounters";
 import { useCreateMachineExpense, useMachineExpenses } from "@/hooks/useMachineExpenses";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { useCreateMachine, useMachines } from "@/hooks/useMachines";
+import { useBanks } from "@/hooks/useBanks";
+import { useBankMoneyLogs } from "@/hooks/useBankMoneyLogs";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSales } from "@/hooks/useSales";
 import { formatCurrency, formatNumber } from "@/lib/numberUtils";
@@ -93,6 +95,8 @@ export default function Dashboard() {
   const { data: payments } = useMachinePayments();
   const { data: franchises } = useFranchises();
   const { data: counterReadings } = useMachineCounters();
+  const { data: banks } = useBanks();
+  const { data: moneyLogs } = useBankMoneyLogs();
   const createFranchise = useCreateFranchise();
   const createMachine = useCreateMachine();
   const createExpense = useCreateMachineExpense();
@@ -171,29 +175,75 @@ export default function Dashboard() {
   const totalPrizePurchase = expenses?.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
   const totalPrizeQuantity = expenses?.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0) || 0;
   
-  // Total expenses excluding Profit Share (Share Holders)
+  // Calculate Prize Income (Prize Out Cost - Prize Purchase Cost based on avg rate from filtered period)
+  const filteredPrizePurchaseAmount = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0);
+  const filteredPrizePurchaseQty = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0);
+  const avgPrizeRate = filteredPrizePurchaseQty > 0 ? filteredPrizePurchaseAmount / filteredPrizePurchaseQty : 0;
+  const totalPrizeOutQty = filteredSales.reduce((sum, sale) => sum + (Number(sale.prize_out_quantity) || 0), 0);
+  const totalPrizePurchaseCost = totalPrizeOutQty * avgPrizeRate;
+  const totalPrizeOutCost = filteredSales.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0);
+  const prizeIncome = totalPrizeOutCost - totalPrizePurchaseCost;
+  
+  // Calculate Clowee Profit and Maintenance Charge from filtered sales
+  const totalCloweeProfit = filteredSales.reduce((sum, sale) => sum + Number(sale.clowee_profit || 0), 0);
+  const totalMaintenanceCharge = filteredSales.reduce((sum, sale) => {
+    const machine = machines?.find(m => m.id === sale.machine_id);
+    const franchise = franchises?.find(f => f.id === machine?.franchise_id);
+    return sum + (Number(franchise?.maintenance_charge) || 0);
+  }, 0);
+  
+  // Calculate Electricity Cost from filtered sales
+  const totalElectricityCost = filteredSales.reduce((sum, sale) => sum + Number(sale.electricity_cost || 0), 0);
+  
+  // Total expenses excluding Profit Share and Prize Purchase
   const totalExpenses = filteredExpenses
-    .filter(expense => expense.expense_categories?.category_name !== 'Profit Share(Share Holders)')
+    .filter(expense => 
+      expense.expense_categories?.category_name !== 'Profit Share(Share Holders)' &&
+      expense.expense_categories?.category_name !== 'Prize Purchase'
+    )
     .reduce((sum: number, expense) => sum + Number(expense.total_amount || 0), 0);
   
-  // Net Profit = Pay To Clowee (sum from Sales table) - total expense (except Profit Share)
+  // Net Profit = Total Income - Total Expenses (matching MonthlyReportPDF)
+  // Total Income = Clowee Profit + Prize Income + Maintenance Charge
+  // Total Expenses = Fixed Cost + Variable Cost (NOT including Electricity)
+  // Note: Electricity is subtracted separately after expenses
+  const totalIncome = totalCloweeProfit + prizeIncome + totalMaintenanceCharge;
+  const netProfit = totalIncome - totalExpenses;
+  
   const totalPayToClowee = filteredSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
-  const netProfit = totalPayToClowee - totalExpenses;
   const totalDue = totalPayToClowee - totalPaymentReceived;
 
 
   // Bank calculations (cumulative totals, not filtered by period)
-  const cashPayments = payments?.filter(payment => payment.banks?.bank_name === 'Cash').reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
-  const cashExpenses = expenses?.filter(expense => expense.banks?.bank_name === 'Cash').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
-  const cashInHand = cashPayments - cashExpenses;
+  const calculateBankBalance = (bankName: string) => {
+    const bank = banks?.find(b => b.bank_name === bankName);
+    if (!bank) return 0;
+    
+    let balance = 0;
+    
+    // Add money logs (add/deduct)
+    if (moneyLogs && moneyLogs.length > 0) {
+      balance += moneyLogs
+        .filter((log: any) => log.bank_id === bank.id)
+        .reduce((sum: number, log: any) => {
+          const amount = Number(log.amount) || 0;
+          return log.action_type === 'add' ? sum + amount : sum - amount;
+        }, 0);
+    }
+    
+    // Add payments received
+    balance += payments?.filter(payment => payment.bank_id === bank.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
+    
+    // Subtract expenses
+    balance -= expenses?.filter(expense => expense.bank_id === bank.id).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
+    
+    return balance;
+  };
 
-  const mdbPayments = payments?.filter(payment => payment.banks?.bank_name === 'MDB Bank').reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
-  const mdbExpenses = expenses?.filter(expense => expense.banks?.bank_name === 'MDB Bank').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
-  const mdbBank = mdbPayments - mdbExpenses;
-
-  const nccPayments = payments?.filter(payment => payment.banks?.bank_name === 'NCC Bank').reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
-  const nccExpenses = expenses?.filter(expense => expense.banks?.bank_name === 'NCC Bank').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
-  const nccBank = nccPayments - nccExpenses;
+  const cashInHand = calculateBankBalance('Cash');
+  const mdbBank = calculateBankBalance('MDB Bank');
+  const nccBank = calculateBankBalance('NCC Bank');
+  const bkashPersonal = calculateBankBalance('Bkash(Personal)');
 
   // Prepare chart data with proper profit calculation
   const getChartData = () => {
@@ -208,7 +258,7 @@ export default function Dashboard() {
         return saleDate.getFullYear() === currentYear && saleDate.getMonth() === index;
       }) || [];
       
-      // Filter expenses for this month (excluding Profit Share)
+      // Filter expenses for this month (excluding Profit Share and Prize Purchase)
       const monthExpenses = expenses?.filter(expense => {
         if (!expense.expense_date) return false;
         const date = new Date(expense.expense_date);
@@ -217,23 +267,38 @@ export default function Dashboard() {
         const startDate = `${currentYear}-${monthNum.toString().padStart(2, '0')}-01`;
         const lastDay = new Date(currentYear, monthNum, 0).getDate();
         const endDate = `${currentYear}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
-        const isNotProfitShare = expense.expense_categories?.category_name !== 'Profit Share(Share Holders)';
-        return expenseDateLocal >= startDate && expenseDateLocal <= endDate && isNotProfitShare;
+        const categoryName = expense.expense_categories?.category_name;
+        return expenseDateLocal >= startDate && expenseDateLocal <= endDate && 
+               categoryName !== 'Profit Share(Share Holders)' && 
+               categoryName !== 'Prize Purchase';
       }) || [];
       
       // Calculate totals
       const salesAmount = monthSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0);
-      const payToCloweeAmount = monthSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
+      const cloweeProfit = monthSales.reduce((sum, sale) => sum + Number(sale.clowee_profit || 0), 0);
+      const prizeOutCost = monthSales.reduce((sum, sale) => sum + Number(sale.prize_out_cost || 0), 0);
+      const prizeOutQty = monthSales.reduce((sum, sale) => sum + (Number(sale.prize_out_quantity) || 0), 0);
+      const maintenanceCharge = monthSales.reduce((sum, sale) => {
+        const machine = machines?.find(m => m.id === sale.machine_id);
+        const franchise = franchises?.find(f => f.id === machine?.franchise_id);
+        return sum + (Number(franchise?.maintenance_charge) || 0);
+      }, 0);
+      const electricityCost = monthSales.reduce((sum, sale) => sum + Number(sale.electricity_cost || 0), 0);
+      
+      // Calculate prize income
+      const prizePurchaseCost = prizeOutQty * avgPrizeRate;
+      const prizeIncome = prizeOutCost - prizePurchaseCost;
+      
       const expensesAmount = monthExpenses.reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0);
       
-      // Net Profit = Pay To Clowee - Expenses (excluding Profit Share)
-      const netProfit = payToCloweeAmount - expensesAmount;
+      // Net Profit = Total Income - Total Expenses - Electricity (matching MonthlyReportPDF)
+      const totalIncome = cloweeProfit + prizeIncome + maintenanceCharge;
+      const netProfit = totalIncome - expensesAmount;
       
       return {
         month,
         sales: Math.round(salesAmount * 100) / 100,
         profit: Math.round(netProfit * 100) / 100,
-        payToClowee: Math.round(payToCloweeAmount * 100) / 100,
         expenses: Math.round(expensesAmount * 100) / 100
       };
     });
@@ -607,6 +672,23 @@ export default function Dashboard() {
             </div>
             <div className="text-[10px] sm:text-xs text-muted-foreground">
               NCC Bank Balance
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
+              Bkash(Personal)
+            </CardTitle>
+            <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-warning mb-0">
+              ৳{formatCurrency(bkashPersonal)}
+            </div>
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
+              Bkash Balance
             </div>
           </CardContent>
         </Card>

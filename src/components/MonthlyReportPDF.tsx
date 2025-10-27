@@ -10,6 +10,7 @@ interface MonthlyReportData {
     profitShareClowee: number;
     prizeIncome: number;
     maintenanceCharge: number;
+    totalElectricityCost: number;
   };
   expense: {
     fixedCost: number;
@@ -33,8 +34,6 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
   const totalIncome = data.income.profitShareClowee + data.income.prizeIncome + data.income.maintenanceCharge;
   const totalExpense = data.expense.fixedCost + data.expense.variableCost;
   const netProfitLoss = totalIncome - totalExpense;
-  
-  console.log('Calculated values:', { totalIncome, totalExpense, netProfitLoss });
 
   const handlePrint = () => {
     const printContent = document.getElementById('report-content');
@@ -262,8 +261,8 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">Maintenance Charge</td>
                       <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(data.income.maintenanceCharge)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900"></td>
-                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right"></td>
+                      <td className="px-4 py-3 text-sm text-gray-900">Electricity Cost</td>
+                      <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">৳{formatCurrency(data.income.totalElectricityCost)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -307,13 +306,13 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             <div className="mb-6">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div className="bg-blue-50 px-4 py-3 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Sales Breakdown by Location</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Sales Breakdown by Franchises</h3>
                 </div>
                 
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Location</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Franchises</th>
                       <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Sales Amount</th>
                       <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Profit Share</th>
                     </tr>
@@ -341,29 +340,6 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
               </div>
             </div>
 
-            {/* Signature Section */}
-            <div className="mb-4">
-              <table style={{ width: '100%', border: 'none', borderSpacing: '0.5rem' }}>
-                <tr>
-                  <td style={{ width: '50%', verticalAlign: 'top', border: 'none' }}>
-                    <div className="bg-white rounded-lg border border-gray-200 p-4">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-6">Prepared by</h3>
-                      <div className="border-t-2 border-gray-400 pt-2">
-                        <p className="font-medium text-gray-900">{data.preparedBy}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ width: '50%', verticalAlign: 'top', border: 'none' }}>
-                    <div className="bg-white rounded-lg border border-gray-200 p-4">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-6">Approved by</h3>
-                      <div className="border-t-2 border-gray-400 pt-2">
-                        <p className="font-medium text-gray-400">_____________________</p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </div>
 
             {/* Footer - Matching Invoice */}
             <div className="border-t border-gray-200 pt-4 mt-6">

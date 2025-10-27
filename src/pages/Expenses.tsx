@@ -21,9 +21,11 @@ import {
   Plus,
   Receipt,
   Search,
-  Trash2
+  Trash2,
+  FileDown
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import * as XLSX from 'xlsx';
 
 export default function Expenses() {
   const { canEdit } = usePermissions();
@@ -56,6 +58,32 @@ export default function Expenses() {
   const createExpense = useCreateMachineExpense();
   const updateExpense = useUpdateMachineExpense();
   const deleteExpense = useDeleteMachineExpense();
+
+  const handleExportExcel = () => {
+    const exportData = filteredExpenses.map((expense: any) => ({
+      'Expense Date': formatDate(expense.expense_date),
+      'Expense ID': expense.expense_number || '-',
+      'Category': expense.expense_categories?.category_name || '-',
+      'Description': expense.expense_details || '-',
+      'Quantity': expense.quantity,
+      'Unit Price': expense.item_price,
+      'Total Amount': expense.total_amount,
+      'Bank': expense.banks?.bank_name || '-',
+      'Created At': expense.created_at ? formatDateTime(expense.created_at) : '-'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
+    const fileName = fromDate && toDate 
+      ? `Expenses_${fromDate}_to_${toDate}.xlsx`
+      : fromDate 
+      ? `Expenses_from_${fromDate}.xlsx`
+      : toDate 
+      ? `Expenses_to_${toDate}.xlsx`
+      : 'Expenses_All.xlsx';
+    XLSX.writeFile(wb, fileName);
+  };
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -149,15 +177,25 @@ export default function Expenses() {
             Track and manage machine-related expenses
           </p>
         </div>
-        {canEdit && (
-        <Button 
-          className="bg-gradient-primary hover:opacity-90 shadow-neon"
-          onClick={() => setShowAddForm(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Expense
-        </Button>
-        )}
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            className="border-success text-success hover:bg-success/10"
+            onClick={handleExportExcel}
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            Export Excel
+          </Button>
+          {canEdit && (
+          <Button 
+            className="bg-gradient-primary hover:opacity-90 shadow-neon"
+            onClick={() => setShowAddForm(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Expense
+          </Button>
+          )}
+        </div>
       </div>
 
       {/* Filtered Summary */}
@@ -368,6 +406,15 @@ export default function Expenses() {
                   </TableCell>
                 </TableRow>
               ))
+            )}
+            {paginatedExpenses.length > 0 && (
+              <TableRow className="bg-secondary/50 font-bold">
+                <TableCell colSpan={4} className="text-right">Total:</TableCell>
+                <TableCell>{filteredExpenses.reduce((sum, exp) => sum + (Number(exp.quantity) || 0), 0)}</TableCell>
+                <TableCell>-</TableCell>
+                <TableCell>৳{formatCurrency(filteredExpenses.reduce((sum, exp) => sum + (Number(exp.total_amount) || 0), 0))}</TableCell>
+                <TableCell colSpan={2}></TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
