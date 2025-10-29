@@ -12,7 +12,7 @@ import { useBanks } from "@/hooks/useBanks";
 import { useCreateFranchise, useFranchises } from "@/hooks/useFranchises";
 import { useMachineCounters } from "@/hooks/useMachineCounters";
 import { useCreateMachineExpense, useMachineExpenses } from "@/hooks/useMachineExpenses";
-import { useMachinePayments } from "@/hooks/useMachinePayments";
+import { useMachinePayments } from "@/hooks/ useMachinePayments";
 import { useCreateMachine, useMachines } from "@/hooks/useMachines";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSales } from "@/hooks/useSales";
@@ -222,12 +222,10 @@ export default function Dashboard() {
       }) || [];
       
       const salesAmount = monthSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0);
-      const revenueAmount = monthSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
       
       return {
         month,
-        sales: Math.round(salesAmount * 100) / 100,
-        revenue: Math.round(revenueAmount * 100) / 100
+        sales: Math.round(salesAmount * 100) / 100
       };
     });
   };
@@ -589,7 +587,7 @@ export default function Dashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/10 transition-all duration-200">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
@@ -641,61 +639,6 @@ export default function Dashboard() {
                   strokeWidth={1}
                 />
               </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/10 transition-all duration-200">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-warning" />
-              Clowee Revenue
-            </CardTitle>
-            <CardDescription>Monthly revenue for Clowee throughout {filterType === 'year' ? selectedYear : new Date(selectedMonth).getFullYear()}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#9CA3AF" 
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  stroke="#9CA3AF" 
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `৳${formatNumber(value)}`} 
-                />
-                <Tooltip 
-                  formatter={(value, name) => [`৳${formatCurrency(Number(value))}`, 'Revenue']}
-                  labelStyle={{ color: '#F9FAFB', fontWeight: 'bold' }}
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)', 
-                    border: '1px solid #374151',
-                    borderRadius: '8px',
-                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
-                  }}
-                  cursor={{ stroke: '#F59E0B', strokeWidth: 2 }}
-                />
-                <Area 
-                  type="monotone"
-                  dataKey="revenue" 
-                  stroke="#F59E0B"
-                  strokeWidth={2}
-                  fill="url(#revenueGradient)" 
-                />
-              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
