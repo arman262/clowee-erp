@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { 
   Building2, 
@@ -158,6 +158,7 @@ export default function Franchises() {
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogTitle className="sr-only">Add New Franchise</DialogTitle>
+          <DialogDescription className="sr-only">Create a new franchise partner</DialogDescription>
           <FranchiseForm
             onSubmit={(data) => {
               createFranchise.mutate(data);
@@ -314,6 +315,7 @@ export default function Franchises() {
       <Dialog open={!!editingFranchise} onOpenChange={(open) => !open && setEditingFranchise(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogTitle className="sr-only">Edit Franchise</DialogTitle>
+          <DialogDescription className="sr-only">Edit franchise details</DialogDescription>
           <FranchiseForm
             initialData={editingFranchise}
             onSubmit={(data) => {

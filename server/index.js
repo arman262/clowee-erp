@@ -4,6 +4,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const port = 3008;
@@ -55,6 +56,44 @@ app.use(express.json());
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
 
+const pool = new Pool({
+  host: 'localhost',
+  port: 5433,
+  database: 'clowee_erp',
+  user: 'postgres',
+  password: 'postgres',
+});
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    const user = result.rows[0];
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    res.json({ 
+      data: { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role 
+      }, 
+      error: null 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Employee API proxy
 app.get('/api/employees', async (req, res) => {
   const https = require('https');
@@ -71,14 +110,6 @@ app.get('/api/employees', async (req, res) => {
   }).on('error', (error) => {
     res.status(500).json({ error: error.message });
   });
-});
-
-const pool = new Pool({
-  host: 'localhost',
-  port: 5433,
-  database: 'clowee_erp',
-  user: 'postgres',
-  password: 'postgres',
 });
 
 // File upload endpoint - must be before generic routes
@@ -102,7 +133,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 });
 
 app.get('/api/:table', async (req, res) => {
-  if (req.params.table === 'employees') return;
+  if (req.params.table === 'employees' || req.params.table === 'login') return;
   try {
     const { table } = req.params;
     const result = await pool.query(`SELECT * FROM ${table} ORDER BY created_at DESC`);
@@ -114,6 +145,7 @@ app.get('/api/:table', async (req, res) => {
 });
 
 app.post('/api/:table', async (req, res) => {
+  if (req.params.table === 'login') return;
   try {
     const { table } = req.params;
     const data = req.body;

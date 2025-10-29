@@ -15,6 +15,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isSpectator: boolean;
   canEdit: boolean;
+  isSuperAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,20 +53,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const users = await db
-        .from('users')
-        .select('*')
-        .execute();
+      const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
       
-      const userData = users?.find((user: any) => 
-        user.email === email && user.password_hash === password
-      );
-
-      if (!userData) {
-        throw new Error('Invalid credentials');
+      const result = await response.json();
+      
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Invalid credentials');
       }
       
-      const mockUser = { id: userData.id, email: email } as User;
+      const userData = result.data;
+      const mockUser = { id: userData.id, email: userData.email } as User;
       setUser(mockUser);
       setUserRole(userData.role);
       
@@ -84,7 +86,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserRole(null);
   };
 
-  const isAdmin = userRole === 'admin';
+  const isSuperAdmin = userRole === 'super_admin';
+  const isAdmin = userRole === 'admin' || isSuperAdmin;
   const isSpectator = userRole === 'spectator';
   const canEdit = !isSpectator;
 
@@ -97,7 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       isAdmin,
       isSpectator,
-      canEdit
+      canEdit,
+      isSuperAdmin
     }}>
       {children}
     </AuthContext.Provider>

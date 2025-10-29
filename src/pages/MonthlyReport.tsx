@@ -137,9 +137,7 @@ export default function MonthlyReport() {
           location,
           sales: data.sales,
           profitShare: data.profitShare,
-          salesList: data.salesList.sort((a: any, b: any) => new Date(b.date.split('/').reverse().join('-')).getTime() - new Date(a.date.split('/').reverse().join('-')).getTime()),
-        }))
-        .sort((a, b) => b.sales - a.sales);
+        }));
 
       setReportData({
         reportMonth: selectedMonthYear,
@@ -152,7 +150,7 @@ export default function MonthlyReport() {
           fixedCost: totalExpenses - variableCost,
           variableCost: variableCost,
         },
-        salesBreakdown: salesBreakdown.length > 0 ? salesBreakdown : [{ location: 'No Data', sales: 0, profitShare: 0 }],
+        salesBreakdown,
       });
     } catch (error) {
       console.error('Error fetching report data:', error);
@@ -451,9 +449,7 @@ export default function MonthlyReport() {
                             location,
                             sales: fData.sales,
                             profitShare: fData.profitShare,
-                            salesList: fData.salesList.sort((a: any, b: any) => new Date(b.date.split('/').reverse().join('-')).getTime() - new Date(a.date.split('/').reverse().join('-')).getTime()),
-                          }))
-                          .sort((a, b) => b.sales - a.sales);
+                          }));
 
                         setMonthReportData({
                           reportMonth: `${data.month} ${selectedYear}`,

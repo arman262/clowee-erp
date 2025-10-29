@@ -314,16 +314,12 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Franchises</th>
-                      <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Sales Amount</th>
-                      <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Fanchise Profit Share </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {data.salesBreakdown.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-900 font-semibold">Total Sales </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">৳{formatCurrency(item.sales)}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(item.profitShare)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 font-semibold">{item.location}</td>
                       </tr>
                     ))}
                   </tbody>

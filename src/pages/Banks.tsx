@@ -37,9 +37,7 @@ import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/numberUtils";
 
 export default function Banks() {
-  const { canEdit } = usePermissions();
-  const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'super_admin';
+  const { isSuperAdmin } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAddMoneyForm, setShowAddMoneyForm] = useState(false);

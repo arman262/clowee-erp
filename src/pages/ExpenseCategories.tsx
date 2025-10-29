@@ -22,9 +22,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function ExpenseCategories() {
-  const { canEdit } = usePermissions();
-  const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'super_admin';
+  const { isSuperAdmin } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingCategory, setViewingCategory] = useState<any | null>(null);
