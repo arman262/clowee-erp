@@ -40,7 +40,7 @@ const mainItems = [
 const financeItems = [
   { title: "Expenses", url: "/expenses", icon: Receipt },
   { title: "Payments", url: "/payments", icon: CreditCard },
-  { title: "Reports", url: "/monthly-report", icon: FileBarChart },
+  { title: "Monthly Reports", url: "/monthly-report", icon: FileBarChart },
   { title: "Inventory", url: "/inventory", icon: Package },
 ];
 

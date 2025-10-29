@@ -141,7 +141,6 @@ export default function MonthlyReport() {
 
       setReportData({
         reportMonth: selectedMonthYear,
-        preparedBy: "Md. Asif Sahariwar",
         income: {
           profitShareClowee,
           maintenanceCharge,
@@ -156,7 +155,6 @@ export default function MonthlyReport() {
       console.error('Error fetching report data:', error);
       setReportData({
         reportMonth: selectedMonthYear,
-        preparedBy: "Md. Asif Sahariwar",
         income: { profitShareClowee: 0, maintenanceCharge: 0 },
         expense: { fixedCost: 0, variableCost: 0 },
         salesBreakdown: [{ location: 'No Data', sales: 0, profitShare: 0 }],
@@ -374,7 +372,7 @@ export default function MonthlyReport() {
               <thead className="bg-secondary/50">
                 <tr>
                   <th className="px-4 py-2 text-left">Month</th>
-                  <th className="px-4 py-2 text-right font-bold">Net Profit</th>
+                  <th className="px-4 py-2 text-right text-3xl font-bold">Net Profit</th>
                   <th className="px-4 py-2 text-right">Sales Amount</th>
                   <th className="px-4 py-2 text-right">Vat Amount</th>
                   <th className="px-4 py-2 text-right">Prize Cost</th>

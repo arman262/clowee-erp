@@ -2,6 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/numberUtils";
 import { Download, Printer, X } from "lucide-react";
+import { useFranchises } from "@/hooks/useFranchises";
+import { useMachines } from "@/hooks/useMachines";
+import { useSales } from "@/hooks/useSales";
 
 interface MonthlyReportData {
   reportMonth: string;
@@ -30,6 +33,36 @@ interface MonthlyReportPDFProps {
 
 export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
   console.log('MonthlyReportPDF received data:', data);
+  
+  const { data: franchises } = useFranchises();
+  const { data: machines } = useMachines();
+  const { data: sales } = useSales();
+  
+  const [month, year] = data.reportMonth.split(' ');
+  const monthIndex = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].indexOf(month) + 1;
+  const startDate = `${year}-${monthIndex.toString().padStart(2, '0')}-01`;
+  const lastDay = new Date(parseInt(year), monthIndex, 0).getDate();
+  const endDate = `${year}-${monthIndex.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+  
+  console.log('Date Range:', { startDate, endDate, reportMonth: data.reportMonth });
+  
+  const franchiseWithSales = (franchises || []).map(franchise => {
+    const franchiseMachines = machines?.filter(m => m.franchise_id === franchise.id) || [];
+    const machineIds = franchiseMachines.map(m => m.id);
+    const totalSales = sales?.filter(s => {
+      const saleDate = s.sales_date;
+      return machineIds.includes(s.machine_id) && saleDate >= startDate && saleDate <= endDate;
+    }).reduce((sum, s) => sum + Number(s.sales_amount || 0), 0) || 0;
+    return { ...franchise, totalSales, machineCount: franchiseMachines.length };
+  }).filter(f => f.totalSales > 0).sort((a, b) => b.totalSales - a.totalSales);
+  
+  console.log('Franchise Sales:', franchiseWithSales.map(f => ({ name: f.name, totalSales: f.totalSales })));
+  
+  const totalFranchiseSales = franchiseWithSales.reduce((sum, f) => sum + f.totalSales, 0);
+  
+  const midPoint = Math.ceil(franchiseWithSales.length / 2);
+  const leftColumn = franchiseWithSales.slice(0, midPoint);
+  const rightColumn = franchiseWithSales.slice(midPoint);
   
   const totalIncome = data.income.profitShareClowee + data.income.prizeIncome + data.income.maintenanceCharge;
   const totalExpense = data.expense.fixedCost + data.expense.variableCost + (data.income.totalElectricityCost || 0);
@@ -62,16 +95,16 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             .text-right { text-align: right; }
             .font-bold { font-weight: bold; }
             .font-semibold { font-weight: 600; }
-            .text-sm { font-size: 0.7rem; }
-            .text-lg { font-size: 0.85rem; }
-            .text-xl { font-size: 0.95rem; }
-            .text-2xl { font-size: 1.1rem; }
-            .text-3xl { font-size: 1.4rem; }
+            .text-sm { font-size: 0.85rem; }
+            .text-lg { font-size: 1rem; }
+            .text-xl { font-size: 1.15rem; }
+            .text-2xl { font-size: 1.35rem; }
+            .text-3xl { font-size: 1.5rem; }
             .mb-2 { margin-bottom: 0.15rem; }
             .mb-4 { margin-bottom: 0.25rem; }
             .mb-6 { margin-bottom: 0.35rem; }
             .mt-6 { margin-top: 0.35rem; }
-            .p-4 { padding: 0.3rem; }
+            .p-4 { padding: 1.3rem; }
             .px-4 { padding-left: 0.45rem; padding-right: 0.45rem; }
             .py-3 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
             .border-b-2 { border-bottom: 2px solid; }
@@ -91,16 +124,44 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             .text-red-600 { color: #dc2626; }
             .space-x-4 > * + * { margin-left: 0.45rem; }
             .h-12 { height: 1.8rem; }
+            .h-8 { height: 2rem; }
             .w-auto { width: auto; }
             .object-contain { object-fit: contain; }
-            table { border-collapse: collapse; width: 100%; margin-top: 0.4rem; margin-bottom: 1rem; }
-            th, td { border: none; padding: 1rem 1rem; text-align: left; vertical-align: top; font-size: 0.7rem; }
+            .opacity-60 { opacity: 0.6; }
+            .report-header { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; padding: 1.5rem; margin-bottom: 1rem; }
+            .report-title { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.3rem; }
+            .report-subtitle { font-size: 0.9rem; opacity: 0.9; }
+            .summary-card { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 1rem; margin-bottom: 0.8rem; }
+            .summary-label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+            .summary-value { font-size: 1.4rem; font-weight: 700; color: #1e293b; margin-top: 0.2rem; }
+            .section-header { background: #1e40af; color: white; padding: 0.6rem 1rem; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1rem; }
+            .data-row { display: flex; justify-content: space-between; padding: 0.5rem 1rem; border-bottom: 1px solid #e2e8f0; }
+            .data-row:hover { background: #f1f5f9; }
+            .data-label { color: #475569; font-size: 1rem; }
+            .data-value { font-weight: 600; color: #1e293b; font-size: 1.3rem; }
+            .total-row { background: #e0f2fe; border-top: 2px solid #0284c7; padding: 1rem 1rem; font-weight: 700; }
+            .net-profit-box { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 1.2 rem; text-align: center; border-radius: 0.5rem; margin: 1rem 0; }
+            .net-loss-box { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 1.2rem; text-align: center; border-radius: 0.5rem; margin: 1rem 0; }
+            .profit-label { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.3rem; }
+            .profit-amount { font-size: 2rem; font-weight: 700; }
+            .franchise-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.5rem; }
+            .franchise-item { display: flex; justify-content: space-between; padding: 0.4rem 0.6rem; background: white; border: 1px solid #e2e8f0; border-radius: 0.25rem; }
+            .franchise-name { font-size: 0.85rem; color: #475569; }
+            .franchise-sales { font-size: 1rem; font-weight: 600; color: #1e293b; }
+            table { border-collapse: collapse; width: 100%; margin-top: 0.2rem; margin-bottom: 0.5rem; }
+            th, td { border: none; padding: 0.3rem 0.5rem; text-align: left; vertical-align: top; font-size: 0.8rem; }
             th { background-color: #f9fafb; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
             .divide-y > * + * { border-top: 1px solid #e5e7eb; }
             .hover\\:bg-gray-50:hover { background-color: #f9fafb; }
             img { max-width: 100%; height: auto; }
             .border { border: 1px solid #e5e7eb; }
             .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+            .grid { display: grid; }
+            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .gap-4 { gap: 0.5rem; }
+            .p-1 { padding: 0.25rem; }
+            .px-2 { padding-left: 0.3rem; padding-right: 0.3rem; }
+            .py-2 { padding-top: 0.2rem; padding-bottom: 0.2rem; }
           </style>
         </head>
         <body>
@@ -209,25 +270,12 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
               </div>
             </div>
 
-            {/* Report Info Card - Matching Invoice */}
+            {/* Report Info Card */}
             <div className="bg-gray-50 p-4 rounded-lg mb-4 sm:mb-6">
-              <table style={{ width: '100%', border: 'none' }}>
-                <tr>
-                  <td style={{ width: '50%', verticalAlign: 'top', border: 'none', padding: '0.5rem' }}>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">REPORT PERIOD</h3>
-                    <div className="text-sm text-gray-900">
-                      <p className="font-medium text-lg">{data.reportMonth}</p>
-                    </div>
-                  </td>
-                  <td style={{ width: '50%', verticalAlign: 'top', border: 'none', padding: '0.5rem' }}>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">PREPARED BY</h3>
-                    <div className="text-sm text-gray-900">
-                      <p className="font-medium">{data.preparedBy}</p>
-                      <p className="text-xs text-gray-600">Generated: {new Date().toLocaleDateString('en-GB')}</p>
-                    </div>
-                  </td>
-                </tr>
-              </table>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">REPORT PERIOD</h3>
+              <div className="text-sm text-gray-900">
+                <p className="font-medium text-lg">{data.reportMonth}</p>
+              </div>
             </div>
 
             {/* Financial Summary - Matching Invoice Table Style */}
@@ -241,44 +289,48 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Income Category</th>
-                      <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Amount</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Expense Category</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider border-r">Amount</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Expense Categories</th>
                       <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     <tr className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-900">Profit Share Clowee</td>
-                      <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(data.income.profitShareClowee)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">Fixed Cost</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 ">Profit Share Clowee</td>
+                      <td className="px-4 py-3 text-sm font-medium text-blue-600 text-right border-r">৳{formatCurrency(data.income.profitShareClowee)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        Fixed Cost
+                        <div className="text-xs text-gray-500 mt-0.5">(Office Rent, Salary, Internet Bill, etc.)</div>
+                      </td>
                       <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">৳{formatCurrency(data.expense.fixedCost)}</td>
                     </tr>
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">Prize Income</td>
-                      <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(data.income.prizeIncome)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">Variable Cost</td>
+                      <td className="px-4 py-3 text-sm font-medium text-blue-600 text-right border-r">৳{formatCurrency(data.income.prizeIncome)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        Variable Cost
+                        <div className="text-xs text-flex text-gray-500 mt-0.5">(Conveyance, Accessories, Delivery, etc.)</div>
+                      </td>
                       <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">৳{formatCurrency(data.expense.variableCost)}</td>
                     </tr>
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">Maintenance Charge</td>
-                      <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">৳{formatCurrency(data.income.maintenanceCharge)}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-blue-600 text-right border-r">৳{formatCurrency(data.income.maintenanceCharge)}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">Electricity Cost</td>
                       <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">৳{formatCurrency(data.income.totalElectricityCost)}</td>
                     </tr>
+                    
+                    <tr className="font-bold border-r hover:bg-gray-200">
+                      <td className="px-4 py-3 text-sm text-gray-900 ">Total Income</td>
+                      <td className="px-4 py-3 text-sm font-bold text-green-800 text-right border-r">৳{formatCurrency(totalIncome)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">Total Expenses</td>
+                      <td className="px-4 py-3 text-sm font-bold text-red-800 text-right">৳{formatCurrency(totalExpense)}</td>
+                    </tr>
                   </tbody>
                 </table>
-                
                 <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                      <span className="text-sm font-medium text-gray-900">Total Income</span>
-                      <span className="text-lg font-semibold text-green-600">৳{formatCurrency(totalIncome)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                      <span className="text-sm font-medium text-gray-900">Total Expenses</span>
-                      <span className="text-lg font-semibold text-red-600">৳{formatCurrency(totalExpense)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-3 border-t-2 border-blue-600 mt-3">
+                    <div className="flex justify-between items-center py-3 border-t-2 border-blue-600">
                       <span className="text-base font-semibold text-gray-900">Net {netProfitLoss >= 0 ? 'Profit' : 'Loss'}</span>
                       <span 
                         className="text-3xl font-bold"
@@ -310,20 +362,52 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                   <h3 className="text-lg font-semibold text-gray-900">Sales Breakdown by Franchises</h3>
                 </div>
                 
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Franchises</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {data.salesBreakdown.map((item, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-900 font-semibold">{item.location}</td>
+                <div className="grid grid-cols-2 gap-2 p-2">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-2 py-2 text-left text-xs font-bold text-black uppercase">Franchise</th>
+                        <th className="px-2 py-2 text-right text-xs font-bold text-black uppercase">Sales Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {leftColumn.map((franchise, index) => (
+                        <tr key={index}>
+                          <td className="px-2 py-2 text-sm text-gray-900">
+                            {franchise.name}
+                            <span className="text-xs text-gray-500 ml-1">({franchise.machineCount} {franchise.machineCount === 1 ? 'machine' : 'machines'})</span>
+                          </td>
+                          <td className="px-2 py-2 text-sm text-gray-900 text-right">৳{formatCurrency(franchise.totalSales)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-2 py-2 text-left text-xs font-bold text-black uppercase">Franchise</th>
+                        <th className="px-2 py-2 text-right text-xs font-bold text-black uppercase">Sales Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {rightColumn.map((franchise, index) => (
+                        <tr key={index}>
+                          <td className="px-2 py-2 text-sm text-gray-900">
+                            {franchise.name}
+                            <span className="text-xs text-gray-500 ml-1">({franchise.machineCount} {franchise.machineCount === 1 ? 'machine' : 'machines'})</span>
+                          </td>
+                          <td className="px-2 py-2 text-sm text-gray-900 text-right">৳{formatCurrency(franchise.totalSales)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-gray-900">Total Franchise Sales</span>
+                    <span className="text-lg font-bold text-success">৳{formatCurrency(totalFranchiseSales)}</span>
+                  </div>
+                </div>
               </div>
             </div>
 

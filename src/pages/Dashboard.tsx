@@ -12,7 +12,7 @@ import { useBanks } from "@/hooks/useBanks";
 import { useCreateFranchise, useFranchises } from "@/hooks/useFranchises";
 import { useMachineCounters } from "@/hooks/useMachineCounters";
 import { useCreateMachineExpense, useMachineExpenses } from "@/hooks/useMachineExpenses";
-import { useMachinePayments } from "@/hooks/ useMachinePayments";
+import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { useCreateMachine, useMachines } from "@/hooks/useMachines";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSales } from "@/hooks/useSales";
