@@ -200,7 +200,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
       
       if (saleYear !== selectedYear || saleMonth !== selectedMonth) return false;
       
-      if (paymentDuration === 'Half Month') {
+      if (paymentDuration === 'Half Month' || paymentDuration === 'Half Monthly') {
         const saleDay = saleDate.getDate();
         const selectedDay = selectedDate.getDate();
         
@@ -209,10 +209,10 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
         const selectedHalf = selectedDay <= 15 ? 'first' : 'second';
         
         return saleHalf === selectedHalf;
-      } else {
-        // Full month - any sale in the same month conflicts
-        return true;
       }
+      
+      // Full Month - any sale in the same month conflicts
+      return true;
     });
     
     return conflictingSales.length > 0;
@@ -227,7 +227,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
 
     // Check for duplicate sales
     if (checkDuplicateSales(selectedDate, selectedMachine, franchiseData.id)) {
-      const period = franchiseData.payment_duration === 'Half Month' ? 'half-month' : 'month';
+      const period = (franchiseData.payment_duration === 'Half Month' || franchiseData.payment_duration === 'Half Monthly') ? 'half-month' : 'month';
       alert(`A sales record already exists for this machine in the same ${period} billing period. Please check existing records.`);
       return;
     }

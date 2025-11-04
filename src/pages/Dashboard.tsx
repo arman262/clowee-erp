@@ -587,12 +587,12 @@ export default function Dashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/10 transition-all duration-200">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-success" />
-              Month-Wise Sales
+              Month-Wise Sale
             </CardTitle>
             <CardDescription>Total sales revenue throughout {filterType === 'year' ? selectedYear : new Date(selectedMonth).getFullYear()}</CardDescription>
           </CardHeader>
@@ -639,6 +639,74 @@ export default function Dashboard() {
                   strokeWidth={1}
                 />
               </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/10 transition-all duration-200">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-warning" />
+              Clowee Revenue Trends
+            </CardTitle>
+            <CardDescription>Monthly revenue trend throughout {filterType === 'year' ? selectedYear : new Date(selectedMonth).getFullYear()}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <AreaChart data={(() => {
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const currentYear = filterType === 'year' ? parseInt(selectedYear) : new Date(selectedMonth).getFullYear();
+                return months.map((month, index) => {
+                  const monthSales = sales?.filter(sale => {
+                    if (!sale.sales_date) return false;
+                    const saleDate = new Date(sale.sales_date);
+                    return saleDate.getFullYear() === currentYear && saleDate.getMonth() === index;
+                  }) || [];
+                  const revenue = monthSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
+                  return { month, revenue: Math.round(revenue * 100) / 100 };
+                });
+              })()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="#9CA3AF" 
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  stroke="#9CA3AF" 
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `৳${formatNumber(value)}`} 
+                />
+                <Tooltip 
+                  formatter={(value, name) => [`৳${formatCurrency(Number(value))}`, 'Revenue']}
+                  labelStyle={{ color: '#F9FAFB', fontWeight: 'bold' }}
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(17, 24, 39, 0.95)', 
+                    border: '1px solid #374151',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
+                  }}
+                  cursor={{ stroke: '#F59E0B', strokeWidth: 2 }}
+                />
+                <Area 
+                  type="monotone"
+                  dataKey="revenue" 
+                  stroke="#F59E0B"
+                  strokeWidth={3}
+                  fill="url(#revenueGradient)"
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

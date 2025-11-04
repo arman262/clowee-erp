@@ -1,7 +1,11 @@
 import { MonthlyReportPDF } from "@/components/MonthlyReportPDF";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/integrations/postgres/client";
 import { useEffect, useState } from "react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { TrendingUp, BarChart3 } from "lucide-react";
+import { formatCurrency } from "@/lib/numberUtils";
 
 export default function MonthlyReport() {
   const currentYear = new Date().getFullYear();
@@ -15,6 +19,8 @@ export default function MonthlyReport() {
   const [yearlyData, setYearlyData] = useState<any[]>([]);
   const [showMonthReport, setShowMonthReport] = useState(false);
   const [monthReportData, setMonthReportData] = useState<any>(null);
+  const [chartYear, setChartYear] = useState(currentYear.toString());
+  const [chartData, setChartData] = useState<any[]>([]);
 
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   const months = [
@@ -42,6 +48,10 @@ export default function MonthlyReport() {
     fetchReportData();
     fetchYearlyData();
   }, [selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    fetchChartData();
+  }, [chartYear]);
 
   const fetchReportData = async () => {
     setLoading(true);
@@ -336,6 +346,104 @@ export default function MonthlyReport() {
     }
   };
 
+  const fetchChartData = async () => {
+    try {
+      const [allSales, machines, franchises, allExpenses, expenseCategories] = await Promise.all([
+        db.from('sales').select('*').execute(),
+        db.from('machines').select('*').execute(),
+        db.from('franchises').select('*').execute(),
+        db.from('machine_expenses').select('*').execute(),
+        db.from('expense_categories').select('*').execute()
+      ]);
+
+      const machineMap = new Map();
+      machines?.forEach(machine => machineMap.set(machine.id, machine));
+
+      const franchiseMap = new Map();
+      franchises?.forEach(franchise => franchiseMap.set(franchise.id, franchise));
+
+      const categoryMap = new Map();
+      expenseCategories?.forEach(category => categoryMap.set(category.id, category));
+
+      const monthlyChartData = months.map((month, index) => {
+        const monthNum = index + 1;
+        const startDate = `${chartYear}-${monthNum.toString().padStart(2, '0')}-01`;
+        const lastDay = new Date(parseInt(chartYear), monthNum, 0).getDate();
+        const endDate = `${chartYear}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+
+        const monthSales = (allSales || []).filter((sale: any) => {
+          if (!sale.sales_date) return false;
+          const date = new Date(sale.sales_date);
+          const saleDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+          return saleDateLocal >= startDate && saleDateLocal <= endDate;
+        });
+
+        const monthExpenses = (allExpenses || []).filter((expense: any) => {
+          if (!expense.expense_date) return false;
+          const date = new Date(expense.expense_date);
+          const expenseDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+          return expenseDateLocal >= startDate && expenseDateLocal <= endDate;
+        });
+
+        let totalCloweeProfit = 0;
+        let totalFranchiseProfit = 0;
+        let totalMaintenanceCost = 0;
+        let totalPrizeOutCost = 0;
+        let totalElectricityCost = 0;
+        let totalSalesAmount = 0;
+
+        monthSales.forEach((sale: any) => {
+          const machine = machineMap.get(sale.machine_id);
+          const franchise = machine ? franchiseMap.get(machine.franchise_id) : null;
+          const maintenancePercentage = Number(franchise?.maintenance_percentage) || 0;
+          const cloweeShare = Number(franchise?.clowee_share) || 40;
+          const franchiseShare = Number(franchise?.franchise_share) || 60;
+          const netProfit = (Number(sale.sales_amount) || 0) - (Number(sale.vat_amount) || 0) - (Number(sale.prize_out_cost) || 0);
+          const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
+          const profitAfterMaintenance = netProfit - maintenanceAmount;
+          const cloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
+          const franchiseProfit = (profitAfterMaintenance * franchiseShare) / 100;
+
+          totalCloweeProfit += cloweeProfit;
+          totalFranchiseProfit += franchiseProfit;
+          totalMaintenanceCost += maintenanceAmount;
+          totalPrizeOutCost += Number(sale.prize_out_cost) || 0;
+          totalElectricityCost += Number(sale.electricity_cost) || 0;
+          totalSalesAmount += Number(sale.sales_amount) || 0;
+        });
+
+        let totalOtherExpenses = 0;
+        const variableCategories = ['Conveyance', 'Import Accessories', 'Local Accessories', 'Digital Marketing', 'Carrying Cost', 'Prize Delivery Cost'];
+
+        monthExpenses.forEach((expense: any) => {
+          const category = categoryMap.get(Number(expense.category_id));
+          const categoryName = category?.category_name || '';
+          if (categoryName !== 'Prize Purchase' && categoryName !== 'Profit Share(Share Holders)') {
+            totalOtherExpenses += Number(expense.total_amount) || 0;
+          }
+        });
+
+        const totalExpenses = totalOtherExpenses + totalElectricityCost;
+        const totalRevenue = totalCloweeProfit + totalMaintenanceCost;
+        const prizeProfit = totalPrizeOutCost * 0.3; // Approximate prize profit
+        const netProfit = totalRevenue + prizeProfit - totalExpenses;
+
+        return {
+          month: month.label.substring(0, 3),
+          netProfit: Math.round(netProfit * 100) / 100,
+          prizeProfit: Math.round(prizeProfit * 100) / 100,
+          franchiseeProfit: Math.round(totalFranchiseProfit * 100) / 100,
+          cloweeProfit: Math.round(totalCloweeProfit * 100) / 100,
+          totalRevenue: Math.round(totalRevenue * 100) / 100
+        };
+      });
+
+      setChartData(monthlyChartData);
+    } catch (error) {
+      console.error('Error fetching chart data:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -362,6 +470,8 @@ export default function MonthlyReport() {
           </Select>
         </div>
       </div>
+
+
 
       <div className="grid gap-6">
         {/* Yearly Profit Summary Table */}
@@ -488,6 +598,92 @@ export default function MonthlyReport() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+            {/* Charts Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Financial Trends</h2>
+          <Select value={chartYear} onValueChange={setChartYear}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map(year => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Area Chart - Trend */}
+          <Card className="bg-gradient-card border-border shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Profit Trends
+              </CardTitle>
+              <CardDescription>Monthly profit trends for {chartYear}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={350}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="netProfitGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.1}/>
+                    </linearGradient>
+                    <linearGradient id="prizeProfitGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                  <XAxis dataKey="month" stroke="#9CA3AF" fontSize={12} />
+                  <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `৳${(value/1000).toFixed(0)}k`} />
+                  <Tooltip 
+                    formatter={(value: any) => [`৳${formatCurrency(Number(value))}`, '']}
+                    contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.95)', border: '1px solid #374151', borderRadius: '8px' }}
+                  />
+                  <Legend />
+                  <Area type="monotone" dataKey="netProfit" stroke="#10B981" fill="url(#netProfitGradient)" name="Net Profit" />
+                  <Area type="monotone" dataKey="prizeProfit" stroke="#3B82F6" fill="url(#prizeProfitGradient)" name="Prize Profit" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Bar Chart - Comparison */}
+          <Card className="bg-gradient-card border-border shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-warning" />
+                Profit Comparison
+              </CardTitle>
+              <CardDescription>Monthly profit breakdown for {chartYear}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                  <XAxis dataKey="month" stroke="#9CA3AF" fontSize={12} />
+                  <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `৳${(value/1000).toFixed(0)}k`} />
+                  <Tooltip 
+                    formatter={(value: any) => [`৳${formatCurrency(Number(value))}`, '']}
+                    contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.95)', border: '1px solid #374151', borderRadius: '8px' }}
+                  />
+                  <Legend />
+                  <Bar dataKey="franchiseeProfit" fill="#10B981" name="Franchisee Profit" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cloweeProfit" fill="#F59E0B" name="Clowee Profit" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="totalRevenue" fill="#3B82F6" name="Total Revenue" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

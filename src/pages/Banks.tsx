@@ -22,13 +22,16 @@ import {
   TrendingDown,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Receipt,
+  Printer
 } from "lucide-react";
 import { BankForm } from "@/components/forms/BankForm";
 import { useBanks, useCreateBank, useUpdateBank, useDeleteBank } from "@/hooks/useBanks";
 import { useBankMoneyLogs, useCreateBankMoneyLog, useUpdateBankMoneyLog, useDeleteBankMoneyLog } from "@/hooks/useBankMoneyLogs";
 import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { useMachineExpenses } from "@/hooks/useMachineExpenses";
+import { useMachines } from "@/hooks/useMachines";
 import { TablePager } from "@/components/TablePager";
 import { usePagination } from "@/hooks/usePagination";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -47,6 +50,9 @@ export default function Banks() {
   const [viewingMoneyLog, setViewingMoneyLog] = useState<any | null>(null);
   const [editingMoneyLog, setEditingMoneyLog] = useState<any | null>(null);
   const [deletingMoneyLog, setDeletingMoneyLog] = useState<any | null>(null);
+  const [viewingTransactions, setViewingTransactions] = useState<any | null>(null);
+  const [transactionDateFrom, setTransactionDateFrom] = useState('');
+  const [transactionDateTo, setTransactionDateTo] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [moneyFormData, setMoneyFormData] = useState({
@@ -61,6 +67,7 @@ export default function Banks() {
   const { data: moneyLogs } = useBankMoneyLogs();
   const { data: payments } = useMachinePayments();
   const { data: expenses } = useMachineExpenses();
+  const { data: machines } = useMachines();
   const createBank = useCreateBank();
   const updateBank = useUpdateBank();
   const deleteBank = useDeleteBank();
@@ -436,6 +443,14 @@ export default function Banks() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="border-primary text-primary hover:bg-primary/10"
+                        onClick={() => setViewingTransactions(bank)}
+                      >
+                        <Receipt className="h-4 w-4" />
+                      </Button>
                       {isSuperAdmin && (
                         <>
                           <Button 
@@ -775,6 +790,215 @@ export default function Banks() {
           { label: "Remarks", value: deletingMoneyLog?.remarks || '-' }
         ]}
       />
+
+      {/* Bank Transactions Dialog */}
+      <Dialog open={!!viewingTransactions} onOpenChange={(open) => {
+        if (!open) {
+          setViewingTransactions(null);
+          setTransactionDateFrom('');
+          setTransactionDateTo('');
+        }
+      }}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bank Transactions - {viewingTransactions?.bank_name}</DialogTitle>
+          </DialogHeader>
+          {viewingTransactions && (() => {
+            const transactions = [];
+            
+            // Add money logs
+            moneyLogs?.filter((log: any) => log.bank_id === viewingTransactions.id).forEach((log: any) => {
+              transactions.push({
+                id: `log-${log.id}`,
+                date: log.transaction_date,
+                type: log.action_type === 'add' ? 'Credit' : 'Debit',
+                description: `Money ${log.action_type === 'add' ? 'Added' : 'Deducted'}`,
+                amount: log.amount,
+                remarks: log.remarks || '',
+                isCredit: log.action_type === 'add'
+              });
+            });
+            
+            // Add payments
+            payments?.filter((p: any) => p.bank_id === viewingTransactions.id).forEach((payment: any) => {
+              const invoiceNumber = payment.sales?.invoice_number || payment.invoice_id?.slice(0, 8);
+              transactions.push({
+                id: `payment-${payment.id}`,
+                date: payment.payment_date,
+                type: 'Credit',
+                description: `Payment - ${payment.machines?.machine_name || 'Unknown'} (Invoice #${invoiceNumber})`,
+                amount: payment.amount,
+                remarks: payment.remarks || '',
+                isCredit: true
+              });
+            });
+            
+            // Add expenses
+            expenses?.filter((e: any) => e.bank_id === viewingTransactions.id).forEach((expense: any) => {
+              transactions.push({
+                id: `expense-${expense.id}`,
+                date: expense.expense_date,
+                type: 'Debit',
+                description: `${expense.expense_categories?.category_name || 'Expense'} - ${expense.machines?.machine_name || 'General'}`,
+                amount: expense.total_amount,
+                remarks: expense.remarks || '',
+                isCredit: false
+              });
+            });
+            
+            // Sort by date ascending for proper balance calculation
+            transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            
+            // Filter by date range
+            const filteredTransactions = transactions.filter(txn => {
+              if (!transactionDateFrom && !transactionDateTo) return true;
+              const txnDate = new Date(txn.date);
+              if (transactionDateFrom && txnDate < new Date(transactionDateFrom)) return false;
+              if (transactionDateTo && txnDate > new Date(transactionDateTo)) return false;
+              return true;
+            });
+            
+            const handlePrint = () => {
+              const printWindow = window.open('', '', 'width=800,height=600');
+              if (!printWindow) return;
+              
+              let runningBalance = 0;
+              const rows = filteredTransactions.map(txn => {
+                runningBalance += txn.isCredit ? Number(txn.amount) : -Number(txn.amount);
+                return `
+                  <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${formatDate(txn.date)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${txn.type}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${txn.description}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #dc2626;">${!txn.isCredit ? `৳${formatCurrency(txn.amount)}` : ''}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #16a34a;">${txn.isCredit ? `৳${formatCurrency(txn.amount)}` : ''}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">৳${formatCurrency(runningBalance)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${txn.remarks || '-'}</td>
+                  </tr>
+                `;
+              }).join('');
+              
+              printWindow.document.write(`
+                <html>
+                  <head>
+                    <title>Bank Transactions - ${viewingTransactions.bank_name}</title>
+                    <style>
+                      body { font-family: Arial, sans-serif; padding: 20px; }
+                      h1 { text-align: center; margin-bottom: 10px; }
+                      .info { text-align: center; margin-bottom: 20px; color: #666; }
+                      table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                      th { background-color: #f3f4f6; padding: 10px; border: 1px solid #ddd; text-align: left; }
+                      @media print { button { display: none; } }
+                    </style>
+                  </head>
+                  <body>
+                    <h1>Bank Transactions</h1>
+                    <div class="info">
+                      <strong>${viewingTransactions.bank_name}</strong><br/>
+                      Account: ${viewingTransactions.account_number}<br/>
+                      ${transactionDateFrom || transactionDateTo ? `Period: ${transactionDateFrom || 'Start'} to ${transactionDateTo || 'End'}` : 'All Transactions'}<br/>
+                      Current Balance: ৳${formatCurrency(calculateBankBalance(viewingTransactions.id))}
+                    </div>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Type</th>
+                          <th>Description</th>
+                          <th style="text-align: right;">Debit</th>
+                          <th style="text-align: right;">Credit</th>
+                          <th style="text-align: right;">Balance</th>
+                          <th>Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${rows}
+                      </tbody>
+                    </table>
+                  </body>
+                </html>
+              `);
+              printWindow.document.close();
+              printWindow.print();
+            };
+            
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="bg-gradient-primary/10 p-4 rounded-lg border border-primary/20 flex-1">
+                    <div className="text-sm text-muted-foreground">Current Balance</div>
+                    <div className="text-2xl font-bold text-success">৳{formatCurrency(calculateBankBalance(viewingTransactions.id))}</div>
+                  </div>
+                  <Button onClick={handlePrint} className="bg-gradient-primary">
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print
+                  </Button>
+                </div>
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <Label>From Date</Label>
+                    <Input type="date" value={transactionDateFrom} onChange={(e) => setTransactionDateFrom(e.target.value)} />
+                  </div>
+                  <div className="flex-1">
+                    <Label>To Date</Label>
+                    <Input type="date" value={transactionDateTo} onChange={(e) => setTransactionDateTo(e.target.value)} />
+                  </div>
+                  <Button variant="outline" onClick={() => { setTransactionDateFrom(''); setTransactionDateTo(''); }}>Clear</Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Debit</TableHead>
+                      <TableHead>Credit</TableHead>
+                      <TableHead>Balance</TableHead>
+                      <TableHead>Remarks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTransactions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          No transactions found
+                        </TableCell>
+                      </TableRow>
+                    ) : (() => {
+                      let runningBalance = 0;
+                      return filteredTransactions.map((txn) => {
+                        runningBalance += txn.isCredit ? Number(txn.amount) : -Number(txn.amount);
+                        return (
+                          <TableRow key={txn.id}>
+                            <TableCell>{formatDate(txn.date)}</TableCell>
+                            <TableCell>
+                              <Badge className={txn.isCredit ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground'}>
+                                {txn.isCredit ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                                {txn.type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{txn.description}</TableCell>
+                            <TableCell className="text-destructive font-semibold">
+                              {!txn.isCredit && `৳${formatCurrency(txn.amount)}`}
+                            </TableCell>
+                            <TableCell className="text-success font-semibold">
+                              {txn.isCredit && `৳${formatCurrency(txn.amount)}`}
+                            </TableCell>
+                            <TableCell className="font-bold text-primary">
+                              ৳{formatCurrency(runningBalance)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{txn.remarks || '-'}</TableCell>
+                          </TableRow>
+                        );
+                      });
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
