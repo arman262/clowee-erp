@@ -846,8 +846,8 @@ export default function Banks() {
               });
             });
             
-            // Sort by date ascending for proper balance calculation
-            transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            // Sort by date descending (newest first)
+            transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             
             // Filter by date range
             const filteredTransactions = transactions.filter(txn => {

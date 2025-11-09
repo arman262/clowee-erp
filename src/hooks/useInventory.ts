@@ -38,7 +38,7 @@ export const useInventoryItems = () => {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 };
@@ -52,7 +52,7 @@ export const useInventoryLogs = () => {
         .select('*, inventory_items(item_name), users(name)')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 };
@@ -192,6 +192,38 @@ export const useDeleteInventoryLog = () => {
     },
     onError: (error: any) => {
       toast.error('Failed to delete log: ' + error.message);
+    }
+  });
+};
+
+export const usePrizeStock = () => {
+  return useQuery({
+    queryKey: ['prize_stock'],
+    queryFn: async () => {
+      const allItems = await db.from('inventory_items').select('*').execute();
+      const allSales = await db.from('sales').select('*').execute();
+      
+      const prizeItems = (allItems || []).filter((item: any) => item.item_type === 'prize');
+      
+      console.log('First 3 sales:', allSales?.slice(0, 3));
+      console.log('Prize out values:', allSales?.map((s: any) => s.prize_out));
+      
+      const totalPrizePurchase = prizeItems.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+      const totalPrizeOut = (allSales || []).reduce((sum: number, sale: any) => {
+        const prizeOut = Number(sale.prize_out) || 0;
+        return sum + prizeOut;
+      }, 0);
+      const totalDollsInStock = totalPrizePurchase - totalPrizeOut;
+      
+      console.log('Total Prize Purchase:', totalPrizePurchase);
+      console.log('Total Prize Out:', totalPrizeOut);
+      console.log('Total Dolls in Stock:', totalDollsInStock);
+      
+      return {
+        totalPrizePurchase,
+        totalPrizeOut,
+        totalDollsInStock
+      };
     }
   });
 };

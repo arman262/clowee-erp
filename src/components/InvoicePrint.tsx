@@ -229,7 +229,6 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
 
   const handleDownloadPDF = async () => {
     try {
-      // Dynamic import of html2canvas and jspdf
       const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
         import('html2canvas'),
         import('jspdf')
@@ -239,47 +238,41 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
       if (!element) return;
 
       const canvas = await html2canvas(element, {
-        scale: 3,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
         width: element.scrollWidth,
-        height: element.scrollHeight,
-        foreignObjectRendering: false,
-        ignoreElements: (element) => element.tagName === 'IFRAME',
-        onclone: (clonedDoc) => {
-          clonedDoc.querySelectorAll('*').forEach(el => {
-          });
-        }
+        height: element.scrollHeight
       });
 
-      const imgData = canvas.toDataURL('image/png', 1.0);
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
       const pdf = new jsPDF('p', 'mm', 'a4');
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      const margin = 10;
+      const imgWidth = pdfWidth - (margin * 2);
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
       let heightLeft = imgHeight;
-      let position = 0;
+      let position = margin;
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+      pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= (pdfHeight - margin * 2);
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
+      while (heightLeft > 0) {
+        position = -(pdfHeight - margin * 2) + margin;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= (pdfHeight - margin * 2);
       }
 
       const invoiceNumber = sale.invoice_number || `clw-${new Date(sale.sales_date).getFullYear()}-001`;
       pdf.save(`invoice-${invoiceNumber}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      // Fallback to print dialog
       window.print();
     }
   };

@@ -36,6 +36,7 @@ import {
   Users,
   Wallet
 } from "lucide-react";
+import { BankTransactionsDialog } from "@/components/BankTransactionsDialog";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -58,8 +59,10 @@ export default function Dashboard() {
   const [showDueListModal, setShowDueListModal] = useState(false);
   const [showHighestSalesModal, setShowHighestSalesModal] = useState(false);
   const [showLowestSalesModal, setShowLowestSalesModal] = useState(false);
+  const [showPrizePurchaseModal, setShowPrizePurchaseModal] = useState(false);
   const [transactionPage, setTransactionPage] = useState(1);
   const [transactionLimit, setTransactionLimit] = useState(10);
+  const [viewingBankTransactions, setViewingBankTransactions] = useState<any | null>(null);
 
   const quickActions = [
     {
@@ -392,7 +395,7 @@ export default function Dashboard() {
               Top Sales
             </CardTitle>
             <div className="flex items-center gap-0.5 sm:gap-1">
-              <Eye className="h-3 w-3 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowHighestSalesModal(true)} />
+              <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowHighestSalesModal(true)} />
               <TrendingUp className="h-3 w-3 sm:h-5 sm:w-5 text-primary" />
             </div>
           </CardHeader>
@@ -412,7 +415,7 @@ export default function Dashboard() {
               Lowest Sales
             </CardTitle>
             <div className="flex items-center gap-0.5 sm:gap-1">
-              <Eye className="h-3 w-3 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowLowestSalesModal(true)} />
+              <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowLowestSalesModal(true)} />
               <ArrowDownRight className="h-3 w-3 sm:h-5 sm:w-5 text-warning" />
             </div>
           </CardHeader>
@@ -484,7 +487,7 @@ export default function Dashboard() {
               Total Due
             </CardTitle>
             <div className="flex items-center gap-0.5 sm:gap-1">
-              <Eye className="h-3 w-3 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowDueListModal(true)} />
+              <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowDueListModal(true)} />
               <ArrowUpRight className="h-3 w-3 sm:h-5 sm:w-5 text-warning" />
             </div>
           </CardHeader>
@@ -503,7 +506,10 @@ export default function Dashboard() {
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               Doll Purchased
             </CardTitle>
-            <Package className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowPrizePurchaseModal(true)} />
+              <Package className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            </div>
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-primary mb-0">
@@ -522,7 +528,13 @@ export default function Dashboard() {
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               Cash In Hand
             </CardTitle>
-            <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
+            <div className="flex items-center gap-1">
+              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
+                const cashBank = banks?.find(b => b.bank_name === 'Cash');
+                if (cashBank) setViewingBankTransactions(cashBank);
+              }} />
+              <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
+            </div>
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-success mb-0">
@@ -539,7 +551,13 @@ export default function Dashboard() {
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               MDB Bank
             </CardTitle>
-            <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <div className="flex items-center gap-1">
+              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
+                const mdbBankData = banks?.find(b => b.bank_name === 'MDB Bank');
+                if (mdbBankData) setViewingBankTransactions(mdbBankData);
+              }} />
+              <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            </div>
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-primary mb-0">
@@ -556,7 +574,13 @@ export default function Dashboard() {
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               NCC Bank
             </CardTitle>
-            <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
+            <div className="flex items-center gap-1">
+              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
+                const nccBankData = banks?.find(b => b.bank_name === 'NCC Bank');
+                if (nccBankData) setViewingBankTransactions(nccBankData);
+              }} />
+              <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
+            </div>
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-accent mb-0">
@@ -573,7 +597,13 @@ export default function Dashboard() {
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               Bkash(Personal)
             </CardTitle>
-            <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
+            <div className="flex items-center gap-1">
+              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
+                const bkashBank = banks?.find(b => b.bank_name === 'Bkash(Personal)');
+                if (bkashBank) setViewingBankTransactions(bkashBank);
+              }} />
+              <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
+            </div>
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-warning mb-0">
@@ -838,6 +868,43 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* Prize Purchase History Modal */}
+      <Dialog open={showPrizePurchaseModal} onOpenChange={setShowPrizePurchaseModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle>Doll Purchase History ({getFormattedPeriod()})</DialogTitle>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="space-y-3 pr-4">
+              {filteredExpenses
+                .filter(expense => expense.expense_categories?.category_name === 'Prize Purchase')
+                .sort((a, b) => new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime())
+                .map((expense) => (
+                  <div key={expense.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+                        <Package className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{expense.expense_details || 'Prize Purchase'}</span>
+                          <span className="text-xs text-muted-foreground">Qty: {expense.quantity}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{format(new Date(expense.expense_date), 'd MMM yyyy')}</p>
+                      </div>
+                    </div>
+                    <span className="font-bold text-primary">৳{formatCurrency(expense.total_amount)}</span>
+                  </div>
+                ))}
+              {filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No doll purchases found</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       {/* Due List Modal */}
       <Dialog open={showDueListModal} onOpenChange={setShowDueListModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -994,6 +1061,17 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bank Transactions Dialog */}
+      <BankTransactionsDialog
+        bank={viewingBankTransactions}
+        open={!!viewingBankTransactions}
+        onOpenChange={(open) => !open && setViewingBankTransactions(null)}
+        moneyLogs={moneyLogs || []}
+        payments={payments || []}
+        expenses={expenses || []}
+        calculateBankBalance={calculateBankBalance}
+      />
     </div>
   );
 }

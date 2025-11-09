@@ -253,7 +253,7 @@ export default function MonthlyReport() {
           const cloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
           const franchiseProfit = (profitAfterMaintenance * franchiseShare) / 100;
           totalVatAmount += Number(sale.vat_amount) || 0;
-          totalElectricityCost += Number(sale.electricity_cost) || 0;
+          totalElectricityCost += Number(franchise?.electricity_cost) || 0;
 
           totalSalesAmount += Number(sale.sales_amount) || 0;
           totalPrizeOutCost += Number(sale.prize_out_cost) || 0;
@@ -408,7 +408,7 @@ export default function MonthlyReport() {
           totalFranchiseProfit += franchiseProfit;
           totalMaintenanceCost += maintenanceAmount;
           totalPrizeOutCost += Number(sale.prize_out_cost) || 0;
-          totalElectricityCost += Number(sale.electricity_cost) || 0;
+          totalElectricityCost += Number(franchise?.electricity_cost) || 0;
           totalSalesAmount += Number(sale.sales_amount) || 0;
         });
 
@@ -620,12 +620,12 @@ export default function MonthlyReport() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Area Chart - Trend */}
+          {/* Net Profit Trend */}
           <Card className="bg-gradient-card border-border shadow-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" />
-                Profit Trends
+                Net Profit Trends
               </CardTitle>
               <CardDescription>Monthly profit trends for {chartYear}</CardDescription>
             </CardHeader>
@@ -644,7 +644,7 @@ export default function MonthlyReport() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
                   <XAxis dataKey="month" stroke="#9CA3AF" fontSize={12} />
-                  <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `৳${(value/1000).toFixed(0)}k`} />
+                  <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `৳${(value/1000).toFixed(0)}k`} domain={[0, 'auto']} />
                   <Tooltip 
                     formatter={(value: any) => [`৳${formatCurrency(Number(value))}`, '']}
                     contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.95)', border: '1px solid #374151', borderRadius: '8px' }}
@@ -657,18 +657,24 @@ export default function MonthlyReport() {
             </CardContent>
           </Card>
 
-          {/* Bar Chart - Comparison */}
+          {/* Total Revenue Trend */}
           <Card className="bg-gradient-card border-border shadow-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-warning" />
-                Profit Comparison
+                <TrendingUp className="h-5 w-5 text-blue-600"/>
+                Total Revenue Trend
               </CardTitle>
-              <CardDescription>Monthly profit breakdown for {chartYear}</CardDescription>
+              <CardDescription>Monthly revenue for {chartYear}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#da31daff" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#da31daff" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
                   <XAxis dataKey="month" stroke="#9CA3AF" fontSize={12} />
                   <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `৳${(value/1000).toFixed(0)}k`} />
@@ -677,10 +683,72 @@ export default function MonthlyReport() {
                     contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.95)', border: '1px solid #374151', borderRadius: '8px' }}
                   />
                   <Legend />
-                  <Bar dataKey="franchiseeProfit" fill="#10B981" name="Franchisee Profit" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="cloweeProfit" fill="#F59E0B" name="Clowee Profit" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="totalRevenue" fill="#3B82F6" name="Total Revenue" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Area type="monotone" dataKey="totalRevenue" stroke="#3B82F6" fill="url(#revenueGradient)" name="Total Revenue" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Franchisee Profit Trend */}
+          <Card className="bg-gradient-card border-border shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+                Franchisee Profit Trend
+              </CardTitle>
+              <CardDescription>Monthly franchisee profit for {chartYear}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={350}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="franchiseeProfitGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                  <XAxis dataKey="month" stroke="#9CA3AF" fontSize={12} />
+                  <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `৳${(value/1000).toFixed(0)}k`} />
+                  <Tooltip 
+                    formatter={(value: any) => [`৳${formatCurrency(Number(value))}`, '']}
+                    contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.95)', border: '1px solid #374151', borderRadius: '8px' }}
+                  />
+                  <Legend />
+                  <Area type="monotone" dataKey="franchiseeProfit" stroke="#10B981" fill="url(#franchiseeProfitGradient)" name="Franchisee Profit" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Clowee Profit Trend */}
+          <Card className="bg-gradient-card border-border shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-warning"/>
+                Clowee Profit Trend
+              </CardTitle>
+              <CardDescription>Monthly clowee profit for {chartYear}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={350}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="cloweeProfitGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+                  <XAxis dataKey="month" stroke="#9CA3AF" fontSize={12} />
+                  <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `৳${(value/1000).toFixed(0)}k`} />
+                  <Tooltip 
+                    formatter={(value: any) => [`৳${formatCurrency(Number(value))}`, '']}
+                    contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.95)', border: '1px solid #374151', borderRadius: '8px' }}
+                  />
+                  <Legend />
+                  <Area type="monotone" dataKey="cloweeProfit" stroke="#F59E0B" fill="url(#cloweeProfitGradient)" name="Clowee Profit" />
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>

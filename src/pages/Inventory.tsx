@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useInventoryItems, useInventoryLogs, useCreateInventoryItem, useUpdateInventoryItem, useDeleteInventoryItem, useStockAdjustment, useDeleteInventoryLog } from "@/hooks/useInventory";
+import { useInventoryItems, useInventoryLogs, useCreateInventoryItem, useUpdateInventoryItem, useDeleteInventoryItem, useStockAdjustment, useDeleteInventoryLog, usePrizeStock } from "@/hooks/useInventory";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/numberUtils";
@@ -22,6 +22,7 @@ export default function Inventory() {
   const { user } = useAuth();
   const { data: items = [], isLoading } = useInventoryItems();
   const { data: logs = [] } = useInventoryLogs();
+  const { data: prizeStock } = usePrizeStock();
   const createItem = useCreateInventoryItem();
   const updateItem = useUpdateInventoryItem();
   const deleteItem = useDeleteInventoryItem();
@@ -49,7 +50,8 @@ export default function Inventory() {
     supplier: "",
     date_of_entry: new Date().toISOString().split('T')[0],
     remarks: "",
-    low_stock_threshold: 10
+    low_stock_threshold: 10,
+    item_type: "manual" as "manual" | "prize" | "accessory"
   });
 
   const [adjustData, setAdjustData] = useState({
@@ -122,7 +124,8 @@ export default function Inventory() {
       supplier: "",
       date_of_entry: new Date().toISOString().split('T')[0],
       remarks: "",
-      low_stock_threshold: 10
+      low_stock_threshold: 10,
+      item_type: "manual"
     });
   };
 
@@ -194,8 +197,9 @@ export default function Inventory() {
               <Package className="h-5 w-5 text-white" />
             </div>
             <div>
-              <div className="text-2xl font-bold">{stats.totalItems}</div>
-              <div className="text-sm text-muted-foreground">Total Items</div>
+              <div className="text-2xl font-bold">{prizeStock?.totalDollsInStock ?? 0}</div>
+              <div className="text-sm text-muted-foreground">Dolls in Stock</div>
+              <div className="text-xs text-muted-foreground mt-1">In: {prizeStock?.totalPrizePurchase ?? 0} | Out: {prizeStock?.totalPrizeOut ?? 0}</div>
             </div>
           </CardContent>
         </Card>
@@ -403,6 +407,8 @@ export default function Inventory() {
 }
 
 function ItemFormModal({ open, onClose, formData, setFormData, onSubmit, isEdit }: any) {
+  const [showAccessoryFields, setShowAccessoryFields] = useState(false);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -410,14 +416,49 @@ function ItemFormModal({ open, onClose, formData, setFormData, onSubmit, isEdit 
           <DialogTitle>{isEdit ? 'Edit Item' : 'Add New Item'}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <Label>Item Type *</Label>
+            <Select 
+              value={formData.item_type || "manual"} 
+              onValueChange={(v) => {
+                setFormData({ ...formData, item_type: v });
+                setShowAccessoryFields(v === "accessory");
+              }}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual Entry</SelectItem>
+                <SelectItem value="accessory">Accessory (Import/Local)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {showAccessoryFields && (
+            <div className="col-span-2">
+              <Label>Accessory Category *</Label>
+              <Select 
+                value={formData.category} 
+                onValueChange={(v) => setFormData({ ...formData, category: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Import Accessories">Import Accessories</SelectItem>
+                  <SelectItem value="Local Accessories">Local Accessories</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
             <Label>Item Name *</Label>
             <Input value={formData.item_name} onChange={(e) => setFormData({ ...formData, item_name: e.target.value })} />
           </div>
-          <div>
-            <Label>Category</Label>
-            <Input value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} />
-          </div>
+          {!showAccessoryFields && (
+            <div>
+              <Label>Category</Label>
+              <Input value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} />
+            </div>
+          )}
           <div>
             <Label>Quantity *</Label>
             <Input type="number" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })} />
