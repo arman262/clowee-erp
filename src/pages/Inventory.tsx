@@ -198,8 +198,8 @@ export default function Inventory() {
             </div>
             <div>
               <div className="text-2xl font-bold">{prizeStock?.totalDollsInStock ?? 0}</div>
-              <div className="text-sm text-muted-foreground">Dolls in Stock</div>
-              <div className="text-xs text-muted-foreground mt-1">In: {prizeStock?.totalPrizePurchase ?? 0} | Out: {prizeStock?.totalPrizeOut ?? 0}</div>
+              <div className="text-sm text-muted-foreground">Total Dolls in Stock</div>
+              {/* <div className="text-xs mt-1">In: {prizeStock?.totalPrizePurchase ?? 0} | Out: {prizeStock?.totalPrizeOut ?? 0}</div> */}
             </div>
           </CardContent>
         </Card>
@@ -210,8 +210,8 @@ export default function Inventory() {
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-success">{stats.inStock}</div>
-              <div className="text-sm text-muted-foreground">In Stock</div>
+              <div className="text-2xl font-bold text-success">{prizeStock?.totalPrizePurchase ?? 0}</div>
+              <div className="text-sm text-muted-foreground">Total Doll Purchased</div>
             </div>
           </CardContent>
         </Card>
@@ -222,8 +222,8 @@ export default function Inventory() {
               <AlertTriangle className="h-5 w-5 text-white" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-destructive">{stats.lowStock}</div>
-              <div className="text-sm text-muted-foreground">Low Stock</div>
+              <div className="text-2xl font-bold text-destructive">{prizeStock?.totalPrizeOut ?? 0}</div>
+              <div className="text-sm text-muted-foreground">Total Doll Sale(Prize Out)</div>
             </div>
           </CardContent>
         </Card>

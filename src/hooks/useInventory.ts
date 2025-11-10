@@ -200,22 +200,19 @@ export const usePrizeStock = () => {
   return useQuery({
     queryKey: ['prize_stock'],
     queryFn: async () => {
-      const allItems = await db.from('inventory_items').select('*').execute();
+      const allExpenses = await db.from('machine_expenses').select('*').execute();
+      const allCategories = await db.from('expense_categories').select('*').execute();
       const allSales = await db.from('sales').select('*').execute();
       
-      const prizeItems = (allItems || []).filter((item: any) => item.item_type === 'prize');
+      const prizeCategoryId = (allCategories || []).find((cat: any) => cat.category_name === 'Prize Purchase')?.id;
       
-      console.log('First 3 sales:', allSales?.slice(0, 3));
-      console.log('Prize out values:', allSales?.map((s: any) => s.prize_out));
+      const prizeExpenses = (allExpenses || []).filter((exp: any) => exp.category_id === prizeCategoryId);
       
-      const totalPrizePurchase = prizeItems.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
-      const totalPrizeOut = (allSales || []).reduce((sum: number, sale: any) => {
-        const prizeOut = Number(sale.prize_out) || 0;
-        return sum + prizeOut;
-      }, 0);
+      const totalPrizePurchase = prizeExpenses.reduce((sum: number, exp: any) => sum + (Number(exp.quantity) || 0), 0);
+      const totalPrizeOut = (allSales || []).reduce((sum: number, sale: any) => sum + (Number(sale.prize_out_quantity) || 0), 0);
       const totalDollsInStock = totalPrizePurchase - totalPrizeOut;
       
-      console.log('Total Prize Purchase:', totalPrizePurchase);
+      console.log('Prize Expenses:', prizeExpenses.length, 'Total Qty:', totalPrizePurchase);
       console.log('Total Prize Out:', totalPrizeOut);
       console.log('Total Dolls in Stock:', totalDollsInStock);
       
