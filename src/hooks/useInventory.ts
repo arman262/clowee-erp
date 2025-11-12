@@ -224,3 +224,37 @@ export const usePrizeStock = () => {
     }
   });
 };
+
+export const useMachineWisePrizeStock = () => {
+  return useQuery({
+    queryKey: ['machine_wise_prize_stock'],
+    queryFn: async () => {
+      const machines = await db.from('machines').select().execute();
+      const expenses = await db.from('machine_expenses').select().execute();
+      const categories = await db.from('expense_categories').select().execute();
+      const prizeCategoryId = (categories || []).find((cat: any) => cat.category_name === 'Prize Purchase')?.id;
+      const prizeExpenses = (expenses || []).filter((exp: any) => exp.category_id === prizeCategoryId);
+      const sales = await db.from('sales').select().execute();
+      
+      const result = (machines || []).map((machine: any) => {
+        const purchased = prizeExpenses
+          .filter((exp: any) => exp.machine_id === machine.id)
+          .reduce((sum: number, exp: any) => sum + (Number(exp.quantity) || 0), 0);
+        
+        const prizeOut = (sales || [])
+          .filter((sale: any) => sale.machine_id === machine.id)
+          .reduce((sum: number, sale: any) => sum + (Number(sale.prize_out_quantity) || 0), 0);
+        
+        return {
+          machineId: machine.id,
+          machineName: machine.machine_name,
+          purchased,
+          prizeOut,
+          stock: purchased - prizeOut
+        };
+      }).filter((m: any) => m.stock !== 0 || m.purchased !== 0 || m.prizeOut !== 0);
+      
+      return result;
+    }
+  });
+};

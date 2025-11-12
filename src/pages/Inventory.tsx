@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useInventoryItems, useInventoryLogs, useCreateInventoryItem, useUpdateInventoryItem, useDeleteInventoryItem, useStockAdjustment, useDeleteInventoryLog, usePrizeStock } from "@/hooks/useInventory";
+import { useInventoryItems, useInventoryLogs, useCreateInventoryItem, useUpdateInventoryItem, useDeleteInventoryItem, useStockAdjustment, useDeleteInventoryLog, usePrizeStock, useMachineWisePrizeStock } from "@/hooks/useInventory";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/numberUtils";
@@ -23,6 +23,9 @@ export default function Inventory() {
   const { data: items = [], isLoading } = useInventoryItems();
   const { data: logs = [] } = useInventoryLogs();
   const { data: prizeStock } = usePrizeStock();
+  const { data: machineWiseStock = [] } = useMachineWisePrizeStock();
+  
+  console.log('machineWiseStock in component:', machineWiseStock);
   const createItem = useCreateInventoryItem();
   const updateItem = useUpdateInventoryItem();
   const deleteItem = useDeleteInventoryItem();
@@ -36,7 +39,9 @@ export default function Inventory() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showDollAdjustModal, setShowDollAdjustModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedMachine, setSelectedMachine] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
@@ -206,6 +211,7 @@ export default function Inventory() {
 
         <Card className="bg-gradient-glass border-border">
           <CardContent className="p-4 flex items-center gap-3">
+            
             <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
@@ -355,6 +361,50 @@ export default function Inventory() {
 
       <Card className="bg-gradient-card border-border">
         <CardHeader>
+          <CardTitle>Machine-Wise Doll Stock</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Machine Name</TableHead>
+                  <TableHead>Purchased</TableHead>
+                  <TableHead>Prize Out</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!machineWiseStock || machineWiseStock.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No machine data available
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  machineWiseStock.map((machine: any) => (
+                    <TableRow key={machine.machineId}>
+                      <TableCell className="font-medium">{machine.machineName}</TableCell>
+                      <TableCell className="text-success">{machine.purchased}</TableCell>
+                      <TableCell className="text-destructive">{machine.prizeOut}</TableCell>
+                      <TableCell className="font-bold">{machine.stock}</TableCell>
+                      <TableCell>
+                        <Button variant="outline" size="sm" onClick={() => { setSelectedMachine(machine); setShowDollAdjustModal(true); }} className="border-primary text-primary">
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gradient-card border-border">
+        <CardHeader>
           <CardTitle>Inventory Logs</CardTitle>
         </CardHeader>
         <CardContent>
@@ -401,6 +451,7 @@ export default function Inventory() {
 
       <ItemFormModal open={showAddModal || showEditModal} onClose={() => { setShowAddModal(false); setShowEditModal(false); }} formData={formData} setFormData={setFormData} onSubmit={handleSubmit} isEdit={showEditModal} />
       <AdjustStockModal open={showAdjustModal} onClose={() => setShowAdjustModal(false)} item={selectedItem} adjustData={adjustData} setAdjustData={setAdjustData} onSubmit={handleAdjust} />
+      <AdjustDollStockModal open={showDollAdjustModal} onClose={() => setShowDollAdjustModal(false)} machine={selectedMachine} />
       <ViewItemModal open={showViewModal} onClose={() => setShowViewModal(false)} item={selectedItem} />
     </div>
   );
@@ -572,6 +623,56 @@ function ViewItemModal({ open, onClose, item }: any) {
         </div>
         <div className="flex justify-end mt-4">
           <Button onClick={onClose}>Close</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AdjustDollStockModal({ open, onClose, machine }: any) {
+  const [adjustType, setAdjustType] = useState<'add' | 'deduct'>('add');
+  const [quantity, setQuantity] = useState(0);
+  const [remarks, setRemarks] = useState('');
+  
+  if (!machine) return null;
+  
+  const handleAdjust = () => {
+    alert(`Adjust ${adjustType} ${quantity} dolls for ${machine.machineName}. Remarks: ${remarks}`);
+    onClose();
+  };
+  
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Adjust Doll Stock - {machine.machineName}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Current Stock: {machine.stock} dolls</Label>
+          </div>
+          <div>
+            <Label>Type</Label>
+            <Select value={adjustType} onValueChange={(v) => setAdjustType(v as 'add' | 'deduct')}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="add">Add Stock</SelectItem>
+                <SelectItem value="deduct">Deduct Stock</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Quantity</Label>
+            <Input type="number" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} />
+          </div>
+          <div>
+            <Label>Remarks</Label>
+            <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleAdjust} className="bg-gradient-primary">Adjust Stock</Button>
         </div>
       </DialogContent>
     </Dialog>

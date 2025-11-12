@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  BarChart3,
   Building2,
   Cpu,
   CreditCard,
@@ -35,6 +36,7 @@ const mainItems = [
   { title: "Machines", url: "/machines", icon: Cpu },
   { title: "Counter Readings", url: "/counter-readings", icon: TrendingUp },
   { title: "Sales", url: "/sales", icon: ShoppingCart },
+  { title: "Reports", url: "/reports", icon: BarChart3 },
 ];
 
 const financeItems = [

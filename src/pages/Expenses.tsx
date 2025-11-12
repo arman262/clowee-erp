@@ -307,12 +307,7 @@ export default function Expenses() {
                   {sortColumn === 'category' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
-              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('machine')}>
-                <div className="flex items-center gap-1">
-                  Description
-                  {sortColumn === 'machine' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
-                </div>
-              </TableHead>
+              <TableHead>Item Name</TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('qty')}>
                 <div className="flex items-center gap-1">
                   Qty
@@ -353,7 +348,7 @@ export default function Expenses() {
                   <TableCell>{formatDate(expense.expense_date)}</TableCell>
                   <TableCell className="font-mono text-sm">{expense.expense_number || '-'}</TableCell>
                   <TableCell>{expense.expense_categories?.category_name || '-'}</TableCell>
-                  <TableCell className="h-4 w-4">{expense.expense_details || '-'}</TableCell>
+                  <TableCell>{expense.item_name || '-'}</TableCell>
                   <TableCell>{expense.quantity}</TableCell>
                   <TableCell>৳{formatCurrency(expense.item_price)}</TableCell>
                   <TableCell>৳{formatCurrency(expense.total_amount)}</TableCell>

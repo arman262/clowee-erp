@@ -22,6 +22,7 @@ import MonthlyReport from "./pages/MonthlyReport";
 import NotFound from "./pages/NotFound";
 import Payments from "./pages/Payments";
 import Profile from "./pages/Profile";
+import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
 
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/machines" element={<ProtectedRoute><Machines /></ProtectedRoute>} />
         <Route path="/counter-readings" element={<ProtectedRoute><CounterReadings /></ProtectedRoute>} />
         <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
 
         <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="/expense-categories" element={<ProtectedRoute><ExpenseCategories /></ProtectedRoute>} />
