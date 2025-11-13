@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useInventoryItems, useInventoryLogs, useCreateInventoryItem, useUpdateInventoryItem, useDeleteInventoryItem, useStockAdjustment, useDeleteInventoryLog, usePrizeStock, useMachineWisePrizeStock } from "@/hooks/useInventory";
+import { useQuery } from "@tanstack/react-query";
+import { db } from "@/integrations/postgres/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/numberUtils";
@@ -24,6 +26,29 @@ export default function Inventory() {
   const { data: logs = [] } = useInventoryLogs();
   const { data: prizeStock } = usePrizeStock();
   const { data: machineWiseStock = [] } = useMachineWisePrizeStock();
+  
+  const { data: accessoriesData = [] } = useQuery({
+    queryKey: ['accessories-inventory'],
+    queryFn: async () => {
+      const [expenses, categories] = await Promise.all([
+        db.from('machine_expenses').select().execute(),
+        db.from('expense_categories').select().execute()
+      ]);
+      
+      const accessoryCategories = (categories || []).filter((cat: any) => 
+        cat.category_name === 'Local Accessories' || cat.category_name === 'Import Accessories'
+      );
+      
+      const accessoryCategoryIds = accessoryCategories.map((cat: any) => cat.id);
+      
+      return (expenses || []).filter((exp: any) => 
+        accessoryCategoryIds.includes(exp.category_id)
+      ).map((exp: any) => ({
+        ...exp,
+        category_name: accessoryCategories.find((cat: any) => cat.id === exp.category_id)?.category_name
+      }));
+    }
+  });
   
   console.log('machineWiseStock in component:', machineWiseStock);
   const createItem = useCreateInventoryItem();
@@ -298,72 +323,53 @@ export default function Inventory() {
         </CardContent>
       </Card>
 
+      <TablePager totalRows={filteredItems.length} rowsPerPage={rowsPerPage} currentPage={currentPage} onPageChange={setCurrentPage} onRowsPerPageChange={setRowsPerPage} />
+
       <Card className="bg-gradient-card border-border">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Purchase Price</TableHead>
-                <TableHead>Selling Price</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Last Updated</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedItems.map(item => {
-                const status = getStatus(item);
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.item_name}</TableCell>
-                    <TableCell>{item.category || '-'}</TableCell>
-                    <TableCell className="font-bold">{item.quantity}</TableCell>
-                    <TableCell>{item.unit || 'pcs'}</TableCell>
-                    <TableCell>৳{formatCurrency(item.purchase_price)}</TableCell>
-                    <TableCell>৳{formatCurrency(item.selling_price)}</TableCell>
-                    <TableCell>{item.supplier || '-'}</TableCell>
-                    <TableCell>{formatDate(item.updated_at || item.created_at)}</TableCell>
-                    <TableCell>
-                      <Badge className={status === "In Stock" ? "bg-success" : status === "Low Stock" ? "bg-warning" : "bg-destructive"}>
-                        {status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => { setSelectedItem(item); setShowViewModal(true); }}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => { setSelectedItem(item); setFormData(item); setShowEditModal(true); }}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => { setSelectedItem(item); setShowAdjustModal(true); }} className="border-primary text-primary">
-                          <ArrowUpDown className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => confirm('Delete this item?') && deleteItem.mutate(item.id)} className="border-destructive text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+        <CardHeader>
+          <CardTitle>Accessories Inventory</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Item Name</TableHead>
+                  <TableHead>Stock Quantity</TableHead>
+                  <TableHead>Unit Price</TableHead>
+                  <TableHead>Total Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!accessoriesData || accessoriesData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No accessories data available
                     </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                ) : (
+                  accessoriesData.map((item: any) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{formatDate(item.expense_date)}</TableCell>
+                      <TableCell>{item.item_name || '-'}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>৳{formatCurrency(item.item_price || 0)}</TableCell>
+                      <TableCell className="font-bold">৳{formatCurrency(item.total_amount || 0)}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
       </Card>
-
-      <TablePager totalRows={filteredItems.length} rowsPerPage={rowsPerPage} currentPage={currentPage} onPageChange={setCurrentPage} onRowsPerPageChange={setRowsPerPage} />
 
       <Card className="bg-gradient-card border-border">
         <CardHeader>
           <CardTitle>Machine-Wise Doll Stock</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -378,7 +384,7 @@ export default function Inventory() {
               <TableBody>
                 {!machineWiseStock || machineWiseStock.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
                       No machine data available
                     </TableCell>
                   </TableRow>

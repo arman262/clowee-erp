@@ -572,29 +572,6 @@ export default function Dashboard() {
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
-              NCC Bank
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
-                const nccBankData = banks?.find(b => b.bank_name === 'NCC Bank');
-                if (nccBankData) setViewingBankTransactions(nccBankData);
-              }} />
-              <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
-            </div>
-          </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-accent mb-0">
-              ৳{formatCurrency(nccBank)}
-            </div>
-            <div className="text-[10px] sm:text-xs text-muted-foreground">
-              NCC Bank Balance
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
               Bkash(Personal)
             </CardTitle>
             <div className="flex items-center gap-1">
@@ -611,6 +588,29 @@ export default function Dashboard() {
             </div>
             <div className="text-[10px] sm:text-xs text-muted-foreground">
               Bkash Balance
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
+              NCC Bank
+            </CardTitle>
+            <div className="flex items-center gap-1">
+              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
+                const nccBankData = banks?.find(b => b.bank_name === 'NCC Bank');
+                if (nccBankData) setViewingBankTransactions(nccBankData);
+              }} />
+              <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-accent mb-0">
+              ৳{formatCurrency(nccBank)}
+            </div>
+            <div className="text-[10px] sm:text-xs text-muted-foreground">
+              NCC Bank Balance
             </div>
           </CardContent>
         </Card>
