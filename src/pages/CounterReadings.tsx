@@ -173,7 +173,7 @@ export default function CounterReadings() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             Counter Readings
@@ -183,7 +183,7 @@ export default function CounterReadings() {
           </p>
         </div>
         {canEdit && (
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
             <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
               <DialogTrigger asChild>
                 <Button className="bg-gradient-primary hover:opacity-90 shadow-neon">
@@ -290,6 +290,8 @@ export default function CounterReadings() {
       {/* Readings Table */}
       {!isLoading && !error && readings && readings.length > 0 && (
         <Card className="bg-gradient-card border-border shadow-card">
+          {/* Desktop Table */}
+          <div className="hidden md:block">
           <Table>
           <TableHeader>
             <TableRow>
@@ -425,6 +427,95 @@ export default function CounterReadings() {
             ))}
           </TableBody>
           </Table>
+          </div>
+          
+          {/* Mobile Card View */}
+          <div className="md:hidden p-3 space-y-3">
+            {paginatedReadings.map((reading, index) => (
+              <Card key={reading.id} className={`${reading.is_initial ? 'bg-secondary/20' : 'bg-secondary/5'} border-border`}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${reading.is_initial ? 'bg-gradient-primary' : 'bg-gradient-accent'}`}>
+                        <Activity className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{reading.machine_name}</div>
+                        <div className="text-xs text-muted-foreground">{reading.machine_number}</div>
+                      </div>
+                    </div>
+                    <Badge variant={reading.is_initial ? 'default' : 'secondary'} className={reading.is_initial ? 'bg-primary text-primary-foreground' : ''}>
+                      {reading.is_initial ? 'Initial' : 'Reading'}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Franchise</div>
+                      <div className="flex items-center gap-1">
+                        <Cpu className="h-3 w-3 text-primary" />
+                        <span className="text-xs">{reading.franchise_name}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Reading Date</div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-white" />
+                        <span className="text-xs">{formatDate(reading.reading_date)}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Coin Counter</div>
+                      <div className="text-sm font-medium text-primary">{reading.coin_counter.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Prize Counter</div>
+                      <div className="text-sm font-medium text-accent">{reading.prize_counter.toLocaleString()}</div>
+                    </div>
+                  </div>
+                  
+                  {reading.notes && (
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Notes: </span>
+                      <span>{reading.notes}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setViewingReading(reading)}>
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+                    {canEdit && !reading.is_initial && (
+                      <>
+                        <Dialog open={editingReading?.id === reading.id} onOpenChange={(open) => !open && setEditingReading(null)}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditingReading(reading)}>
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <CounterReadingForm
+                              initialData={reading}
+                              onSubmit={(data) => {
+                                updateReading.mutate({ id: reading.id, ...data });
+                                setEditingReading(null);
+                              }}
+                              onCancel={() => setEditingReading(null)}
+                            />
+                          </DialogContent>
+                        </Dialog>
+                        <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" onClick={() => setDeletingReading(reading)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </Card>
       )}
 

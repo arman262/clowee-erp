@@ -85,6 +85,10 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             @media print {
               @page { margin: 0.3in 0.4in; size: A4; }
               body { -webkit-print-color-adjust: exact; }
+              .sm\\:hidden { display: none !important; }
+              .hidden { display: block !important; }
+              .sm\\:table { display: table !important; }
+              .sm\\:grid { display: grid !important; }
             }
             body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; background: white; font-size: 9px; }
             * { box-sizing: border-box; }
@@ -188,14 +192,31 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
       const element = document.getElementById('report-content');
       if (!element) return;
 
+      // Temporarily force desktop layout
+      const mobileElements = element.querySelectorAll('.sm\\:hidden');
+      const desktopElements = element.querySelectorAll('.hidden.sm\\:table, .hidden.sm\\:grid');
+      
+      mobileElements.forEach(el => (el as HTMLElement).style.display = 'none');
+      desktopElements.forEach(el => {
+        if (el.classList.contains('sm:table')) {
+          (el as HTMLElement).style.display = 'table';
+        } else if (el.classList.contains('sm:grid')) {
+          (el as HTMLElement).style.display = 'grid';
+        }
+      });
+
       const canvas = await html2canvas(element, {
-        scale: 3,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
       });
 
-      const imgData = canvas.toDataURL('image/png', 1.0);
+      // Restore original layout
+      mobileElements.forEach(el => (el as HTMLElement).style.display = '');
+      desktopElements.forEach(el => (el as HTMLElement).style.display = '');
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
       const pdf = new jsPDF('p', 'mm', 'a4');
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -203,17 +224,15 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
       const imgWidth = pdfWidth;
       const imgHeight = (canvas.height * pdfWidth) / canvas.width;
       
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+      // Fit to single page if possible
+      if (imgHeight > pdfHeight) {
+        const scale = pdfHeight / imgHeight;
+        const scaledWidth = imgWidth * scale;
+        const scaledHeight = pdfHeight;
+        const xOffset = (pdfWidth - scaledWidth) / 2;
+        pdf.addImage(imgData, 'JPEG', xOffset, 0, scaledWidth, scaledHeight, undefined, 'FAST');
+      } else {
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
       }
 
       pdf.save(`Clowee-Monthly-Report-${data.reportMonth.replace(/\s+/g, '-')}.pdf`);
@@ -285,7 +304,8 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                   <h3 className="text-lg font-semibold text-gray-900">Financial Summary</h3>
                 </div>
                 
-                <table className="w-full">
+                {/* Desktop Table */}
+                <table className="w-full hidden sm:table print:table">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Income Category</th>
@@ -328,6 +348,53 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                     </tr>
                   </tbody>
                 </table>
+                
+                {/* Mobile Card View */}
+                <div className="sm:hidden print:hidden p-3 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 mb-2">INCOME</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-xs text-gray-700">Profit Share Clowee</span>
+                        <span className="text-sm font-medium text-blue-600">৳{formatCurrency(data.income.profitShareClowee)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-xs text-gray-700">Prize Income</span>
+                        <span className="text-sm font-medium text-blue-600">৳{formatCurrency(data.income.prizeIncome)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-xs text-gray-700">Maintenance Charge</span>
+                        <span className="text-sm font-medium text-blue-600">৳{formatCurrency(data.income.maintenanceCharge)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-green-50 rounded font-bold">
+                        <span className="text-xs text-gray-900">Total Income</span>
+                        <span className="text-sm text-green-800">৳{formatCurrency(totalIncome)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 mb-2">EXPENSES</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-xs text-gray-700">Fixed Cost</span>
+                        <span className="text-sm font-medium text-red-600">৳{formatCurrency(data.expense.fixedCost)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-xs text-gray-700">Variable Cost</span>
+                        <span className="text-sm font-medium text-red-600">৳{formatCurrency(data.expense.variableCost)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-xs text-gray-700">Electricity Cost</span>
+                        <span className="text-sm font-medium text-red-600">৳{formatCurrency(data.income.totalElectricityCost)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-red-50 rounded font-bold">
+                        <span className="text-xs text-gray-900">Total Expenses</span>
+                        <span className="text-sm text-red-800">৳{formatCurrency(totalExpense)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
                   <div className="space-y-2">
                     <div className="flex justify-between items-center py-3 border-t-2 border-blue-600">
@@ -362,7 +429,8 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                   <h3 className="text-lg font-semibold text-gray-900">Sales Breakdown by Franchises</h3>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 p-2">
+                {/* Desktop Grid View */}
+                <div className="hidden sm:grid print:grid grid-cols-2 gap-2 p-2">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
@@ -402,6 +470,20 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                     </tbody>
                   </table>
                 </div>
+                
+                {/* Mobile Card View */}
+                <div className="sm:hidden print:hidden p-3 space-y-2">
+                  {franchiseWithSales.map((franchise, index) => (
+                    <div key={index} className="flex justify-between p-2 bg-gray-50 rounded">
+                      <div>
+                        <span className="text-xs font-medium text-gray-900">{franchise.name}</span>
+                        <span className="text-xs text-gray-500 ml-1">({franchise.machineCount})</span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">৳{formatCurrency(franchise.totalSales)}</span>
+                    </div>
+                  ))}
+                </div>
+                
                 <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-bold text-gray-900">Total Franchise Sales</span>

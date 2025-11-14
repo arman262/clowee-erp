@@ -1,6 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { User, LogOut, Mail, Settings } from "lucide-react";
+import { User, LogOut, Mail, Settings, Menu, SidebarClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,7 +25,12 @@ export function MainLayout({ children }: MainLayoutProps) {
           <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
             <div className="flex items-center justify-between h-full px-3 sm:px-6">
               <div className="flex items-center gap-2 sm:gap-4">
-                <SidebarTrigger className="h-20 w-10 md:h-8 md:w-8" />
+                <SidebarTrigger className="md:flex hidden" />
+                <Button variant="ghost" size="icon" className="md:hidden h-12 w-12" asChild>
+                  <SidebarTrigger>
+                    <Menu className="h-7 w-7" />
+                  </SidebarTrigger>
+                </Button>
                 <div className="h-6 w-px bg-border hidden sm:block" />
                 <h2 className="text-sm sm:text-lg font-semibold text-foreground hidden md:block">
                   Welcome to Clowee ERP

@@ -477,7 +477,8 @@ export default function MonthlyReport() {
         {/* Yearly Profit Summary Table */}
         <div className="bg-gradient-card border-border rounded-lg p-6 shadow-card">
           <h3 className="text-xl font-semibold mb-4">Profit Summary - {selectedYear}</h3>
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50">
                 <tr>
@@ -597,6 +598,116 @@ export default function MonthlyReport() {
                 ))}
               </tbody>
             </table>
+          </div>
+          
+          {/* Mobile Card View */}
+          <div className="lg:hidden space-y-3">
+            {yearlyData.filter((data, index) => {
+              if (selectedYear === '2025') {
+                const monthIndex = months.findIndex(m => m.label === data.month);
+                return monthIndex >= 8;
+              }
+              return true;
+            }).map((data, index) => (
+              <div 
+                key={index} 
+                className="bg-secondary/30 rounded-lg p-4 space-y-2 cursor-pointer hover:bg-primary/10 transition-all"
+                onClick={async () => {
+                  const monthIndex = months.findIndex(m => m.label === data.month);
+                  if (monthIndex !== -1) {
+                    const monthNum = (monthIndex + 1).toString();
+                    const startDate = `${selectedYear}-${monthNum.padStart(2, '0')}-01`;
+                    const lastDay = new Date(parseInt(selectedYear), monthIndex + 1, 0).getDate();
+                    const endDate = `${selectedYear}-${monthNum.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+
+                    const [allSales, machines, franchises] = await Promise.all([
+                      db.from('sales').select('*').execute(),
+                      db.from('machines').select('*').execute(),
+                      db.from('franchises').select('*').execute()
+                    ]);
+
+                    const sales = (allSales || []).filter((sale: any) => {
+                      const saleDate = sale.sales_date;
+                      return saleDate >= startDate && saleDate <= endDate;
+                    });
+
+                    const machineMap = new Map();
+                    machines?.forEach(machine => machineMap.set(machine.id, machine));
+
+                    const franchiseMap = new Map();
+                    franchises?.forEach(franchise => franchiseMap.set(franchise.id, franchise));
+
+                    const franchiseData: any = {};
+                    franchises?.forEach((franchise: any) => {
+                      franchiseData[franchise.franchise_name] = { sales: 0, profitShare: 0, salesList: [] };
+                    });
+
+                    sales?.forEach((sale: any) => {
+                      const machine = machineMap.get(sale.machine_id);
+                      const franchise = machine ? franchiseMap.get(machine.franchise_id) : null;
+                      const cloweeProfit = Number(sale.clowee_profit) || 0;
+                      const franchiseName = franchise?.franchise_name || 'Unknown';
+                      
+                      if (!franchiseData[franchiseName]) {
+                        franchiseData[franchiseName] = { sales: 0, profitShare: 0, salesList: [] };
+                      }
+                      franchiseData[franchiseName].sales += Number(sale.sales_amount) || 0;
+                      franchiseData[franchiseName].profitShare += cloweeProfit;
+                      franchiseData[franchiseName].salesList.push({
+                        date: new Date(sale.sales_date).toLocaleDateString('en-GB'),
+                        amount: Number(sale.sales_amount) || 0
+                      });
+                    });
+
+                    const salesBreakdown = Object.entries(franchiseData)
+                      .map(([location, fData]: [string, any]) => ({
+                        location,
+                        sales: fData.sales,
+                        profitShare: fData.profitShare,
+                      }));
+
+                    setMonthReportData({
+                      reportMonth: `${data.month} ${selectedYear}`,
+                      preparedBy: "Md. Asif Sahariwar",
+                      income: {
+                        profitShareClowee: data.totalCloweeProfit,
+                        prizeIncome: data.prizeProfit,
+                        maintenanceCharge: data.totalMaintenanceCost,
+                        totalElectricityCost: data.totalElectricityCost || 0,
+                      },
+                      expense: {
+                        fixedCost: (data.totalOtherExpenses || 0) - (data.variableCost || 0),
+                        variableCost: data.variableCost || 0,
+                      },
+                      salesBreakdown,
+                    });
+                    setShowMonthReport(true);
+                  }
+                }}
+              >
+                <div className="font-bold text-lg border-b border-border pb-2">{data.month}</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Net Profit</span>
+                    <p className={`font-bold text-lg ${data.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      ৳{data.netProfit.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Sales Amount</span>
+                    <p className="font-medium">৳{data.totalSalesAmount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Total Revenue</span>
+                    <p className="font-medium text-primary">৳{data.totalRevenue.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Expenses</span>
+                    <p className="font-medium text-destructive">৳{data.totalExpenses.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

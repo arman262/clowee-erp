@@ -156,7 +156,7 @@ export default function Inventory() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-gradient-card border-border">
           <CardHeader>
             <CardTitle>Accessories Inventory</CardTitle>
@@ -171,7 +171,7 @@ export default function Inventory() {
                 className="pl-10 bg-secondary/30 border-border"
               />
             </div>
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -227,6 +227,67 @@ export default function Inventory() {
                 </TableBody>
               </Table>
             </div>
+            <div className="md:hidden space-y-3">
+              {(() => {
+                const filtered = accessoriesData.filter((item: any) => 
+                  item.item_name?.toLowerCase().includes(accessoriesSearch.toLowerCase()) ||
+                  item.category_name?.toLowerCase().includes(accessoriesSearch.toLowerCase())
+                );
+                const paginated = filtered.slice((accessoriesPage - 1) * rowsPerPage, accessoriesPage * rowsPerPage);
+                const totalQty = filtered.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                const totalAmount = filtered.reduce((sum, item) => sum + (item.total_amount || 0), 0);
+                
+                return (
+                  <>
+                    {paginated.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">No accessories data available</div>
+                    ) : (
+                      <>
+                        {paginated.map((item: any) => (
+                          <Card key={item.id} className="bg-secondary/5 border-border">
+                            <CardContent className="p-4 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm font-medium">{item.item_name || '-'}</div>
+                                <Badge variant="outline">{item.category_name || '-'}</Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground">{formatDate(item.expense_date)}</div>
+                              <div className="grid grid-cols-2 gap-2 text-sm pt-2">
+                                <div>
+                                  <div className="text-xs text-muted-foreground">Stock Qty</div>
+                                  <div className="font-medium">{item.quantity}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs text-muted-foreground">Unit Price</div>
+                                  <div className="font-medium">৳{formatCurrency(item.item_price || 0)}</div>
+                                </div>
+                              </div>
+                              <div className="pt-2 border-t">
+                                <div className="text-xs text-muted-foreground">Total Amount</div>
+                                <div className="text-lg font-bold">৳{formatCurrency(item.total_amount || 0)}</div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                        <Card className="bg-secondary/50 border-border">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="text-xs text-muted-foreground">Total Quantity</div>
+                                <div className="text-lg font-bold">{totalQty}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xs text-muted-foreground">Total Amount</div>
+                                <div className="text-lg font-bold">৳{formatCurrency(totalAmount)}</div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
             {(() => {
               const filtered = accessoriesData.filter((item: any) => 
                 item.item_name?.toLowerCase().includes(accessoriesSearch.toLowerCase()) ||
@@ -262,7 +323,7 @@ export default function Inventory() {
                 className="pl-10 bg-secondary/30 border-border"
               />
             </div>
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -321,6 +382,72 @@ export default function Inventory() {
                 </TableBody>
               </Table>
             </div>
+            <div className="md:hidden space-y-3">
+              {(() => {
+                const filtered = machineWiseStock.filter((machine: any) => 
+                  (machine.machineName || '').toLowerCase().includes(dollStockSearch.toLowerCase())
+                );
+                const paginated = filtered.slice((dollStockPage - 1) * rowsPerPage, dollStockPage * rowsPerPage);
+                const totalPurchased = filtered.reduce((sum, m) => sum + (m.purchased || 0), 0);
+                const totalPrizeOut = filtered.reduce((sum, m) => sum + (m.prizeOut || 0), 0);
+                const totalStock = filtered.reduce((sum, m) => sum + (m.stock || 0), 0);
+                
+                return (
+                  <>
+                    {paginated.length === 0 ? (
+                      <div className="text-center py-4 text-muted-foreground">No machine data available</div>
+                    ) : (
+                      <>
+                        {paginated.map((machine: any) => (
+                          <Card key={machine.machineId} className="bg-secondary/5 border-border">
+                            <CardContent className="p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium">{machine.machineName || ''}</div>
+                                <Button variant="outline" size="sm" onClick={() => { setSelectedMachine(machine); setShowDollAdjustModal(true); }} className="border-primary text-primary">
+                                  <ArrowUpDown className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-3 gap-3 text-sm">
+                                <div>
+                                  <div className="text-xs text-muted-foreground">Purchased</div>
+                                  <div className="font-medium text-success">{machine.purchased}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs text-muted-foreground">Prize Out</div>
+                                  <div className="font-medium text-destructive">{machine.prizeOut}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs text-muted-foreground">Stock</div>
+                                  <div className="font-bold">{machine.stock}</div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                        <Card className="bg-secondary/50 border-border">
+                          <CardContent className="p-4">
+                            <div className="grid grid-cols-3 gap-3 text-sm">
+                              <div>
+                                <div className="text-xs text-muted-foreground">Total Purchased</div>
+                                <div className="font-bold text-success">{totalPurchased}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-muted-foreground">Total Prize Out</div>
+                                <div className="font-bold text-destructive">{totalPrizeOut}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-muted-foreground">Total Stock</div>
+                                <div className="font-bold">{totalStock}</div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
             {(() => {
               const filtered = machineWiseStock.filter((machine: any) => 
                 (machine.machineName || '').toLowerCase().includes(dollStockSearch.toLowerCase())
@@ -347,7 +474,7 @@ export default function Inventory() {
           <CardTitle>Stock Out History</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -407,6 +534,67 @@ export default function Inventory() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          <div className="md:hidden space-y-3">
+            {stockOutHistory.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No stock out history</div>
+            ) : (
+              stockOutHistory.map((record: any) => {
+                const itemName = accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-';
+                const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
+                const user = users.find((u: any) => u.id === record.handled_by);
+                const userName = user?.first_name || (record.handled_by && typeof record.handled_by === 'string' && !record.handled_by.includes('-') ? record.handled_by : '-');
+                const getTypeBadge = () => {
+                  if (record.adjustment_type === 'doll_add') {
+                    return <Badge className="bg-blue-500">Doll Add</Badge>;
+                  } else if (record.adjustment_type === 'doll_deduct') {
+                    return <Badge className="bg-red-500">Doll Deduct</Badge>;
+                  }
+                  return <Badge className="bg-red-500">Stock Out</Badge>;
+                };
+                return (
+                  <Card key={record.id} className="bg-secondary/5 border-border">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-medium">{itemName}</div>
+                          <div className="text-xs text-muted-foreground">{formatDate(record.out_date)}</div>
+                        </div>
+                        {getTypeBadge()}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <div className="text-xs text-muted-foreground">Machine</div>
+                          <div>{machineName}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">Quantity</div>
+                          <div className="font-bold">{record.quantity}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">Handled By</div>
+                          <div>{userName}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">Remarks</div>
+                          <div className="truncate" title={record.remarks || '-'}>{record.remarks || '-'}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => { setSelectedStockOut(record); setShowEditStockOutModal(true); }}>
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1 border-destructive text-destructive" onClick={() => handleDeleteStockOut(record.id)}>
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>

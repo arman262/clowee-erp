@@ -500,13 +500,14 @@ export default function Reports() {
       )}
 
       {reportType === "expense" && (
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="bg-gradient-card border-border shadow-card">
             <CardHeader>
               <CardTitle>Expense Data - {selectedYear}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto -mx-6 px-6">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -546,6 +547,45 @@ export default function Reports() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+              
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {expenseTableData.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    No expense data found
+                  </div>
+                ) : (
+                  (() => {
+                    const startIndex = (currentPage - 1) * itemsPerPage;
+                    const endIndex = startIndex + itemsPerPage;
+                    const paginatedData = expenseTableData.slice(startIndex, endIndex);
+                    const totalAmount = expenseTableData.reduce((sum, exp) => sum + exp.totalAmount, 0);
+                    
+                    return (
+                      <>
+                        {paginatedData.map((monthData: any, index: number) => (
+                          <div key={index} className="bg-secondary/30 rounded-lg p-4 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">Month</span>
+                              <span className="font-medium">{monthData.month}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">Total Amount</span>
+                              <span className="font-bold text-primary">৳{formatCurrency(monthData.totalAmount)}</span>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="bg-muted/50 rounded-lg p-4 font-bold">
+                          <div className="flex justify-between items-center">
+                            <span>Total</span>
+                            <span className="text-primary">৳{formatCurrency(totalAmount)}</span>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()
+                )}
               </div>
               {expenseTableData.length > itemsPerPage && (
                 <div className="flex items-center justify-between mt-4">
@@ -629,49 +669,47 @@ export default function Reports() {
                 : `Monthly Payment - ${selectedYear} (${selectedFranchiseName})`}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={chartData} margin={{ top: 30, right: 30, left: 0, bottom: 0 }} style={{ cursor: 'pointer' }}>
+              <LineChart data={chartData} margin={{ top: 30, right: 30, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="paymentGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.6}/>
+                  <linearGradient id="paymentAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.05}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
                 <XAxis dataKey={selectedFranchise === "all" ? "franchiseName" : "month"} stroke="#9CA3AF" fontSize={12} />
                 <YAxis stroke="#9CA3AF" fontSize={12} tickFormatter={(value) => `৳${(value/1000).toFixed(0)}k`} />
                 <Tooltip 
-                  formatter={(value: any) => [`৳${formatCurrency(Number(value))}`, '']}
+                  formatter={(value: any) => [`৳${formatCurrency(Number(value))}`, 'Total Payment']}
                   contentStyle={{ backgroundColor: 'rgba(132, 140, 152, 0.95)', border: '1px solid #374151', borderRadius: '8px' }}
                   wrapperStyle={{ outline: 'none' }}
-                  cursor={{ fill: 'transparent' }}
                 />
                 <Legend />
-                <Bar 
+                <Area 
+                  type="monotone" 
+                  dataKey="totalPayment" 
+                  stroke="#10b981" 
+                  fill="url(#paymentAreaGradient)" 
+                  strokeWidth={0}
+                />
+                <Line 
+                  type="monotone" 
                   dataKey="totalPayment" 
                   name="Total Payment (৳)"
-                  radius={[8, 8, 0, 0]}
-                  onMouseEnter={(_, index) => setActiveIndex(index)}
-                  onMouseLeave={() => setActiveIndex(null)}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={activeIndex === index ? '#34d399' : 'url(#paymentGradient)'}
-                      style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
-                      stroke="none"
-                    />
-                  ))}
-                  <LabelList 
-                    dataKey="totalPayment" 
-                    position="top" 
-                    formatter={(value: any) => value > 0 ? `৳${formatCurrency(Number(value))}` : ''}
-                    style={{ fill: '#9CA3AF', fontSize: 11, fontWeight: 'bold' }}
-                  />
-                </Bar>
-              </BarChart>
+                  stroke="#10b981" 
+                  strokeWidth={3}
+                  dot={{ fill: '#10b981', r: 5 }}
+                  activeDot={{ r: 7, fill: '#34d399' }}
+                />
+              </LineChart>
             </ResponsiveContainer>
+            <div className="text-center pt-4 border-t border-border">
+              <p className="text-lg font-bold text-primary">
+                Total Payment: ৳{formatCurrency(chartData.reduce((sum, item) => sum + (item.totalPayment || 0), 0))}
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

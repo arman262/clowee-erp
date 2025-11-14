@@ -237,36 +237,43 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
       const element = document.getElementById('invoice-content');
       if (!element) return;
 
+      // Temporarily force desktop layout
+      const mobileElements = element.querySelectorAll('.sm\\:hidden');
+      const desktopElements = element.querySelectorAll('.hidden.sm\\:table');
+      
+      mobileElements.forEach(el => (el as HTMLElement).style.display = 'none');
+      desktopElements.forEach(el => {
+        (el as HTMLElement).style.display = 'table';
+      });
+
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        logging: false,
-        width: element.scrollWidth,
-        height: element.scrollHeight
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      // Restore original layout
+      mobileElements.forEach(el => (el as HTMLElement).style.display = '');
+      desktopElements.forEach(el => (el as HTMLElement).style.display = '');
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
       const pdf = new jsPDF('p', 'mm', 'a4');
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const imgWidth = pdfWidth - (margin * 2);
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
       
-      let heightLeft = imgHeight;
-      let position = margin;
-
-      pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
-      heightLeft -= (pdfHeight - margin * 2);
-
-      while (heightLeft > 0) {
-        position = -(pdfHeight - margin * 2) + margin;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
-        heightLeft -= (pdfHeight - margin * 2);
+      // Fit to single page if possible
+      if (imgHeight > pdfHeight) {
+        const scale = pdfHeight / imgHeight;
+        const scaledWidth = imgWidth * scale;
+        const scaledHeight = pdfHeight;
+        const xOffset = (pdfWidth - scaledWidth) / 2;
+        pdf.addImage(imgData, 'JPEG', xOffset, 0, scaledWidth, scaledHeight, undefined, 'FAST');
+      } else {
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
       }
 
       const invoiceNumber = sale.invoice_number || `clw-${new Date(sale.sales_date).getFullYear()}-001`;
@@ -446,7 +453,8 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
 
           {/* Invoice Info Card */}
           <div className="bg-gray-50 p-4 rounded-lg mb-4 sm:mb-6">
-            <table style={{ width: '100%', border: 'none' }}>
+            {/* Desktop Table Layout */}
+            <table className="hidden sm:table" style={{ width: '100%', border: 'none' }}>
               <tr>
                 <td style={{ width: '33.33%', verticalAlign: 'top', border: 'none', padding: '0.5rem' }}>
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">BILL TO</h3>
@@ -498,6 +506,30 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 </td>
               </tr>
             </table>
+            
+            {/* Mobile Card Layout */}
+            <div className="sm:hidden space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">BILL TO</h3>
+                <div className="text-sm text-gray-900">
+                  <p className="font-medium">Franchises: {sale.franchises?.name || 'Franchise Partner'}</p>
+                  <p>Branch: {sale.machines?.machine_name || 'Machine Location'}</p>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">BILLING PERIOD</h3>
+                <div className="text-sm text-gray-900">
+                  <p className="font-medium">{sale.franchises?.payment_duration || 'Monthly'}</p>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">INVOICE Details</h3>
+                <div className="text-sm text-gray-900">
+                  <p className="font-medium">No: {sale.invoice_number || `CLW-${new Date(sale.sales_date).getFullYear()}-001`}</p>
+                  <p className="font-medium">Date: {formatDate(sale.sales_date)}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Modern Invoice Table */}
@@ -618,7 +650,8 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
 
           {/* Payment & Bank Information */}
           <div className="mb-4 sm:mb-6">
-            <table style={{ width: '100%', border: 'none', borderSpacing: '0.5rem' }}>
+            {/* Desktop Table Layout */}
+            <table className="hidden sm:table" style={{ width: '100%', border: 'none', borderSpacing: '0.5rem' }}>
               <tr>
                 <td style={{ width: '50%', verticalAlign: 'top', border: 'none' }}>
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -708,6 +741,80 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 )}
               </tr>
             </table>
+            
+            {/* Mobile Card Layout */}
+            <div className="sm:hidden space-y-3">
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">Payment Status</h3>
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    paymentInfo.status === 'Paid' 
+                      ? 'bg-green-100 text-green-800' 
+                      : paymentInfo.status === 'Partial'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {paymentInfo.status === 'Paid' ? 'FULLY PAID' : 
+                     paymentInfo.status === 'Partial' ? 'PARTIALLY PAID' : 'PAYMENT DUE'}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total Amount:</span>
+                    <span className="font-medium text-gray-900">৳{formatCurrency(calculatedPayToClowee)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Amount Paid:</span>
+                    <span className="font-medium text-green-600">৳{formatCurrency(paymentInfo.totalPaid)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+                    <span className="font-medium text-gray-900">Balance Due:</span>
+                    <span className="text-xl font-bold" style={{
+                      color: paymentInfo.balance <= 0 ? '#16a34a' : '#dc2626'
+                    }}>
+                      ৳{formatCurrency(paymentInfo.balance)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {sale.franchises?.banks && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Payment Method Details</h3>
+                  <div className="space-y-2 text-sm">
+                    {sale.franchises.banks.bank_name && (
+                      <div>
+                        <span className="text-gray-600">Bank:</span>
+                        <span className="ml-2 font-medium text-gray-900">{sale.franchises.banks.bank_name}</span>
+                      </div>
+                    )}
+                    {sale.franchises.banks.account_holder_name && (
+                      <div>
+                        <span className="text-gray-600">Account Holder:</span>
+                        <span className="ml-2 font-medium text-gray-900">{sale.franchises.banks.account_holder_name}</span>
+                      </div>
+                    )}
+                    {sale.franchises.banks.account_number && (
+                      <div>
+                        <span className="text-gray-600">Account Number:</span>
+                        <span className="ml-2 font-mono text-gray-900">{sale.franchises.banks.account_number}</span>
+                      </div>
+                    )}
+                    {sale.franchises.banks.branch_name && (
+                      <div>
+                        <span className="text-gray-600">Branch:</span>
+                        <span className="ml-2 font-medium text-gray-900">{sale.franchises.banks.branch_name}</span>
+                      </div>
+                    )}
+                    {sale.franchises.banks.routing_number && (
+                      <div>
+                        <span className="text-gray-600">Routing:</span>
+                        <span className="ml-2 font-mono text-gray-900">{sale.franchises.banks.routing_number}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           
           {sale.adjustment_notes && (

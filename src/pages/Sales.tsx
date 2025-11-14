@@ -472,7 +472,7 @@ export default function Sales() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-hidden">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-hidden">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
                 <TrendingUp className="h-5 w-5 text-primary-foreground" />
@@ -481,7 +481,7 @@ export default function Sales() {
                 <div className="text-xl sm:text-2xl font-bold text-success truncate">
                   ৳{formatCurrency(dateRangeStats.totalSalesAmount)}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Sales Amount</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total Sales Amount</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -489,10 +489,10 @@ export default function Sales() {
                 <Coins className="h-5 w-5 text-primary-foreground" />
               </div>
               <div className="min-w-0">
-                <div className="text-2xl font-bold text-primary truncate">
+                <div className="text-xl sm:text-2xl font-bold text-primary truncate">
                   {formatNumber(dateRangeStats.totalCoinSales)}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Coins Sales (pcs)</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total Coins Sales (pcs)</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -500,10 +500,10 @@ export default function Sales() {
                 <Gift className="h-5 w-5 text-primary-white" />
               </div>
               <div className="min-w-0">
-                <div className="text-2xl font-bold text-accent truncate">
+                <div className="text-xl sm:text-2xl font-bold text-accent truncate">
                   {formatNumber(dateRangeStats.totalPrizeOut)}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Prizes Out (Qty)</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total Prizes Out (Qty)</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -511,10 +511,10 @@ export default function Sales() {
                 <TrendingUp className="h-5 w-5 text-primary-white" />
               </div>
               <div className="min-w-0">
-                <div className="text-2xl font-bold text-warning truncate">
+                <div className="text-xl sm:text-2xl font-bold text-warning truncate">
                   ৳{formatCurrency(dateRangeStats.totalPayToClowee)}
                 </div>
-                <div className="text-sm text-muted-foreground">Pay To Clowee Amount</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Pay To Clowee Amount</div>
               </div>
             </div>
           </div>

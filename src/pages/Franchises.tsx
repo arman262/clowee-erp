@@ -170,7 +170,7 @@ export default function Franchises() {
       </Dialog>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-primary">
