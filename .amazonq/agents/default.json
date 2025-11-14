@@ -5,6 +5,8 @@
   "mcpServers": {
     "clowee_erp": {
       "command": "npx",
+      "disabled": false,
+      "timeout": 60000,
       "args": [
         "-y",
         "mcp-postgres"
@@ -16,9 +18,7 @@
         "PGPASSWORD": "clowee@erp",
         "PGDATABASE": "clowee_erp",
         "PGSSL": "false"
-      },
-      "timeout": 60000,
-      "disabled": false
+      }
     }
   },
   "tools": [
@@ -38,6 +38,7 @@
     "fs_write",
     "@clowee_erp/connect_db",
     "@clowee_erp/query",
+    "@clowee_erp/execute",
     "@clowee_erp/list_schemas",
     "@clowee_erp/list_tables",
     "@clowee_erp/describe_table"

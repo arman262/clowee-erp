@@ -301,6 +301,12 @@ export default function Expenses() {
                 </div>
               </TableHead>
               <TableHead>Expense Id</TableHead>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('machine')}>
+                <div className="flex items-center gap-1">
+                  Machine
+                  {sortColumn === 'machine' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                </div>
+              </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('category')}>
                 <div className="flex items-center gap-1">
                   Category
@@ -347,6 +353,7 @@ export default function Expenses() {
                 <TableRow key={expense.id}>
                   <TableCell>{formatDate(expense.expense_date)}</TableCell>
                   <TableCell className="font-mono text-sm">{expense.expense_number || '-'}</TableCell>
+                  <TableCell>{expense.machines?.machine_name || '-'}</TableCell>
                   <TableCell>{expense.expense_categories?.category_name || '-'}</TableCell>
                   <TableCell>{expense.item_name || '-'}</TableCell>
                   <TableCell>{expense.quantity}</TableCell>
@@ -404,7 +411,7 @@ export default function Expenses() {
             )}
             {paginatedExpenses.length > 0 && (
               <TableRow className="bg-secondary/50 font-bold">
-                <TableCell colSpan={4} className="text-right">Total:</TableCell>
+                <TableCell colSpan={5} className="text-right">Total:</TableCell>
                 <TableCell>{filteredExpenses.reduce((sum, exp) => sum + (Number(exp.quantity) || 0), 0)}</TableCell>
                 <TableCell>-</TableCell>
                 <TableCell>৳{formatCurrency(filteredExpenses.reduce((sum, exp) => sum + (Number(exp.total_amount) || 0), 0))}</TableCell>

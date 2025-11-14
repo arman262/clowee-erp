@@ -47,11 +47,7 @@ export const useInventoryLogs = () => {
   return useQuery({
     queryKey: ['inventory_logs'],
     queryFn: async () => {
-      const { data, error } = await db
-        .from('inventory_logs')
-        .select('*, inventory_items(item_name), users(name)')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
+      const data = await db.from('inventory_logs').select().execute();
       return data || [];
     }
   });
@@ -252,7 +248,7 @@ export const useMachineWisePrizeStock = () => {
           prizeOut,
           stock: purchased - prizeOut
         };
-      }).filter((m: any) => m.stock !== 0 || m.purchased !== 0 || m.prizeOut !== 0);
+      });
       
       return result;
     }
