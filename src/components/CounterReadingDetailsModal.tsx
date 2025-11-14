@@ -112,6 +112,13 @@ export function CounterReadingDetailsModal({ reading, open, onOpenChange }: Coun
                 <span className="text-sm text-muted-foreground">Created</span>
                 <p className="font-medium">{formatDate(reading.created_at || reading.reading_date)}</p>
               </div>
+              
+              {reading.created_by_user && (
+                <div>
+                  <span className="text-sm text-muted-foreground">Created By</span>
+                  <p className="font-medium">{reading.created_by_user.name || '-'}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

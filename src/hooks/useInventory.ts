@@ -232,25 +232,46 @@ export const useMachineWisePrizeStock = () => {
       const prizeExpenses = (expenses || []).filter((exp: any) => exp.category_id === prizeCategoryId);
       const sales = await db.from('sales').select().execute();
       
-      const result = (machines || []).map((machine: any) => {
-        const purchased = prizeExpenses
-          .filter((exp: any) => exp.machine_id === machine.id)
-          .reduce((sum: number, exp: any) => sum + (Number(exp.quantity) || 0), 0);
-        
-        const prizeOut = (sales || [])
-          .filter((sale: any) => sale.machine_id === machine.id)
-          .reduce((sum: number, sale: any) => sum + (Number(sale.prize_out_quantity) || 0), 0);
-        
-        return {
+      const machineMap = new Map();
+      
+      (machines || []).forEach((machine: any) => {
+        machineMap.set(machine.id, {
           machineId: machine.id,
           machineName: machine.machine_name,
-          purchased,
-          prizeOut,
-          stock: purchased - prizeOut
-        };
+          purchased: 0,
+          prizeOut: 0,
+          stock: 0
+        });
       });
       
-      return result;
+      prizeExpenses.forEach((exp: any) => {
+        const machineId = exp.machine_id || 'no_machine';
+        if (!machineMap.has(machineId)) {
+          machineMap.set(machineId, {
+            machineId: machineId,
+            machineName: '',
+            purchased: 0,
+            prizeOut: 0,
+            stock: 0
+          });
+        }
+        const entry = machineMap.get(machineId);
+        entry.purchased += Number(exp.quantity) || 0;
+      });
+      
+      (sales || []).forEach((sale: any) => {
+        const machineId = sale.machine_id;
+        if (machineId && machineMap.has(machineId)) {
+          const entry = machineMap.get(machineId);
+          entry.prizeOut += Number(sale.prize_out_quantity) || 0;
+        }
+      });
+      
+      machineMap.forEach((entry) => {
+        entry.stock = entry.purchased - entry.prizeOut;
+      });
+      
+      return Array.from(machineMap.values());
     }
   });
 };

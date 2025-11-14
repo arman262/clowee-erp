@@ -16,7 +16,6 @@ import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/numberUtils";
 import { Package, TrendingUp, AlertTriangle, Plus, Edit, Trash2, ArrowUpDown, Search } from "lucide-react";
 import { toast } from "sonner";
-import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 
 export default function Inventory() {
   const { user } = useAuth();
@@ -67,18 +66,23 @@ export default function Inventory() {
     }
   });
   
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const data = await db.from('users').select().execute();
+      return data || [];
+    }
+  });
+  
   const [showDollAdjustModal, setShowDollAdjustModal] = useState(false);
   const [showStockOutModal, setShowStockOutModal] = useState(false);
   const [showEditStockOutModal, setShowEditStockOutModal] = useState(false);
-  const [deletingStockOut, setDeletingStockOut] = useState<any>(null);
   const [selectedMachine, setSelectedMachine] = useState<any>(null);
   const [selectedStockOut, setSelectedStockOut] = useState<any>(null);
   const [accessoriesSearch, setAccessoriesSearch] = useState('');
   const [dollStockSearch, setDollStockSearch] = useState('');
-  const [stockOutSearch, setStockOutSearch] = useState('');
   const [accessoriesPage, setAccessoriesPage] = useState(1);
   const [dollStockPage, setDollStockPage] = useState(1);
-  const [stockOutPage, setStockOutPage] = useState(1);
   const rowsPerPage = 50;
 
   const { data: stockOutHistory = [] } = useQuery({
@@ -89,14 +93,13 @@ export default function Inventory() {
     }
   });
 
-  const handleDeleteStockOut = async () => {
-    if (!deletingStockOut) return;
+  const handleDeleteStockOut = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this record?')) return;
     try {
-      await db.from('stock_out_history').delete().eq('id', deletingStockOut.id).execute();
+      await db.from('stock_out_history').delete().eq('id', id);
       queryClient.invalidateQueries({ queryKey: ['stock-out-history'] });
       queryClient.invalidateQueries({ queryKey: ['accessories-inventory'] });
       toast.success('Record deleted successfully');
-      setDeletingStockOut(null);
     } catch (error: any) {
       toast.error(`Failed to delete: ${error.message}`);
     }
@@ -273,7 +276,7 @@ export default function Inventory() {
                 <TableBody>
                   {(() => {
                     const filtered = machineWiseStock.filter((machine: any) => 
-                      machine.machineName?.toLowerCase().includes(dollStockSearch.toLowerCase())
+                      (machine.machineName || '').toLowerCase().includes(dollStockSearch.toLowerCase())
                     );
                     const paginated = filtered.slice((dollStockPage - 1) * rowsPerPage, dollStockPage * rowsPerPage);
                     const totalPurchased = filtered.reduce((sum, m) => sum + (m.purchased || 0), 0);
@@ -291,14 +294,14 @@ export default function Inventory() {
                         ) : (
                           <>
                             {paginated.map((machine: any) => (
-                              <TableRow key={machine.machineId}>
-                                <TableCell className="font-medium">{machine.machineName}</TableCell>
-                                <TableCell className="text-success">{machine.purchased}</TableCell>
-                                <TableCell className="text-destructive">{machine.prizeOut}</TableCell>
-                                <TableCell className="font-bold">{machine.stock}</TableCell>
-                                <TableCell>
-                                  <Button variant="outline" size="sm" onClick={() => { setSelectedMachine(machine); setShowDollAdjustModal(true); }} className="border-primary text-primary">
-                                    <ArrowUpDown className="h-4 w-4" />
+                              <TableRow key={machine.machineId} className="h-10">
+                                <TableCell className="font-medium py-2">{machine.machineName || ''}</TableCell>
+                                <TableCell className="text-success py-2">{machine.purchased}</TableCell>
+                                <TableCell className="text-destructive py-2">{machine.prizeOut}</TableCell>
+                                <TableCell className="font-bold py-2">{machine.stock}</TableCell>
+                                <TableCell className="py-2">
+                                  <Button variant="outline" size="sm" onClick={() => { setSelectedMachine(machine); setShowDollAdjustModal(true); }} className="border-primary text-primary h-7">
+                                    <ArrowUpDown className="h-3 w-3" />
                                   </Button>
                                 </TableCell>
                               </TableRow>
@@ -320,7 +323,7 @@ export default function Inventory() {
             </div>
             {(() => {
               const filtered = machineWiseStock.filter((machine: any) => 
-                machine.machineName?.toLowerCase().includes(dollStockSearch.toLowerCase())
+                (machine.machineName || '').toLowerCase().includes(dollStockSearch.toLowerCase())
               );
               const totalPages = Math.ceil(filtered.length / rowsPerPage);
               return totalPages > 1 && (
@@ -339,20 +342,11 @@ export default function Inventory() {
         </Card>
       </div>
 
-      <Card className="bg-gradient-card border-border">
+            <Card className="bg-gradient-card border-border">
         <CardHeader>
           <CardTitle>Stock Out History</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by machine, item, or type..."
-              value={stockOutSearch}
-              onChange={(e) => { setStockOutSearch(e.target.value); setStockOutPage(1); }}
-              className="pl-10 bg-secondary/30 border-border"
-            />
-          </div>
+        <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -368,143 +362,71 @@ export default function Inventory() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(() => {
-                  const filtered = stockOutHistory.filter((record: any) => {
-                    const itemName = record.item_id ? (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '') : 'Doll Stock';
-                    const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '';
-                    const type = record.adjustment_type === 'doll_add' ? 'Doll Add' : record.adjustment_type === 'doll_deduct' ? 'Doll Deduct' : 'Stock Out';
-                    return machineName.toLowerCase().includes(stockOutSearch.toLowerCase()) ||
-                           itemName.toLowerCase().includes(stockOutSearch.toLowerCase()) ||
-                           type.toLowerCase().includes(stockOutSearch.toLowerCase());
-                  });
-                  const paginated = filtered.slice((stockOutPage - 1) * rowsPerPage, stockOutPage * rowsPerPage);
-                  
-                  return (
-                    <>
-                      {paginated.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                            No stock out history
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        paginated.map((record: any) => {
-                          const itemName = record.item_id ? (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-') : 'Doll Stock';
-                          const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
-                          const type = record.adjustment_type === 'doll_add' ? 'Doll Add' : record.adjustment_type === 'doll_deduct' ? 'Doll Deduct' : 'Stock Out';
-                          return (
-                            <TableRow key={record.id}>
-                              <TableCell>{formatDate(record.out_date)}</TableCell>
-                              <TableCell><Badge className={record.adjustment_type?.includes('doll') ? 'bg-blue-500' : 'bg-warning'}>{type}</Badge></TableCell>
-                              <TableCell>{machineName}</TableCell>
-                              <TableCell>{itemName}</TableCell>
-                              <TableCell className="font-bold">{Math.abs(record.quantity)}</TableCell>
-                              <TableCell>{record.handled_by || '-'}</TableCell>
-                              <TableCell>{record.remarks || '-'}</TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button variant="outline" size="sm" onClick={() => { setSelectedStockOut(record); setShowEditStockOutModal(true); }}>
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => setDeletingStockOut(record)} className="border-destructive text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      )}
-                    </>
-                  );
-                })()}
+                {stockOutHistory.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      No stock out history
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  stockOutHistory.map((record: any) => {
+                    const itemName = accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-';
+                    const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
+                    const user = users.find((u: any) => u.id === record.handled_by);
+                    const userName = user?.first_name || (record.handled_by && typeof record.handled_by === 'string' && !record.handled_by.includes('-') ? record.handled_by : '-');
+                    const getTypeBadge = () => {
+                      if (record.adjustment_type === 'doll_add') {
+                        return <Badge className="bg-blue-500">Doll Add</Badge>;
+                      } else if (record.adjustment_type === 'doll_deduct') {
+                        return <Badge className="bg-red-500">Doll Deduct</Badge>;
+                      }
+                      return <Badge className="bg-red-500">Stock Out</Badge>;
+                    };
+                    return (
+                      <TableRow key={record.id}>
+                        <TableCell>{formatDate(record.out_date)}</TableCell>
+                        <TableCell>{getTypeBadge()}</TableCell>
+                        <TableCell>{machineName}</TableCell>
+                        <TableCell>{itemName}</TableCell>
+                        <TableCell className="font-bold">{record.quantity}</TableCell>
+                        <TableCell>{userName}</TableCell>
+                        <TableCell>{record.remarks || '-'}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => { setSelectedStockOut(record); setShowEditStockOutModal(true); }}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleDeleteStockOut(record.id)} className="border-destructive text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </div>
-          {(() => {
-            const filtered = stockOutHistory.filter((record: any) => {
-              const itemName = record.item_id ? (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '') : 'Doll Stock';
-              const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '';
-              const type = record.adjustment_type === 'doll_add' ? 'Doll Add' : record.adjustment_type === 'doll_deduct' ? 'Doll Deduct' : 'Stock Out';
-              return machineName.toLowerCase().includes(stockOutSearch.toLowerCase()) ||
-                     itemName.toLowerCase().includes(stockOutSearch.toLowerCase()) ||
-                     type.toLowerCase().includes(stockOutSearch.toLowerCase());
-            });
-            const totalPages = Math.ceil(filtered.length / rowsPerPage);
-            return totalPages > 1 && (
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {((stockOutPage - 1) * rowsPerPage) + 1} to {Math.min(stockOutPage * rowsPerPage, filtered.length)} of {filtered.length}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setStockOutPage(p => Math.max(1, p - 1))} disabled={stockOutPage === 1}>Previous</Button>
-                  <Button variant="outline" size="sm" onClick={() => setStockOutPage(p => Math.min(totalPages, p + 1))} disabled={stockOutPage === totalPages}>Next</Button>
-                </div>
-              </div>
-            );
-          })()}
         </CardContent>
       </Card>
-
       <AdjustDollStockModal open={showDollAdjustModal} onClose={() => setShowDollAdjustModal(false)} machine={selectedMachine} />
       <StockOutModal open={showStockOutModal} onClose={() => setShowStockOutModal(false)} accessoriesData={accessoriesData} machines={machines || []} />
       <EditStockOutModal open={showEditStockOutModal} onClose={() => setShowEditStockOutModal(false)} stockOut={selectedStockOut} accessoriesData={accessoriesData} machines={machines || []} />
-      
-      <DeleteConfirmDialog
-        open={!!deletingStockOut}
-        onOpenChange={(open) => !open && setDeletingStockOut(null)}
-        onConfirm={handleDeleteStockOut}
-        title="Delete Stock Out Record"
-        description="Are you sure you want to delete this record?"
-        details={[
-          { label: "Date", value: deletingStockOut ? formatDate(deletingStockOut.out_date) : '' },
-          { label: "Type", value: deletingStockOut?.adjustment_type === 'doll_add' ? 'Doll Add' : deletingStockOut?.adjustment_type === 'doll_deduct' ? 'Doll Deduct' : 'Stock Out' },
-          { label: "Machine", value: deletingStockOut ? (machines.find((m: any) => m.id === deletingStockOut.machine_id)?.machine_name || '-') : '' },
-          { label: "Item", value: deletingStockOut?.item_id ? (accessoriesData.find((item: any) => item.id === deletingStockOut.item_id)?.item_name || '-') : 'Doll Stock' },
-          { label: "Quantity", value: deletingStockOut ? Math.abs(deletingStockOut.quantity) : 0 }
-        ]}
-      />
     </div>
   );
 }
 
 function AdjustDollStockModal({ open, onClose, machine }: any) {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [adjustType, setAdjustType] = useState<'add' | 'deduct'>('add');
   const [quantity, setQuantity] = useState(0);
   const [remarks, setRemarks] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   
   if (!machine) return null;
   
-  const handleAdjust = async () => {
-    if (quantity <= 0) {
-      toast.error('Please enter a valid quantity');
-      return;
-    }
-
-    try {
-      // Save to stock_out_history table with adjustment_type field
-      await db.from('stock_out_history').insert({
-        out_date: date,
-        machine_id: machine.machineId,
-        item_id: null,
-        quantity: adjustType === 'add' ? -quantity : quantity,
-        remarks: `${adjustType === 'add' ? 'Add' : 'Deduct'} Doll Stock: ${remarks}`,
-        handled_by: user?.name || 'System',
-        adjustment_type: adjustType === 'add' ? 'doll_add' : 'doll_deduct'
-      }).select().single();
-
-      queryClient.invalidateQueries({ queryKey: ['stock-out-history'] });
-      toast.success('Doll stock adjusted successfully');
-      setQuantity(0);
-      setRemarks('');
-      setDate(new Date().toISOString().split('T')[0]);
-      onClose();
-    } catch (error: any) {
-      toast.error(`Failed to adjust stock: ${error.message || 'Unknown error'}`);
-    }
+  const handleAdjust = () => {
+    alert(`Adjust ${adjustType} ${quantity} dolls for ${machine.machineName}. Remarks: ${remarks}`);
+    onClose();
   };
   
   return (
@@ -516,10 +438,6 @@ function AdjustDollStockModal({ open, onClose, machine }: any) {
         <div className="space-y-4">
           <div>
             <Label>Current Stock: {machine.stock} dolls</Label>
-          </div>
-          <div>
-            <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div>
             <Label>Type</Label>
@@ -571,7 +489,7 @@ function StockOutModal({ open, onClose, accessoriesData, machines }: any) {
         item_id: selectedItemId,
         quantity: quantity,
         remarks: remarks,
-        handled_by: user?.name || 'System'
+        handled_by: user?.first_name || null
       }).select().single();
 
       queryClient.invalidateQueries({ queryKey: ['stock-out-history'] });
@@ -617,7 +535,7 @@ function StockOutModal({ open, onClose, accessoriesData, machines }: any) {
             <Select value={selectedItemId} onValueChange={setSelectedItemId}>
               <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
               <SelectContent>
-                {accessoriesData.filter((item: any) => item.quantity > 0).map((item: any) => (
+                {accessoriesData.map((item: any) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.item_name} (Available: {item.quantity})
                   </SelectItem>
@@ -654,7 +572,7 @@ function EditStockOutModal({ open, onClose, stockOut, accessoriesData, machines 
     if (stockOut) {
       setDate(stockOut.out_date || new Date().toISOString().split('T')[0]);
       setMachineId(stockOut.machine_id || 'none');
-      setQuantity(Math.abs(stockOut.quantity) || 0);
+      setQuantity(stockOut.quantity || 0);
       setRemarks(stockOut.remarks || '');
     }
   }, [stockOut]);
@@ -666,11 +584,8 @@ function EditStockOutModal({ open, onClose, stockOut, accessoriesData, machines 
     }
 
     try {
-      const isDollAdjustment = stockOut.adjustment_type?.includes('doll');
-      const finalQuantity = isDollAdjustment && stockOut.adjustment_type === 'doll_add' ? -quantity : quantity;
-      
       await db.from('stock_out_history')
-        .update({ out_date: date, machine_id: machineId !== 'none' ? machineId : null, quantity: finalQuantity, remarks })
+        .update({ out_date: date, machine_id: machineId !== 'none' ? machineId : null, quantity, remarks })
         .eq('id', stockOut.id)
         .select().single();
 
@@ -685,8 +600,7 @@ function EditStockOutModal({ open, onClose, stockOut, accessoriesData, machines 
 
   if (!stockOut) return null;
 
-  const isDollAdjustment = stockOut.adjustment_type?.includes('doll');
-  const itemName = isDollAdjustment ? 'Doll Stock Adjustment' : (accessoriesData.find((item: any) => item.id === stockOut.item_id)?.item_name || '-');
+  const itemName = accessoriesData.find((item: any) => item.id === stockOut.item_id)?.item_name || '-';
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

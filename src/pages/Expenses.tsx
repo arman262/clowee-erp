@@ -494,11 +494,12 @@ export default function Expenses() {
                 <div className="text-sm text-muted-foreground">Entry Date</div>
                 <div className="text-lg font-bold text-success">{viewingExpense.created_at ? formatDateTime(viewingExpense.created_at) : '-'}</div>
               </div>
-              
-              
-
-
-
+              {viewingExpense.created_by_user && (
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">Created By</div>
+                  <div className="font-medium">{viewingExpense.created_by_user.name || '-'}</div>
+                </div>
+              )}
               {viewingExpense.banks && (
                 <div className="space-y-2">
                   <div className="text-sm text-muted-foreground">Bank</div>

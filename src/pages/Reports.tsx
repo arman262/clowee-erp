@@ -80,20 +80,55 @@ export default function Reports() {
   const { data: expenseTableData = [] } = useQuery({
     queryKey: ['expense-table-data', selectedYear, selectedMonth, selectedMachine, selectedCategory],
     queryFn: async () => {
-      const [expenses, machinesData, categoriesData] = await Promise.all([
+      const [expenses, machinesData, categoriesData, stockOutHistory] = await Promise.all([
         db.from('machine_expenses').select().execute(),
         db.from('machines').select().execute(),
-        db.from('expense_categories').select().execute()
+        db.from('expense_categories').select().execute(),
+        db.from('stock_out_history').select().execute()
       ]);
       
-      const filtered = (expenses || []).filter((expense: any) => {
-        const expenseDate = new Date(expense.expense_date);
-        const yearMatch = expenseDate.getFullYear().toString() === selectedYear;
-        const monthMatch = selectedMonth === "all" || expenseDate.getMonth().toString() === selectedMonth;
-        const machineMatch = selectedMachine === "all" || String(expense.machine_id) === selectedMachine;
-        const categoryMatch = selectedCategory === "all" || String(expense.category_id) === selectedCategory;
-        return yearMatch && monthMatch && machineMatch && categoryMatch;
-      });
+      const accessoryCategories = (categoriesData || []).filter((cat: any) => 
+        cat.category_name === 'Local Accessories' || cat.category_name === 'Import Accessories'
+      );
+      const accessoryCategoryIds = accessoryCategories.map((cat: any) => cat.id);
+      const isAccessoryCategory = selectedCategory !== "all" && accessoryCategoryIds.some((id: any) => String(id) === String(selectedCategory));
+      
+      let filtered;
+      if (isAccessoryCategory) {
+        // For accessories, use stock_out_history
+        filtered = (stockOutHistory || []).filter((record: any) => {
+          if (!record.item_id || record.adjustment_type) return false;
+          const expense = (expenses || []).find((exp: any) => exp.id === record.item_id);
+          if (!expense || !accessoryCategoryIds.includes(expense.category_id)) return false;
+          if (selectedCategory !== "all" && String(expense.category_id) !== selectedCategory) return false;
+          
+          const outDate = new Date(record.out_date);
+          const yearMatch = outDate.getFullYear().toString() === selectedYear;
+          const monthMatch = selectedMonth === "all" || outDate.getMonth().toString() === selectedMonth;
+          const machineMatch = selectedMachine === "all" || (record.machine_id && String(record.machine_id) === selectedMachine);
+          return yearMatch && monthMatch && machineMatch;
+        }).map((record: any) => {
+          const expense = (expenses || []).find((exp: any) => exp.id === record.item_id);
+          return {
+            ...record,
+            expense_date: record.out_date,
+            machine_id: record.machine_id,
+            category_id: expense?.category_id,
+            quantity: record.quantity,
+            total_amount: record.quantity * (expense?.item_price || 0)
+          };
+        });
+      } else {
+        // For non-accessories, use machine_expenses
+        filtered = (expenses || []).filter((expense: any) => {
+          const expenseDate = new Date(expense.expense_date);
+          const yearMatch = expenseDate.getFullYear().toString() === selectedYear;
+          const monthMatch = selectedMonth === "all" || expenseDate.getMonth().toString() === selectedMonth;
+          const machineMatch = selectedMachine === "all" || String(expense.machine_id) === selectedMachine;
+          const categoryMatch = selectedCategory === "all" || String(expense.category_id) === selectedCategory;
+          return yearMatch && monthMatch && machineMatch && categoryMatch;
+        });
+      }
       
       // Group by month
       const monthMap = new Map();
@@ -196,10 +231,11 @@ export default function Reports() {
       }
       
       if (reportType === "expense") {
-        const [expenses, machinesData, categoriesData] = await Promise.all([
+        const [expenses, machinesData, categoriesData, stockOutHistory] = await Promise.all([
           db.from('machine_expenses').select().execute(),
           db.from('machines').select().execute(),
-          db.from('expense_categories').select().execute()
+          db.from('expense_categories').select().execute(),
+          db.from('stock_out_history').select().execute()
         ]);
         
         const categoryMap = new Map();
@@ -207,14 +243,48 @@ export default function Reports() {
           categoryMap.set(cat.id, cat.category_name);
         });
         
-        const filtered = (expenses || []).filter((expense: any) => {
-          const expenseDate = new Date(expense.expense_date);
-          const yearMatch = expenseDate.getFullYear().toString() === selectedYear;
-          const monthMatch = selectedMonth === "all" || expenseDate.getMonth().toString() === selectedMonth;
-          const machineMatch = selectedMachine === "all" || String(expense.machine_id) === selectedMachine;
-          const categoryMatch = selectedCategory === "all" || String(expense.expense_category_id) === selectedCategory;
-          return yearMatch && monthMatch && machineMatch && categoryMatch;
-        });
+        const accessoryCategories = (categoriesData || []).filter((cat: any) => 
+          cat.category_name === 'Local Accessories' || cat.category_name === 'Import Accessories'
+        );
+        const accessoryCategoryIds = accessoryCategories.map((cat: any) => cat.id);
+        const isAccessoryCategory = selectedCategory !== "all" && accessoryCategoryIds.some((id: any) => String(id) === String(selectedCategory));
+        
+        let filtered;
+        if (isAccessoryCategory) {
+          // For accessories, use stock_out_history
+          filtered = (stockOutHistory || []).filter((record: any) => {
+            if (!record.item_id || record.adjustment_type) return false;
+            const expense = (expenses || []).find((exp: any) => exp.id === record.item_id);
+            if (!expense || !accessoryCategoryIds.includes(expense.category_id)) return false;
+            if (selectedCategory !== "all" && String(expense.category_id) !== selectedCategory) return false;
+            
+            const outDate = new Date(record.out_date);
+            const yearMatch = outDate.getFullYear().toString() === selectedYear;
+            const monthMatch = selectedMonth === "all" || outDate.getMonth().toString() === selectedMonth;
+            const machineMatch = selectedMachine === "all" || (record.machine_id && String(record.machine_id) === selectedMachine);
+            return yearMatch && monthMatch && machineMatch;
+          }).map((record: any) => {
+            const expense = (expenses || []).find((exp: any) => exp.id === record.item_id);
+            return {
+              ...record,
+              expense_date: record.out_date,
+              machine_id: record.machine_id,
+              category_id: expense?.category_id,
+              quantity: record.quantity,
+              total_amount: record.quantity * (expense?.item_price || 0)
+            };
+          });
+        } else {
+          // For non-accessories, use machine_expenses
+          filtered = (expenses || []).filter((expense: any) => {
+            const expenseDate = new Date(expense.expense_date);
+            const yearMatch = expenseDate.getFullYear().toString() === selectedYear;
+            const monthMatch = selectedMonth === "all" || expenseDate.getMonth().toString() === selectedMonth;
+            const machineMatch = selectedMachine === "all" || String(expense.machine_id) === selectedMachine;
+            const categoryMatch = selectedCategory === "all" || String(expense.category_id) === selectedCategory;
+            return yearMatch && monthMatch && machineMatch && categoryMatch;
+          });
+        }
         
         const isMachineRelatedCategory = selectedCategory !== "all" && machineRelatedCategories.some(cat => selectedCategoryName.toLowerCase().includes(cat.toLowerCase()));
         

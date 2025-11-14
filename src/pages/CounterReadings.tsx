@@ -69,7 +69,14 @@ export default function CounterReadings() {
         machine_name: machine.machine_name || 'Unknown Machine',
         machine_number: machine.machine_number || 'N/A',
         franchise_name: franchise?.name || 'No Franchise',
-        is_initial: true
+        is_initial: true,
+        type: 'initial',
+        machines: {
+          machine_name: machine.machine_name || 'Unknown Machine',
+          machine_number: machine.machine_number || 'N/A',
+          franchises: { name: franchise?.name || 'No Franchise' }
+        },
+        created_at: machine.installation_date || machine.created_at || new Date().toISOString()
       });
     }
   });
@@ -83,7 +90,13 @@ export default function CounterReadings() {
       machine_name: machine?.machine_name || 'Unknown Machine',
       machine_number: machine?.machine_number || 'N/A',
       franchise_name: franchise?.name || 'No Franchise',
-      is_initial: false
+      is_initial: false,
+      type: 'reading',
+      machines: {
+        machine_name: machine?.machine_name || 'Unknown Machine',
+        machine_number: machine?.machine_number || 'N/A',
+        franchises: { name: franchise?.name || 'No Franchise' }
+      }
     });
   });
   

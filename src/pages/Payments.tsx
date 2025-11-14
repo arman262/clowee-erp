@@ -363,6 +363,12 @@ export default function Payments() {
                   <div className="font-medium bg-secondary/20 rounded p-2 text-sm">{viewingPayment.remarks}</div>
                 </div>
               )}
+              {viewingPayment.created_by_user && (
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">Created By</div>
+                  <div className="font-medium">{viewingPayment.created_by_user.name || '-'}</div>
+                </div>
+              )}
               <div className="flex justify-end pt-4">
                 <Button onClick={() => setViewingPayment(null)}>Close</Button>
               </div>
