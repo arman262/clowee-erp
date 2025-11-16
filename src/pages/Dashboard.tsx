@@ -907,8 +907,8 @@ export default function Dashboard() {
 
       {/* Due List Modal */}
       <Dialog open={showDueListModal} onOpenChange={setShowDueListModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogTitle>Due List - All Sales</DialogTitle>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle>Due List - All Sales ({getFormattedPeriod()})</DialogTitle>
           <div className="space-y-3">
             {(() => {
               const salesWithDue = filteredSales

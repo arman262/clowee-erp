@@ -182,7 +182,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
             table { 
               border-collapse: collapse; 
               width: 100%; 
-              margin-top: 0.4rem;
+              margin-top: 0.2rem;
               margin-bottom: 1rem;
             }
             th, td { 
@@ -211,6 +211,8 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
             .opacity-60 { opacity: 0.6; }
             .overflow-hidden { overflow: hidden; }
             img { max-width: 100%; height: auto; }
+            .mobile-only { display: none !important; }
+            .desktop-only { display: table !important; }
           </style>
         </head>
         <body>
@@ -380,16 +382,16 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
             #invoice-print-area > *:not(#invoice-content) { display: none !important; }
             #invoice-content { 
               position: static !important;
-              transform: scale(0.75) !important;
-              transform-origin: top left !important;
-              width: 133.33% !important;
               padding: 0.5cm !important;
               background: white !important;
               max-width: none !important;
               margin: 0 !important;
             }
+            .sm\\:hidden { display: none !important; }
+            .hidden { display: block !important; }
+            .sm\\:table { display: table !important; }
             @page { 
-              margin: 0.3cm; 
+              margin: 0.3in 0.4in; 
               size: A4 portrait; 
             }
             body { 
@@ -454,7 +456,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
           {/* Invoice Info Card */}
           <div className="bg-gray-50 p-4 rounded-lg mb-4 sm:mb-6">
             {/* Desktop Table Layout */}
-            <table className="hidden sm:table" style={{ width: '100%', border: 'none' }}>
+            <table className="hidden sm:table desktop-only" style={{ width: '100%', border: 'none' }}>
               <tr>
                 <td style={{ width: '33.33%', verticalAlign: 'top', border: 'none', padding: '0.5rem' }}>
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">BILL TO</h3>
@@ -508,7 +510,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
             </table>
             
             {/* Mobile Card Layout */}
-            <div className="sm:hidden space-y-3">
+            <div className="sm:hidden mobile-only space-y-3">
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">BILL TO</h3>
                 <div className="text-sm text-gray-900">
@@ -594,8 +596,8 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
               <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                    <span className="text-sm font-medium text-blue-800">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost{(getAgreementValue('electricity_cost') || 0) > 0 ? ' - Electricity Cost' : ''})</span>
-                    <span className="text-lg font-semibold text-blue-700">৳{formatCurrency(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost - (getAgreementValue('electricity_cost') || 0))}</span>
+                    <span className="text-sm font-medium text-blue-800">Net Profit (Sales{calculatedVatAmount > 0 ? ' - VAT' : ''} - Prize Cost)</span>
+                    <span className="text-lg font-semibold text-blue-700">৳{formatCurrency(calculatedSalesAmount - calculatedVatAmount - calculatedPrizeCost )}</span>
                   </div>
                   {(() => {
                     const maintenancePercentage = getAgreementValue('maintenance_percentage') || 0;
@@ -651,7 +653,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
           {/* Payment & Bank Information */}
           <div className="mb-4 sm:mb-6">
             {/* Desktop Table Layout */}
-            <table className="hidden sm:table" style={{ width: '100%', border: 'none', borderSpacing: '0.5rem' }}>
+            <table className="hidden sm:table desktop-only" style={{ width: '100%', border: 'none', borderSpacing: '0.5rem' }}>
               <tr>
                 <td style={{ width: '50%', verticalAlign: 'top', border: 'none' }}>
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -743,7 +745,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
             </table>
             
             {/* Mobile Card Layout */}
-            <div className="sm:hidden space-y-3">
+            <div className="sm:hidden mobile-only space-y-3">
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold text-gray-900">Payment Status</h3>
