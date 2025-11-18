@@ -231,6 +231,7 @@ export const useMachineWisePrizeStock = () => {
       const prizeCategoryId = (categories || []).find((cat: any) => cat.category_name === 'Prize Purchase')?.id;
       const prizeExpenses = (expenses || []).filter((exp: any) => exp.category_id === prizeCategoryId);
       const sales = await db.from('sales').select().execute();
+      const stockOutHistory = await db.from('stock_out_history').select().execute();
       
       const machineMap = new Map();
       
@@ -264,6 +265,16 @@ export const useMachineWisePrizeStock = () => {
         if (machineId && machineMap.has(machineId)) {
           const entry = machineMap.get(machineId);
           entry.prizeOut += Number(sale.prize_out_quantity) || 0;
+        }
+      });
+      
+      (stockOutHistory || []).forEach((record: any) => {
+        if (record.adjustment_type === 'doll_add' || record.adjustment_type === 'doll_deduct') {
+          const machineId = record.machine_id;
+          if (machineId && machineMap.has(machineId)) {
+            const entry = machineMap.get(machineId);
+            entry.purchased += Number(record.quantity) || 0;
+          }
         }
       });
       

@@ -54,6 +54,67 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
   const { data: agreements } = useFranchiseAgreements(selectedMachineData?.franchise_id || '');
   const franchiseData = franchises?.find(f => f.id === selectedMachineData?.franchise_id);
   
+  // Group machines by payment duration and filter based on selected date
+  const getMachineOptions = () => {
+    if (!selectedDate || !machines) return [];
+    
+    const selectedDateObj = new Date(selectedDate);
+    const selectedDay = selectedDateObj.getDate();
+    const selectedHalf = selectedDay <= 15 ? 'first' : 'second';
+    
+    const options: Array<{ id: string; label: string; value: string; machineNumber: number }> = [];
+    
+    machines.forEach(machine => {
+      const franchise = franchises?.find(f => f.id === machine.franchise_id);
+      if (!franchise) return;
+      
+      const paymentDuration = franchise.payment_duration;
+      
+      if (paymentDuration === 'Half Month' || paymentDuration === 'Half Monthly') {
+        // For half monthly, check both halves
+        ['first', 'second'].forEach(half => {
+          const hasSalesInHalf = existingSales?.some(sale => {
+            if (sale.machine_id !== machine.id) return false;
+            const saleDate = new Date(sale.sales_date);
+            if (saleDate.getMonth() !== selectedDateObj.getMonth() || saleDate.getFullYear() !== selectedDateObj.getFullYear()) return false;
+            const saleHalf = saleDate.getDate() <= 15 ? 'first' : 'second';
+            return saleHalf === half;
+          });
+          
+          if (!hasSalesInHalf) {
+            const period = half === 'first' ? '1st Half' : '2nd Half';
+            options.push({
+              id: `${machine.id}-${half}`,
+              label: `${machine.machine_name} - ${machine.machine_number} (${period})`,
+              value: machine.id,
+              machineNumber: machine.machine_number || 0
+            });
+          }
+        });
+      } else {
+        // For monthly, check once
+        const hasSalesInMonth = existingSales?.some(sale => {
+          if (sale.machine_id !== machine.id) return false;
+          const saleDate = new Date(sale.sales_date);
+          return saleDate.getMonth() === selectedDateObj.getMonth() && saleDate.getFullYear() === selectedDateObj.getFullYear();
+        });
+        
+        if (!hasSalesInMonth) {
+          options.push({
+            id: machine.id,
+            label: `${machine.machine_name} - ${machine.machine_number} (Full Month)`,
+            value: machine.id,
+            machineNumber: machine.machine_number || 0
+          });
+        }
+      }
+    });
+    
+    return options.sort((a, b) => a.machineNumber - b.machineNumber);
+  };
+  
+  const machineOptions = getMachineOptions();
+  
   // Get agreement values or fallback to franchise values (matching InvoicePrint logic)
   const getAgreementValue = (field: string) => {
     if (!agreements || agreements.length === 0 || !selectedDate) {
@@ -292,23 +353,6 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Machine Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="machine">Select Machine</Label>
-            <Select value={selectedMachine} onValueChange={setSelectedMachine}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a machine" />
-              </SelectTrigger>
-              <SelectContent>
-                {machines?.sort((a, b) => (a.machine_number || 0) - (b.machine_number || 0)).map((machine) => (
-                  <SelectItem key={machine.id} value={machine.id}>
-                    {machine.machine_name} - {machine.machine_number}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Date Selection */}
           <div className="space-y-2">
             <Label htmlFor="date">Sales Date</Label>
@@ -319,6 +363,28 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
               onChange={(e) => setSelectedDate(e.target.value)}
               className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:invert"
             />
+          </div>
+
+          {/* Machine Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="machine">Select Machine</Label>
+            <Select value={selectedMachine} onValueChange={setSelectedMachine} disabled={!selectedDate}>
+              <SelectTrigger>
+                <SelectValue placeholder={selectedDate ? "Choose a machine" : "Select sales date first"} />
+              </SelectTrigger>
+              <SelectContent>
+                {machineOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedDate && machineOptions.length === 0 && (
+              <p className="text-xs text-destructive">
+                No machines available for this period (all have existing sales)
+              </p>
+            )}
           </div>
 
 

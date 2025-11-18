@@ -41,7 +41,9 @@ export default function Inventory() {
         accessoryCategoryIds.includes(exp.category_id)
       );
       
-      return accessoryExpenses.map((exp: any) => {
+      const stockInItems = (stockOut || []).filter((record: any) => record.adjustment_type === 'stock_in');
+      
+      const combinedData = [...accessoryExpenses.map((exp: any) => {
         const stockOutQuantity = (stockOut || []).filter((out: any) => out.item_id === exp.id)
           .reduce((sum: number, out: any) => sum + (out.quantity || 0), 0);
         
@@ -54,7 +56,17 @@ export default function Inventory() {
           total_amount: presentTotalAmount,
           category_name: accessoryCategories.find((cat: any) => cat.id === exp.category_id)?.category_name
         };
-      });
+      }), ...stockInItems.map((item: any) => ({
+        id: `stock_in_${item.id}`,
+        expense_date: item.out_date,
+        category_name: item.category,
+        item_name: item.item_name,
+        quantity: item.quantity,
+        item_price: item.unit_price,
+        total_amount: item.total_price
+      }))];
+      
+      return combinedData;
     }
   });
   
@@ -76,6 +88,7 @@ export default function Inventory() {
   
   const [showDollAdjustModal, setShowDollAdjustModal] = useState(false);
   const [showStockOutModal, setShowStockOutModal] = useState(false);
+  const [showStockInModal, setShowStockInModal] = useState(false);
   const [showEditStockOutModal, setShowEditStockOutModal] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<any>(null);
   const [selectedStockOut, setSelectedStockOut] = useState<any>(null);
@@ -96,9 +109,10 @@ export default function Inventory() {
   const handleDeleteStockOut = async (id: string) => {
     if (!confirm('Are you sure you want to delete this record?')) return;
     try {
-      await db.from('stock_out_history').delete().eq('id', id);
+      await db.from('stock_out_history').delete().eq('id', id).execute();
       queryClient.invalidateQueries({ queryKey: ['stock-out-history'] });
       queryClient.invalidateQueries({ queryKey: ['accessories-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['machine_wise_prize_stock'] });
       toast.success('Record deleted successfully');
     } catch (error: any) {
       toast.error(`Failed to delete: ${error.message}`);
@@ -112,10 +126,16 @@ export default function Inventory() {
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">Inventory Management</h1>
           <p className="text-muted-foreground mt-1">Manage stock, track items, and monitor inventory levels</p>
         </div>
-        <Button onClick={() => setShowStockOutModal(true)} className="bg-gradient-primary">
-          <Plus className="h-4 w-4 mr-2" />
-          Stock Out
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowStockInModal(true)} className="bg-green-600 hover:bg-green-700">
+            <Plus className="h-4 w-4 mr-2" />
+            Stock In
+          </Button>
+          <Button onClick={() => setShowStockOutModal(true)} className="bg-gradient-primary">
+            <Plus className="h-4 w-4 mr-2" />
+            Stock Out
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -497,7 +517,7 @@ export default function Inventory() {
                   </TableRow>
                 ) : (
                   stockOutHistory.map((record: any) => {
-                    const itemName = accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-';
+                    const itemName = record.adjustment_type === 'stock_in' ? record.item_name : (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-');
                     const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
                     const user = users.find((u: any) => u.id === record.handled_by);
                     const userName = user?.first_name || (record.handled_by && typeof record.handled_by === 'string' && !record.handled_by.includes('-') ? record.handled_by : '-');
@@ -506,6 +526,8 @@ export default function Inventory() {
                         return <Badge className="bg-blue-500">Doll Add</Badge>;
                       } else if (record.adjustment_type === 'doll_deduct') {
                         return <Badge className="bg-red-500">Doll Deduct</Badge>;
+                      } else if (record.adjustment_type === 'stock_in') {
+                        return <Badge className="bg-green-500">Stock In</Badge>;
                       }
                       return <Badge className="bg-red-500">Stock Out</Badge>;
                     };
@@ -540,7 +562,7 @@ export default function Inventory() {
               <div className="text-center py-8 text-muted-foreground">No stock out history</div>
             ) : (
               stockOutHistory.map((record: any) => {
-                const itemName = accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-';
+                const itemName = record.adjustment_type === 'stock_in' ? record.item_name : (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-');
                 const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
                 const user = users.find((u: any) => u.id === record.handled_by);
                 const userName = user?.first_name || (record.handled_by && typeof record.handled_by === 'string' && !record.handled_by.includes('-') ? record.handled_by : '-');
@@ -549,6 +571,8 @@ export default function Inventory() {
                     return <Badge className="bg-blue-500">Doll Add</Badge>;
                   } else if (record.adjustment_type === 'doll_deduct') {
                     return <Badge className="bg-red-500">Doll Deduct</Badge>;
+                  } else if (record.adjustment_type === 'stock_in') {
+                    return <Badge className="bg-green-500">Stock In</Badge>;
                   }
                   return <Badge className="bg-red-500">Stock Out</Badge>;
                 };
@@ -599,6 +623,7 @@ export default function Inventory() {
         </CardContent>
       </Card>
       <AdjustDollStockModal open={showDollAdjustModal} onClose={() => setShowDollAdjustModal(false)} machine={selectedMachine} />
+      <StockInModal open={showStockInModal} onClose={() => setShowStockInModal(false)} />
       <StockOutModal open={showStockOutModal} onClose={() => setShowStockOutModal(false)} accessoriesData={accessoriesData} machines={machines || []} />
       <EditStockOutModal open={showEditStockOutModal} onClose={() => setShowEditStockOutModal(false)} stockOut={selectedStockOut} accessoriesData={accessoriesData} machines={machines || []} />
     </div>
@@ -606,15 +631,42 @@ export default function Inventory() {
 }
 
 function AdjustDollStockModal({ open, onClose, machine }: any) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [adjustType, setAdjustType] = useState<'add' | 'deduct'>('add');
   const [quantity, setQuantity] = useState(0);
   const [remarks, setRemarks] = useState('');
   
   if (!machine) return null;
   
-  const handleAdjust = () => {
-    alert(`Adjust ${adjustType} ${quantity} dolls for ${machine.machineName}. Remarks: ${remarks}`);
-    onClose();
+  const handleAdjust = async () => {
+    if (quantity <= 0) {
+      toast.error('Please enter a valid quantity');
+      return;
+    }
+
+    try {
+      await db.from('stock_out_history').insert({
+        out_date: new Date().toISOString().split('T')[0],
+        machine_id: machine.machineId,
+        item_id: null,
+        quantity: adjustType === 'add' ? quantity : -quantity,
+        remarks: remarks,
+        handled_by: user?.first_name || null,
+        adjustment_type: adjustType === 'add' ? 'doll_add' : 'doll_deduct'
+      }).select().single();
+
+      queryClient.invalidateQueries({ queryKey: ['machine_wise_prize_stock'] });
+      queryClient.invalidateQueries({ queryKey: ['prize_stock'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-out-history'] });
+      
+      setQuantity(0);
+      setRemarks('');
+      onClose();
+      toast.success(`Successfully ${adjustType === 'add' ? 'added' : 'deducted'} ${quantity} dolls`);
+    } catch (error: any) {
+      toast.error(`Failed to adjust stock: ${error.message || 'Unknown error'}`);
+    }
   };
   
   return (
@@ -749,12 +801,115 @@ function StockOutModal({ open, onClose, accessoriesData, machines }: any) {
   );
 }
 
+function StockInModal({ open, onClose }: any) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [category, setCategory] = useState('');
+  const [itemName, setItemName] = useState('');
+  const [quantity, setQuantity] = useState(0);
+  const [unitPrice, setUnitPrice] = useState(0);
+  const [totalPrice, setTotalPrice] = useState(0);
+
+  useEffect(() => {
+    setTotalPrice(quantity * unitPrice);
+  }, [quantity, unitPrice]);
+
+  const handleSubmit = async () => {
+    if (!category || !itemName || quantity <= 0 || unitPrice <= 0) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    try {
+      await db.from('stock_out_history').insert({
+        out_date: date,
+        machine_id: null,
+        item_id: null,
+        quantity: quantity,
+        category: category,
+        item_name: itemName,
+        unit_price: unitPrice,
+        total_price: totalPrice,
+        remarks: 'Stock In',
+        handled_by: user?.first_name || null,
+        adjustment_type: 'stock_in'
+      }).select().single();
+
+      queryClient.invalidateQueries({ queryKey: ['stock-out-history'] });
+      queryClient.invalidateQueries({ queryKey: ['accessories-inventory'] });
+      
+      setDate(new Date().toISOString().split('T')[0]);
+      setCategory('');
+      setItemName('');
+      setQuantity(0);
+      setUnitPrice(0);
+      setTotalPrice(0);
+      onClose();
+      toast.success('Stock in recorded successfully');
+    } catch (error: any) {
+      toast.error(`Failed to record stock in: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Stock In</DialogTitle>
+          <DialogDescription>Add new stock to accessories inventory.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Date *</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div>
+            <Label>Category *</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Import Accessories">Import Accessories</SelectItem>
+                <SelectItem value="Local Accessories">Local Accessories</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Item Name *</Label>
+            <Input value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Enter item name" />
+          </div>
+          <div>
+            <Label>Stock Quantity *</Label>
+            <Input type="number" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} />
+          </div>
+          <div>
+            <Label>Unit Price *</Label>
+            <Input type="number" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(Number(e.target.value))} />
+          </div>
+          <div>
+            <Label>Total Price</Label>
+            <Input value={`৳${totalPrice.toFixed(2)}`} disabled className="bg-secondary" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700">Save</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function EditStockOutModal({ open, onClose, stockOut, accessoriesData, machines }: any) {
   const queryClient = useQueryClient();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [machineId, setMachineId] = useState('none');
   const [quantity, setQuantity] = useState(0);
   const [remarks, setRemarks] = useState('');
+  const [category, setCategory] = useState('');
+  const [itemName, setItemName] = useState('');
+  const [unitPrice, setUnitPrice] = useState(0);
+  const [totalPrice, setTotalPrice] = useState(0);
 
   useEffect(() => {
     if (stockOut) {
@@ -762,8 +917,18 @@ function EditStockOutModal({ open, onClose, stockOut, accessoriesData, machines 
       setMachineId(stockOut.machine_id || 'none');
       setQuantity(stockOut.quantity || 0);
       setRemarks(stockOut.remarks || '');
+      setCategory(stockOut.category || '');
+      setItemName(stockOut.item_name || '');
+      setUnitPrice(stockOut.unit_price || 0);
+      setTotalPrice(stockOut.total_price || 0);
     }
   }, [stockOut]);
+
+  useEffect(() => {
+    if (stockOut?.adjustment_type === 'stock_in') {
+      setTotalPrice(quantity * unitPrice);
+    }
+  }, [quantity, unitPrice, stockOut?.adjustment_type]);
 
   const handleUpdate = async () => {
     if (!stockOut || quantity <= 0) {
@@ -772,13 +937,28 @@ function EditStockOutModal({ open, onClose, stockOut, accessoriesData, machines 
     }
 
     try {
+      const updateData: any = {
+        out_date: date,
+        machine_id: machineId !== 'none' ? machineId : null,
+        quantity,
+        remarks
+      };
+
+      if (stockOut.adjustment_type === 'stock_in') {
+        updateData.category = category;
+        updateData.item_name = itemName;
+        updateData.unit_price = unitPrice;
+        updateData.total_price = totalPrice;
+      }
+
       await db.from('stock_out_history')
-        .update({ out_date: date, machine_id: machineId !== 'none' ? machineId : null, quantity, remarks })
+        .update(updateData)
         .eq('id', stockOut.id)
         .select().single();
 
       queryClient.invalidateQueries({ queryKey: ['stock-out-history'] });
       queryClient.invalidateQueries({ queryKey: ['accessories-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['machine_wise_prize_stock'] });
       onClose();
       toast.success('Record updated successfully');
     } catch (error: any) {
@@ -788,13 +968,13 @@ function EditStockOutModal({ open, onClose, stockOut, accessoriesData, machines 
 
   if (!stockOut) return null;
 
-  const itemName = accessoriesData.find((item: any) => item.id === stockOut.item_id)?.item_name || '-';
+  const displayItemName = stockOut.adjustment_type === 'stock_in' ? stockOut.item_name : (accessoriesData.find((item: any) => item.id === stockOut.item_id)?.item_name || '-');
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Stock Out</DialogTitle>
+          <DialogTitle>Edit {stockOut.adjustment_type === 'stock_in' ? 'Stock In' : 'Stock Out'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
@@ -813,10 +993,37 @@ function EditStockOutModal({ open, onClose, stockOut, accessoriesData, machines 
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Item Name</Label>
-            <Input value={itemName} disabled />
-          </div>
+          {stockOut.adjustment_type === 'stock_in' ? (
+            <>
+              <div>
+                <Label>Category</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Import Accessories">Import Accessories</SelectItem>
+                    <SelectItem value="Local Accessories">Local Accessories</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Item Name</Label>
+                <Input value={itemName} onChange={(e) => setItemName(e.target.value)} />
+              </div>
+              <div>
+                <Label>Unit Price</Label>
+                <Input type="number" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(Number(e.target.value))} />
+              </div>
+              <div>
+                <Label>Total Price</Label>
+                <Input value={`৳${totalPrice.toFixed(2)}`} disabled className="bg-secondary" />
+              </div>
+            </>
+          ) : (
+            <div>
+              <Label>Item Name</Label>
+              <Input value={displayItemName} disabled />
+            </div>
+          )}
           <div>
             <Label>Quantity *</Label>
             <Input type="number" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} />

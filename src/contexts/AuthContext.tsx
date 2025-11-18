@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3009/api';
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       const result = await response.json();
+      console.log('Login response:', result);
       
       if (!response.ok || result.error) {
         throw new Error(result.error || 'Invalid credentials');
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: userData.role
       }));
     } catch (error) {
+      console.error('Login error:', error);
       throw error;
     }
   };
