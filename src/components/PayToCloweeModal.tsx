@@ -21,6 +21,13 @@ interface PayToCloweeModalProps {
 export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) {
   const [selectedMachine, setSelectedMachine] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
+  
+  // Reset machine selection when date changes
+  const handleDateChange = (newDate: string) => {
+    setSelectedDate(newDate);
+    setSelectedMachine(""); // Clear machine selection
+    setCalculations(null); // Clear calculations
+  };
   const [coinAdjustment, setCoinAdjustment] = useState("");
   const [prizeAdjustment, setPrizeAdjustment] = useState("");
   const [adjustmentNotes, setAdjustmentNotes] = useState("");
@@ -49,8 +56,21 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
   const { data: counterReadings } = useMachineCounters();
   const { data: existingSales, refetch: refetchSales } = useSales();
   const createSale = useCreateSale();
+  
+  // Extract actual machine ID from selected value
+  const getActualMachineId = () => {
+    if (!selectedMachine) return '';
+    // For half-monthly: "uuid-first" or "uuid-second", for monthly: just "uuid"
+    if (selectedMachine.endsWith('-first')) {
+      return selectedMachine.slice(0, -6); // Remove "-first"
+    }
+    if (selectedMachine.endsWith('-second')) {
+      return selectedMachine.slice(0, -7); // Remove "-second"
+    }
+    return selectedMachine;
+  };
 
-  const selectedMachineData = machines?.find(m => m.id === selectedMachine);
+  const selectedMachineData = machines?.find(m => m.id === getActualMachineId());
   const { data: agreements } = useFranchiseAgreements(selectedMachineData?.franchise_id || '');
   const franchiseData = franchises?.find(f => f.id === selectedMachineData?.franchise_id);
   
@@ -60,7 +80,10 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
     
     const selectedDateObj = new Date(selectedDate);
     const selectedDay = selectedDateObj.getDate();
-    const selectedHalf = selectedDay <= 15 ? 'first' : 'second';
+    const selectedMonth = selectedDateObj.getMonth();
+    const selectedYear = selectedDateObj.getFullYear();
+    const lastDayOfMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const isEndOfMonth = selectedDay === lastDayOfMonth;
     
     const options: Array<{ id: string; label: string; value: string; machineNumber: number }> = [];
     
@@ -76,7 +99,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
           const hasSalesInHalf = existingSales?.some(sale => {
             if (sale.machine_id !== machine.id) return false;
             const saleDate = new Date(sale.sales_date);
-            if (saleDate.getMonth() !== selectedDateObj.getMonth() || saleDate.getFullYear() !== selectedDateObj.getFullYear()) return false;
+            if (saleDate.getMonth() !== selectedMonth || saleDate.getFullYear() !== selectedYear) return false;
             const saleHalf = saleDate.getDate() <= 15 ? 'first' : 'second';
             return saleHalf === half;
           });
@@ -86,20 +109,20 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
             options.push({
               id: `${machine.id}-${half}`,
               label: `${machine.machine_name} - ${machine.machine_number} (${period})`,
-              value: machine.id,
+              value: `${machine.id}-${half}`,
               machineNumber: machine.machine_number || 0
             });
           }
         });
       } else {
-        // For monthly, check once
+        // For monthly, only show if it's end of month OR if no sales exist
         const hasSalesInMonth = existingSales?.some(sale => {
           if (sale.machine_id !== machine.id) return false;
           const saleDate = new Date(sale.sales_date);
-          return saleDate.getMonth() === selectedDateObj.getMonth() && saleDate.getFullYear() === selectedDateObj.getFullYear();
+          return saleDate.getMonth() === selectedMonth && saleDate.getFullYear() === selectedYear;
         });
         
-        if (!hasSalesInMonth) {
+        if (!hasSalesInMonth && isEndOfMonth) {
           options.push({
             id: machine.id,
             label: `${machine.machine_name} - ${machine.machine_number} (Full Month)`,
@@ -132,21 +155,27 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
   };
 
   const calculateSales = () => {
+    const actualMachineId = getActualMachineId();
+    const machineData = machines?.find(m => m.id === actualMachineId);
+    const franchise = franchises?.find(f => f.id === machineData?.franchise_id);
+    
     console.log('Calculate button clicked');
     console.log('Data check:', { 
       selectedMachine, 
+      actualMachineId,
       selectedDate, 
-      franchiseData: !!franchiseData,
+      machineData: !!machineData,
+      franchise: !!franchise,
       counterReadings: counterReadings?.length || 0
     });
     
-    if (!selectedMachine || !selectedDate || !franchiseData) {
-      console.log('Missing required data:', { selectedMachine, selectedDate, franchiseData });
+    if (!selectedMachine || !selectedDate || !franchise) {
+      console.log('Missing required data:', { selectedMachine, selectedDate, franchise });
       alert('Please select both machine and date before calculating.');
       return;
     }
 
-    const machineReadings = counterReadings?.filter(r => r.machine_id === selectedMachine) || [];
+    const machineReadings = counterReadings?.filter(r => r.machine_id === actualMachineId) || [];
     const initialReading = null; // No initial readings in machine_counters table
     const sortedReadings = machineReadings.sort((a, b) => new Date(a.reading_date).getTime() - new Date(b.reading_date).getTime());
     
@@ -167,8 +196,8 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
       .filter(r => new Date(r.reading_date) < new Date(currentReading.reading_date))
       .pop();
 
-    let previousCoinCounter = initialReading?.coin_counter || selectedMachineData?.initial_coin_counter || 0;
-    let previousPrizeCounter = initialReading?.prize_counter || selectedMachineData?.initial_prize_counter || 0;
+    let previousCoinCounter = initialReading?.coin_counter || machineData?.initial_coin_counter || 0;
+    let previousPrizeCounter = initialReading?.prize_counter || machineData?.initial_prize_counter || 0;
 
     if (previousReading) {
       previousCoinCounter = previousReading.coin_counter;
@@ -280,15 +309,19 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
   };
 
   const handleSubmit = async () => {
-    if (!calculations || !selectedMachine || !selectedDate || !franchiseData) {
+    const actualMachineId = getActualMachineId();
+    const machineData = machines?.find(m => m.id === actualMachineId);
+    const franchise = franchises?.find(f => f.id === machineData?.franchise_id);
+    
+    if (!calculations || !selectedMachine || !selectedDate || !franchise) {
       console.log('Missing required data for submission');
       alert('Please fill in all required fields and calculate sales first.');
       return;
     }
 
     // Check for duplicate sales
-    if (checkDuplicateSales(selectedDate, selectedMachine, franchiseData.id)) {
-      const period = (franchiseData.payment_duration === 'Half Month' || franchiseData.payment_duration === 'Half Monthly') ? 'half-month' : 'month';
+    if (checkDuplicateSales(selectedDate, actualMachineId, franchise.id)) {
+      const period = (franchise.payment_duration === 'Half Month' || franchise.payment_duration === 'Half Monthly') ? 'half-month' : 'month';
       alert(`A sales record already exists for this machine in the same ${period} billing period. Please check existing records.`);
       return;
     }
@@ -296,8 +329,8 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
     try {
 
       const salesData = {
-        machine_id: selectedMachine,
-        franchise_id: franchiseData.id,
+        machine_id: actualMachineId,
+        franchise_id: franchise.id,
         sales_date: selectedDate,
         // invoice_number will be generated on server side automatically
         coin_sales: Math.round(Math.max(0, calculations.adjustedCoinSales)),
@@ -360,7 +393,7 @@ export function PayToCloweeModal({ open, onOpenChange }: PayToCloweeModalProps) 
               id="date"
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => handleDateChange(e.target.value)}
               className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:invert"
             />
           </div>

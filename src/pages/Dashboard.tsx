@@ -90,7 +90,7 @@ export default function Dashboard() {
       action: () => navigate('/users')
     }
   ];
-  
+
   const { data: sales } = useSales();
   const { data: machines } = useMachines();
   const { data: expenses } = useMachineExpenses();
@@ -102,7 +102,7 @@ export default function Dashboard() {
   const createFranchise = useCreateFranchise();
   const createMachine = useCreateMachine();
   const createExpense = useCreateMachineExpense();
-  
+
 
   // Filter data based on selected period
   const filteredSales = sales?.filter(sale => {
@@ -147,10 +147,10 @@ export default function Dashboard() {
   // Calculations
   const activeMachines = machines?.filter(machine => !machine.notes?.includes('[STATUS:inactive]')) || [];
   const totalSales = filteredSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0);
-  
+
   // Machine-wise sales for highest/lowest from filtered sales data
   const machineSalesMap = new Map();
-  
+
   filteredSales.forEach(sale => {
     if (sale.machine_id && sale.sales_amount) {
       const machineId = sale.machine_id;
@@ -162,21 +162,21 @@ export default function Dashboard() {
       });
     }
   });
-  
+
   const machineSales = Array.from(machineSalesMap.values()).filter(machine => machine.total > 0);
-  
+
   const highestMachine = machineSales.length > 0 ? machineSales.reduce((max, current) => current.total > max.total ? current : max) : null;
   const lowestMachine = machineSales.length > 0 ? machineSales.reduce((min, current) => current.total < min.total ? current : min) : null;
-  
+
   const highestMachineSales = highestMachine?.total || 0;
   const lowestMachineSales = lowestMachine?.total || 0;
   const avgSalesPerMachine = activeMachines.length > 0 ? totalSales / activeMachines.length : 0;
-  
+
   const totalPaymentReceived = filteredPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
 
   const totalPrizePurchase = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0);
   const totalPrizeQuantity = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0);
-  
+
   const totalPayToClowee = filteredSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
   const totalDue = totalPayToClowee - totalPaymentReceived;
 
@@ -185,9 +185,9 @@ export default function Dashboard() {
   const calculateBankBalance = (bankName: string) => {
     const bank = banks?.find(b => b.bank_name === bankName);
     if (!bank) return 0;
-    
+
     let balance = 0;
-    
+
     // Add money logs (add/deduct)
     if (moneyLogs && moneyLogs.length > 0) {
       balance += moneyLogs
@@ -197,13 +197,13 @@ export default function Dashboard() {
           return log.action_type === 'add' ? sum + amount : sum - amount;
         }, 0);
     }
-    
+
     // Add payments received
     balance += payments?.filter(payment => payment.bank_id === bank.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
-    
+
     // Subtract expenses
     balance -= expenses?.filter(expense => expense.bank_id === bank.id).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
-    
+
     return balance;
   };
 
@@ -216,16 +216,16 @@ export default function Dashboard() {
   const getChartData = () => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentYear = filterType === 'year' ? parseInt(selectedYear) : new Date(selectedMonth).getFullYear();
-    
+
     return months.map((month, index) => {
       const monthSales = sales?.filter(sale => {
         if (!sale.sales_date) return false;
         const saleDate = new Date(sale.sales_date);
         return saleDate.getFullYear() === currentYear && saleDate.getMonth() === index;
       }) || [];
-      
+
       const salesAmount = monthSales.reduce((sum, sale) => sum + Number(sale.sales_amount || 0), 0);
-      
+
       return {
         month,
         sales: Math.round(salesAmount * 100) / 100
@@ -249,7 +249,7 @@ export default function Dashboard() {
   // Get all transactions with pagination
   const getAllTransactions = () => {
     const transactions = [];
-    
+
     // Add sales transactions
     sales?.forEach(sale => {
       const machine = machines?.find(m => m.id === sale.machine_id);
@@ -265,7 +265,7 @@ export default function Dashboard() {
         color: 'text-success'
       });
     });
-    
+
     // Add expense transactions
     expenses?.forEach(expense => {
       const machine = machines?.find(m => m.id === expense.machine_id);
@@ -281,7 +281,7 @@ export default function Dashboard() {
         color: 'text-destructive'
       });
     });
-    
+
     // Add payment transactions
     payments?.forEach(payment => {
       const machine = machines?.find(m => m.id === payment.machine_id);
@@ -297,7 +297,7 @@ export default function Dashboard() {
         color: 'text-primary'
       });
     });
-    
+
     // Add counter reading transactions
     counterReadings?.forEach(reading => {
       const machine = machines?.find(m => m.id === reading.machine_id);
@@ -313,10 +313,10 @@ export default function Dashboard() {
         color: 'text-accent'
       });
     });
-    
+
     return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
   };
-  
+
   const allTransactions = getAllTransactions();
   const totalPages = transactionLimit === -1 ? 1 : Math.ceil(allTransactions.length / transactionLimit);
   const startIndex = (transactionPage - 1) * transactionLimit;
@@ -631,39 +631,39 @@ export default function Dashboard() {
               <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <defs>
                   <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.3}/>
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.3} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#9CA3AF" 
+                <XAxis
+                  dataKey="month"
+                  stroke="#9CA3AF"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                 />
-                <YAxis 
-                  stroke="#9CA3AF" 
+                <YAxis
+                  stroke="#9CA3AF"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => `৳${formatNumber(value)}`} 
+                  tickFormatter={(value) => `৳${formatNumber(value)}`}
                 />
-                <Tooltip 
+                <Tooltip
                   formatter={(value, name) => [`৳${formatCurrency(Number(value))}`, 'Sales Amount']}
                   labelStyle={{ color: '#F9FAFB', fontWeight: 'bold' }}
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)', 
+                  contentStyle={{
+                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
                     border: '1px solid #374151',
                     borderRadius: '8px',
                     boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
                   }}
                   cursor={{ fill: 'rgba(16, 185, 129, 0.1)' }}
                 />
-                <Bar 
-                  dataKey="sales" 
-                  fill="url(#salesGradient)" 
+                <Bar
+                  dataKey="sales"
+                  fill="url(#salesGradient)"
                   radius={[6, 6, 0, 0]}
                   stroke="#10B981"
                   strokeWidth={1}
@@ -699,39 +699,39 @@ export default function Dashboard() {
               })()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#9CA3AF" 
+                <XAxis
+                  dataKey="month"
+                  stroke="#9CA3AF"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                 />
-                <YAxis 
-                  stroke="#9CA3AF" 
+                <YAxis
+                  stroke="#9CA3AF"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => `৳${formatNumber(value)}`} 
+                  tickFormatter={(value) => `৳${formatNumber(value)}`}
                 />
-                <Tooltip 
+                <Tooltip
                   formatter={(value, name) => [`৳${formatCurrency(Number(value))}`, 'Revenue']}
                   labelStyle={{ color: '#F9FAFB', fontWeight: 'bold' }}
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)', 
+                  contentStyle={{
+                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
                     border: '1px solid #374151',
                     borderRadius: '8px',
                     boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
                   }}
                   cursor={{ stroke: '#F59E0B', strokeWidth: 2 }}
                 />
-                <Area 
+                <Area
                   type="monotone"
-                  dataKey="revenue" 
+                  dataKey="revenue"
                   stroke="#F59E0B"
                   strokeWidth={3}
                   fill="url(#revenueGradient)"
@@ -744,23 +744,23 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       {canEdit && (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {quickActions.map((action, index) => (
-          <Card key={index} className="bg-gradient-glass border-border shadow-card hover:shadow-neon/10 transition-all duration-200 cursor-pointer group" onClick={action.action}>
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-3 group-hover:shadow-neon transition-all duration-200">
-                <action.icon className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <CardTitle className="text-lg text-foreground">
-                {action.title}
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                {action.description}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          {quickActions.map((action, index) => (
+            <Card key={index} className="bg-gradient-glass border-border shadow-card hover:shadow-neon/10 transition-all duration-200 cursor-pointer group" onClick={action.action}>
+              <CardHeader className="text-center pb-4">
+                <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-3 group-hover:shadow-neon transition-all duration-200">
+                  <action.icon className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <CardTitle className="text-lg text-foreground">
+                  {action.title}
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  {action.description}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Modals */}
@@ -813,7 +813,7 @@ export default function Dashboard() {
                 const machineSalesData = filteredSales
                   .filter(sale => sale.machines?.machine_name === machine.machineName)
                   .sort((a, b) => new Date(b.sales_date).getTime() - new Date(a.sales_date).getTime());
-                
+
                 return (
                   <div key={index} className="border border-border rounded-lg p-4 bg-gradient-glass">
                     <div className="space-y-2">
@@ -821,7 +821,7 @@ export default function Dashboard() {
                         <div key={sale.id} className="flex items-center justify-between p-2 rounded bg-secondary/30">
                           <div className="flex items-center gap-2">
                             <Calendar className="h-3 w-3 text-muted-foreground" />
-                          <div className="font-bold text-foreground">{machine.machineName}</div>  
+                            <div className="font-bold text-foreground">{machine.machineName}</div>
                             <span className="text-sm">{format(new Date(sale.sales_date), 'd MMM yyyy')}</span>
                           </div>
                           <span className="text-sm font-medium text-success">৳{formatCurrency(sale.sales_amount)}</span>
@@ -853,7 +853,7 @@ export default function Dashboard() {
                         <div key={sale.id} className="flex items-center justify-between p-2 rounded bg-secondary/30">
                           <div className="flex items-center gap-2">
                             <Calendar className="h-3 w-3 text-muted-foreground" />
-                          <div className="font-bold text-foreground">{machine.machineName}</div>
+                            <div className="font-bold text-foreground">{machine.machineName}</div>
                             <span className="text-sm">{format(new Date(sale.sales_date), 'd MMM yyyy')}</span>
                           </div>
                           <span className="text-sm font-medium text-success">৳{formatCurrency(sale.sales_amount)}</span>
@@ -917,7 +917,7 @@ export default function Dashboard() {
                   const salePayments = filteredPayments.filter(p => p.invoice_id === sale.id);
                   const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
                   const due = payToClowee - totalPaid;
-                  
+
                   return {
                     id: sale.id,
                     machineName: sale.machines?.machine_name || 'Unknown Machine',
@@ -929,7 +929,7 @@ export default function Dashboard() {
                 })
                 .filter(sale => sale.due > 0)
                 .sort((a, b) => new Date(b.salesDate).getTime() - new Date(a.salesDate).getTime());
-              
+
               return salesWithDue.length > 0 ? (
                 <div className="space-y-2">
                   {salesWithDue.map((sale) => (
@@ -1012,7 +1012,7 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-              
+
               {/* Scrollable Transaction List */}
               <ScrollArea className="h-80">
                 <div className="space-y-3 pr-4">

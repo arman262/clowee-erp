@@ -25,68 +25,91 @@ export function useUsers() {
   };
 
   const addUser = async (userData: { name: string; email: string; password: string; role: string }) => {
-    try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3009/api';
-      const response = await fetch(`${API_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: userData.name,
-          email: userData.email,
-          password: userData.password,
-          role: userData.role
-        })
-      });
-      
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.error || 'Failed to create user via API');
-      }
-      
-      const { data } = await db
-        .from("users")
-        .insert({
-          name: userData.name,
-          email: userData.email,
-          password_hash: userData.password,
-          role: userData.role
-        })
-        .select()
-        .single();
-
-      setUsers(prev => [data, ...prev]);
-      
-      const storedUser = localStorage.getItem('clowee_user');
-      const userId = storedUser ? JSON.parse(storedUser).user.id : null;
-      await createNotification('Success', `New user ${userData.name || userData.email} created`, 'Users', userId);
-      
-      return data;
-    } catch (error) {
-      console.error('Add user error:', error);
-      throw error;
+    const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
+    const response = await fetch(`${API_URL}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: userData.name,
+        email: userData.email,
+        password: userData.password,
+        role: userData.role
+      })
+    });
+    
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.error || 'Failed to create user via API');
     }
+    
+    await fetchUsers();
+    
+    const storedUser = localStorage.getItem('clowee_user');
+    const userId = storedUser ? JSON.parse(storedUser).user.id : null;
+    await createNotification('Success', `New user ${userData.name || userData.email} created`, 'Users', userId);
   };
 
   const updateUser = async (id: string, userData: { name: string; email: string; password: string; role: string }) => {
     try {
-      let updateData: any = {
-        name: userData.name,
-        email: userData.email,
-        role: userData.role
-      };
-
+      const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
+      
       if (userData.password && userData.password.trim() !== '') {
-        updateData.password_hash = userData.password;
+        console.log('Updating user with new password');
+        const tempEmail = `temp_${Date.now()}@temp.com`;
+        
+        const registerResponse = await fetch(`${API_URL}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'temp',
+            email: tempEmail,
+            password: userData.password,
+            role: 'user'
+          })
+        });
+        
+        if (!registerResponse.ok) {
+          throw new Error('Failed to hash password');
+        }
+        
+        const { data: tempUser } = await db
+          .from("users")
+          .select("password_hash")
+          .eq("email", tempEmail)
+          .single();
+        
+        console.log('Got hashed password from temp user');
+        
+        const { data: updated } = await db
+          .from("users")
+          .update({
+            name: userData.name,
+            email: userData.email,
+            role: userData.role,
+            password_hash: tempUser.password_hash
+          })
+          .eq("id", id)
+          .select()
+          .single();
+        
+        console.log('Updated user:', updated);
+        
+        await db
+          .from("users")
+          .delete()
+          .eq("email", tempEmail);
+      } else {
+        await db
+          .from("users")
+          .update({
+            name: userData.name,
+            email: userData.email,
+            role: userData.role
+          })
+          .eq("id", id);
       }
-
-      const { data } = await db
-        .from("users")
-        .update(updateData)
-        .eq("id", id)
-        .select()
-        .single();
-
-      setUsers(prev => prev.map(user => user.id === id ? data : user));
+      
+      await fetchUsers();
       
       const storedUser = localStorage.getItem('clowee_user');
       const userId = storedUser ? JSON.parse(storedUser).user.id : null;
