@@ -7,7 +7,7 @@
 DB_NAME="clowee_erp"
 DB_USER="postgres"
 DB_HOST="localhost"
-DB_PORT="5432"
+DB_PORT="5433"
 BACKUP_DIR="./database_backups"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_FILE="${BACKUP_DIR}/clowee_erp_backup_${TIMESTAMP}.sql"
@@ -17,7 +17,7 @@ mkdir -p "$BACKUP_DIR"
 
 # Create complete database backup
 echo "Creating backup of $DB_NAME database..."
-pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
+sudo -u postgres pg_dump -p "$DB_PORT" -d "$DB_NAME" \
   --format=plain \
   --no-owner \
   --no-acl \

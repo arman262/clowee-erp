@@ -7,7 +7,7 @@
 DB_NAME="clowee_erp"
 DB_USER="postgres"
 DB_HOST="localhost"
-DB_PORT="5432"
+DB_PORT="5433"
 
 # Check if backup file is provided
 if [ -z "$1" ]; then
@@ -43,7 +43,7 @@ if [ "$confirm" != "yes" ]; then
     exit 0
 fi
 
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$SQL_FILE"
+sudo -u postgres psql -p "$DB_PORT" -d "$DB_NAME" -f "$SQL_FILE"
 
 if [ $? -eq 0 ]; then
     echo "Database restored successfully!"
