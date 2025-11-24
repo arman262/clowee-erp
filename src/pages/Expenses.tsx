@@ -206,7 +206,7 @@ export default function Expenses() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
                 <Receipt className="h-5 w-5 text-primary-foreground" />
@@ -289,8 +289,8 @@ export default function Expenses() {
         </div>
       )}
 
-      {/* Expenses Table */}
-      <Card className="bg-gradient-card border-border shadow-card">
+      {/* Expenses Table - Desktop */}
+      <Card className="bg-gradient-card border-border shadow-card hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -421,6 +421,118 @@ export default function Expenses() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Expenses Cards - Mobile */}
+      <div className="md:hidden space-y-4">
+        {paginatedExpenses.length === 0 ? (
+          <Card className="bg-gradient-card border-border shadow-card">
+            <CardContent className="py-8 text-center text-muted-foreground">
+              No expenses found
+            </CardContent>
+          </Card>
+        ) : (
+          paginatedExpenses.map((expense: any) => (
+            <Card key={expense.id} className="bg-gradient-card border-border shadow-card">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Date</div>
+                    <div className="font-semibold">{formatDate(expense.expense_date)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-muted-foreground">Total</div>
+                    <div className="font-bold text-success">৳{formatCurrency(expense.total_amount)}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-muted-foreground">Machine</div>
+                    <div className="font-medium">{expense.machines?.machine_name || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Category</div>
+                    <div className="font-medium">{expense.expense_categories?.category_name || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Item</div>
+                    <div className="font-medium">{expense.item_name || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Qty</div>
+                    <div className="font-medium">{expense.quantity}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Unit Price</div>
+                    <div className="font-medium">৳{formatCurrency(expense.item_price)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Bank</div>
+                    <div className="font-medium">{expense.banks?.bank_name || '-'}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setViewingExpense(expense)}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                  {canEdit && (
+                  <>
+                  <Dialog open={editingExpense?.id === expense.id} onOpenChange={(open) => !open && setEditingExpense(null)}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setEditingExpense(expense)}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogTitle className="sr-only">Edit Expense</DialogTitle>
+                      <DialogDescription className="sr-only">Edit expense record</DialogDescription>
+                      <ExpenseForm
+                        initialData={expense}
+                        onSubmit={(data) => {
+                          updateExpense.mutate({ id: expense.id, ...data });
+                          setEditingExpense(null);
+                        }}
+                        onCancel={() => setEditingExpense(null)}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeletingExpense(expense)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+        {paginatedExpenses.length > 0 && (
+          <Card className="bg-secondary/50 border-border">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center font-bold">
+                <span>Total Qty: {filteredExpenses.reduce((sum, exp) => sum + (Number(exp.quantity) || 0), 0)}</span>
+                <span>Total: ৳{formatCurrency(filteredExpenses.reduce((sum, exp) => sum + (Number(exp.total_amount) || 0), 0))}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Pagination */}
       <TablePager

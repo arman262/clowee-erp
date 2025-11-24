@@ -652,7 +652,7 @@ function AdjustDollStockModal({ open, onClose, machine }: any) {
         item_id: null,
         quantity: adjustType === 'add' ? quantity : -quantity,
         remarks: remarks,
-        handled_by: user?.first_name || null,
+        handled_by: user?.name || user?.email || null,
         adjustment_type: adjustType === 'add' ? 'doll_add' : 'doll_deduct'
       }).select().single();
 
@@ -729,7 +729,7 @@ function StockOutModal({ open, onClose, accessoriesData, machines }: any) {
         item_id: selectedItemId,
         quantity: quantity,
         remarks: remarks,
-        handled_by: user?.first_name || null
+        handled_by: user?.name || user?.email || null
       }).select().single();
 
       queryClient.invalidateQueries({ queryKey: ['stock-out-history'] });
@@ -832,7 +832,7 @@ function StockInModal({ open, onClose }: any) {
         unit_price: unitPrice,
         total_price: totalPrice,
         remarks: 'Stock In',
-        handled_by: user?.first_name || null,
+        handled_by: user?.name || user?.email || null,
         adjustment_type: 'stock_in'
       }).select().single();
 
