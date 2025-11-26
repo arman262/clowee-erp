@@ -61,7 +61,7 @@ const pool = new Pool({
   port: 5433,
   database: 'clowee_erp',
   user: 'postgres',
-  password: 'postgres',
+  password: 'clowee@erp',
 });
 
 // Login endpoint

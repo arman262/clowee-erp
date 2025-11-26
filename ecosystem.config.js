@@ -1,16 +1,14 @@
 module.exports = {
-  apps: [
-    {
-      name: 'clowee-server',
-      cwd: '/var/www/html/web_apps/clowee-erp/server',
-      script: 'npm',
-      args: 'start'
-    },
-    {
-      name: 'clowee-erp',
-      cwd: '/var/www/html/web_apps/clowee-erp',
-      script: 'npx',
-      args: 'vite preview'
+  apps: [{
+    name: 'clowee-erp-api',
+    script: './server/index.js',
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3008
     }
-  ]
+  }]
 };
