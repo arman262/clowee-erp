@@ -16,10 +16,12 @@ import { useMachinePayments } from "@/hooks/useMachinePayments";
 import { useCreateMachine, useMachines } from "@/hooks/useMachines";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSales } from "@/hooks/useSales";
+import { useMachineWisePrizeStock } from "@/hooks/useInventory";
 import { formatCurrency, formatNumber } from "@/lib/numberUtils";
 import { format } from 'date-fns';
 import {
   Activity,
+  AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
   Building2,
@@ -36,6 +38,7 @@ import {
   Users,
   Wallet
 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BankTransactionsDialog } from "@/components/BankTransactionsDialog";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -99,6 +102,7 @@ export default function Dashboard() {
   const { data: counterReadings } = useMachineCounters();
   const { data: banks } = useBanks();
   const { data: moneyLogs } = useBankMoneyLogs();
+  const { data: machineWiseStock = [] } = useMachineWisePrizeStock();
   const createFranchise = useCreateFranchise();
   const createMachine = useCreateMachine();
   const createExpense = useCreateMachineExpense();
@@ -172,13 +176,38 @@ export default function Dashboard() {
   const lowestMachineSales = lowestMachine?.total || 0;
   const avgSalesPerMachine = activeMachines.length > 0 ? totalSales / activeMachines.length : 0;
 
-  const totalPaymentReceived = filteredPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  // Calculate payment status for each sale (same as Sales.tsx)
+  const getPaymentStatus = (sale: any) => {
+    const salePayments = payments?.filter(p => {
+      if (p.invoice_id !== sale.id) return false;
+      const remarks = (p.remarks || '').toLowerCase();
+      return !remarks.includes('coin adjustment:') && 
+             !remarks.includes('prize adjustment:') && 
+             !remarks.includes('amount adjustment:');
+    }) || [];
+    const totalPaid = Math.round(salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0) * 100) / 100;
+    const payToClowee = Math.round(Number(sale.pay_to_clowee || 0) * 100) / 100;
+    
+    if (totalPaid === 0) return { status: 'Due', totalPaid, balance: payToClowee };
+    if (totalPaid >= payToClowee) return { status: totalPaid > payToClowee ? 'Overpaid' : 'Paid', totalPaid, balance: 0 };
+    return { status: 'Partial', totalPaid, balance: payToClowee - totalPaid };
+  };
 
   const totalPrizePurchase = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0);
   const totalPrizeQuantity = filteredExpenses.filter(expense => expense.expense_categories?.category_name === 'Prize Purchase').reduce((sum, expense) => sum + (expense.quantity || 0), 0);
 
+  // Calculate totals for cards
   const totalPayToClowee = filteredSales.reduce((sum, sale) => sum + Number(sale.pay_to_clowee || 0), 0);
-  const totalDue = totalPayToClowee - totalPaymentReceived;
+  const totalPaymentReceived = filteredSales.reduce((sum, sale) => {
+    const status = getPaymentStatus(sale);
+    return sum + status.totalPaid;
+  }, 0);
+  
+  // Calculate total due from sales with Due or Partial status
+  const totalDue = filteredSales.reduce((sum, sale) => {
+    const status = getPaymentStatus(sale);
+    return sum + (status.status === 'Due' || status.status === 'Partial' ? status.balance : 0);
+  }, 0);
 
 
   // Bank calculations (cumulative totals, not filtered by period)
@@ -488,7 +517,6 @@ export default function Dashboard() {
             </CardTitle>
             <div className="flex items-center gap-0.5 sm:gap-1">
               <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowDueListModal(true)} />
-              <ArrowUpRight className="h-3 w-3 sm:h-5 sm:w-5 text-warning" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
@@ -508,7 +536,6 @@ export default function Dashboard() {
             </CardTitle>
             <div className="flex items-center gap-0.5 sm:gap-1">
               <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer" onClick={() => setShowPrizePurchaseModal(true)} />
-              <Package className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
@@ -529,11 +556,10 @@ export default function Dashboard() {
               Cash In Hand
             </CardTitle>
             <div className="flex items-center gap-1">
-              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
+              <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
                 const cashBank = banks?.find(b => b.bank_name === 'Cash');
                 if (cashBank) setViewingBankTransactions(cashBank);
               }} />
-              <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
@@ -552,11 +578,10 @@ export default function Dashboard() {
               MDB Bank
             </CardTitle>
             <div className="flex items-center gap-1">
-              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
+              <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
                 const mdbBankData = banks?.find(b => b.bank_name === 'MDB Bank');
                 if (mdbBankData) setViewingBankTransactions(mdbBankData);
               }} />
-              <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
@@ -575,11 +600,10 @@ export default function Dashboard() {
               Bkash(Personal)
             </CardTitle>
             <div className="flex items-center gap-1">
-              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
+              <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
                 const bkashBank = banks?.find(b => b.bank_name === 'Bkash(Personal)');
                 if (bkashBank) setViewingBankTransactions(bkashBank);
               }} />
-              <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
@@ -598,11 +622,10 @@ export default function Dashboard() {
               NCC Bank
             </CardTitle>
             <div className="flex items-center gap-1">
-              <Eye className="h-5 w-5 sm:h-4 sm:w-4 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
+              <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
                 const nccBankData = banks?.find(b => b.bank_name === 'NCC Bank');
                 if (nccBankData) setViewingBankTransactions(nccBankData);
               }} />
-              <Landmark className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
             </div>
           </CardHeader>
           <CardContent className="pb-2">
@@ -888,7 +911,12 @@ export default function Dashboard() {
                           <span className="font-medium text-foreground">{expense.expense_details || 'Prize Purchase'}</span>
                           <span className="text-xs text-muted-foreground">Qty: {expense.quantity}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">{format(new Date(expense.expense_date), 'd MMM yyyy')}</p>
+                        <div className="flex items-center gap-2">
+                          <Cpu className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">{expense.machines?.machine_name || 'No Machine'}</span>
+                          <span className="text-xs text-muted-foreground">•</span>
+                          <span className="text-xs text-muted-foreground">{format(new Date(expense.expense_date), 'd MMM yyyy')}</span>
+                        </div>
                       </div>
                     </div>
                     <span className="font-bold text-primary">৳{formatCurrency(expense.total_amount)}</span>
@@ -908,49 +936,64 @@ export default function Dashboard() {
       {/* Due List Modal */}
       <Dialog open={showDueListModal} onOpenChange={setShowDueListModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogTitle>Due List - All Sales ({getFormattedPeriod()})</DialogTitle>
+          <DialogTitle>Due List ({getFormattedPeriod()})</DialogTitle>
           <div className="space-y-3">
             {(() => {
               const salesWithDue = filteredSales
                 .map(sale => {
-                  const payToClowee = Number(sale.pay_to_clowee || 0);
-                  const salePayments = filteredPayments.filter(p => p.invoice_id === sale.id);
-                  const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                  const due = payToClowee - totalPaid;
-
+                  const status = getPaymentStatus(sale);
                   return {
                     id: sale.id,
+                    invoiceNumber: sale.invoice_number || 'Pending',
                     machineName: sale.machines?.machine_name || 'Unknown Machine',
                     salesDate: sale.sales_date,
-                    payToClowee,
-                    totalPaid,
-                    due
+                    payToClowee: Number(sale.pay_to_clowee || 0),
+                    totalPaid: status.totalPaid,
+                    balance: status.balance,
+                    status: status.status
                   };
                 })
-                .filter(sale => sale.due > 0)
-                .sort((a, b) => new Date(b.salesDate).getTime() - new Date(a.salesDate).getTime());
+                .filter(sale => sale.status === 'Due' || sale.status === 'Partial')
+                .sort((a, b) => b.balance - a.balance);
+
+              const totalDueAmount = salesWithDue.reduce((sum, sale) => sum + sale.balance, 0);
 
               return salesWithDue.length > 0 ? (
-                <div className="space-y-2">
-                  {salesWithDue.map((sale) => (
-                    <div key={sale.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="w-8 h-8 bg-warning/20 rounded-full flex items-center justify-center">
-                          <Cpu className="h-4 w-4 text-warning" />
-                        </div>
-                        <div className="flex-1">
-                          <span className="font-medium text-foreground">{sale.machineName}</span>
-                          <p className="text-xs text-muted-foreground">{format(new Date(sale.salesDate), 'd MMM yyyy')}</p>
-                        </div>
-                      </div>
-                      <span className="font-bold text-destructive">৳{formatCurrency(sale.due)}</span>
+                <>
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mb-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Total Due Amount:</span>
+                      <span className="text-xl font-bold text-destructive">৳{formatCurrency(totalDueAmount)}</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="text-xs text-muted-foreground mt-1">{salesWithDue.length} invoice(s) with outstanding balance</div>
+                  </div>
+                  <div className="space-y-2">
+                    {salesWithDue.map((sale) => (
+                      <div key={sale.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className={`w-8 h-8 ${sale.status === 'Partial' ? 'bg-warning/20' : 'bg-destructive/20'} rounded-full flex items-center justify-center`}>
+                            <Receipt className={`h-4 w-4 ${sale.status === 'Partial' ? 'text-warning' : 'text-destructive'}`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-foreground">{sale.machineName}</span>
+                              <span className="text-xs text-muted-foreground">#{sale.invoiceNumber}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{format(new Date(sale.salesDate), 'd MMM yyyy')}</p>
+                            {sale.status === 'Partial' && (
+                              <p className="text-xs text-warning mt-1">Paid: ৳{formatCurrency(sale.totalPaid)} / ৳{formatCurrency(sale.payToClowee)}</p>
+                            )}
+                          </div>
+                        </div>
+                        <span className="font-bold text-destructive">৳{formatCurrency(sale.balance)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Receipt className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No dues found</p>
+                  <p className="text-sm">No outstanding dues</p>
                 </div>
               );
             })()}
@@ -1041,23 +1084,50 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-card border-border shadow-card">
+        <Card className="bg-gradient-card border-destructive/50 shadow-card">
           <CardHeader>
-            <CardTitle className="text-foreground">System Alerts</CardTitle>
-            <CardDescription>Important notifications</CardDescription>
+            <CardTitle className="text-foreground flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              System Alerts
+            </CardTitle>
+            <CardDescription>Low inventory warnings</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {[1, 2, 3].map((_, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
-                  <div className="w-2 h-2 bg-warning rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">Low inventory alert</p>
-                    <p className="text-sm text-muted-foreground">Prize dolls running low</p>
-                  </div>
+            {(() => {
+              const lowStockMachines = machineWiseStock.filter((m: any) => m.stock < 50);
+              return lowStockMachines.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Machine</TableHead>
+                        <TableHead>Stock</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {lowStockMachines.map((machine: any) => (
+                        <TableRow key={machine.machineId} className="bg-destructive/10">
+                          <TableCell className="font-medium">{machine.machineName}</TableCell>
+                          <TableCell className="font-bold text-destructive">{machine.stock}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 text-destructive">
+                              <AlertTriangle className="h-4 w-4" />
+                              <span className="text-xs">Low</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No low stock alerts</p>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>

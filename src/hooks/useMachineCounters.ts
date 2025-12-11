@@ -43,7 +43,7 @@ export const useCreateMachineCounter = () => {
   
   return useMutation({
     mutationFn: async (counter: Omit<MachineCounter, 'id' | 'created_at'>) => {
-      const storedUser = localStorage.getItem('clowee_user');
+      const storedUser = sessionStorage.getItem('clowee_user');
       const userId = storedUser ? JSON.parse(storedUser).user.id : null;
       const insertData = userId ? { ...counter, created_by: userId } : counter;
       

@@ -2,32 +2,13 @@
   "name": "q_ide_default",
   "description": "Default agent configuration",
   "prompt": "",
-  "mcpServers": {
-    "clowee_erp": {
-      "command": "npx",
-      "disabled": false,
-      "timeout": 60000,
-      "args": [
-        "-y",
-        "mcp-postgres"
-      ],
-      "env": {
-        "PGHOST": "localhost",
-        "PGPORT": "5433",
-        "PGUSER": "postgres",
-        "PGPASSWORD": "clowee@erp",
-        "PGDATABASE": "clowee_erp",
-        "PGSSL": "false"
-      }
-    }
-  },
+  "mcpServers": {},
   "tools": [
     "fs_read",
     "execute_bash",
     "fs_write",
     "report_issue",
-    "use_aws",
-    "@clowee_erp"
+    "use_aws"
   ],
   "toolAliases": {},
   "allowedTools": [
@@ -35,13 +16,7 @@
     "report_issue",
     "use_aws",
     "execute_bash",
-    "fs_write",
-    "@clowee_erp/connect_db",
-    "@clowee_erp/query",
-    "@clowee_erp/execute",
-    "@clowee_erp/list_schemas",
-    "@clowee_erp/list_tables",
-    "@clowee_erp/describe_table"
+    "fs_write"
   ],
   "toolsSettings": {
     "use_aws": {

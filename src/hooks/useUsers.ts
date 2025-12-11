@@ -25,10 +25,14 @@ export function useUsers() {
   };
 
   const addUser = async (userData: { name: string; email: string; password: string; role: string }) => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
+    const API_URL = import.meta.env.VITE_API_URL || 'https://erp.tolpar.com.bd/api';
+    const token = sessionStorage.getItem('clowee_token');
     const response = await fetch(`${API_URL}/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
       body: JSON.stringify({
         name: userData.name,
         email: userData.email,
@@ -36,82 +40,60 @@ export function useUsers() {
         role: userData.role
       })
     });
-    
+
     if (!response.ok) {
       const result = await response.json();
       throw new Error(result.error || 'Failed to create user via API');
     }
-    
+
     await fetchUsers();
-    
-    const storedUser = localStorage.getItem('clowee_user');
+
+    const storedUser = sessionStorage.getItem('clowee_user');
     const userId = storedUser ? JSON.parse(storedUser).user.id : null;
     await createNotification('Success', `New user ${userData.name || userData.email} created`, 'Users', userId);
   };
 
   const updateUser = async (id: string, userData: { name: string; email: string; password: string; role: string }) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
-      
+      const API_URL = import.meta.env.VITE_API_URL || 'https://erp.tolpar.com.bd/api';
+      const token = sessionStorage.getItem('clowee_token');
+
+      // Update user details
+      await db
+        .from("users")
+        .update({
+          name: userData.name,
+          email: userData.email,
+          role: userData.role
+        })
+        .eq("id", id);
+
+      // Update password if provided
       if (userData.password && userData.password.trim() !== '') {
-        console.log('Updating user with new password');
-        const tempEmail = `temp_${Date.now()}@temp.com`;
-        
-        const registerResponse = await fetch(`${API_URL}/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: 'temp',
-            email: tempEmail,
-            password: userData.password,
-            role: 'user'
-          })
+        console.log('[Password Update] Calling password update endpoint for user:', id);
+        const passwordResponse = await fetch(`${API_URL}/users/${id}/password`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
+          body: JSON.stringify({ password: userData.password })
         });
+
+        console.log('[Password Update] Response status:', passwordResponse.status);
         
-        if (!registerResponse.ok) {
-          throw new Error('Failed to hash password');
+        if (!passwordResponse.ok) {
+          const result = await passwordResponse.json();
+          console.error('[Password Update] Failed:', result);
+          throw new Error(result.error || 'Failed to update password');
         }
         
-        const { data: tempUser } = await db
-          .from("users")
-          .select("password_hash")
-          .eq("email", tempEmail)
-          .single();
-        
-        console.log('Got hashed password from temp user');
-        
-        const { data: updated } = await db
-          .from("users")
-          .update({
-            name: userData.name,
-            email: userData.email,
-            role: userData.role,
-            password_hash: tempUser.password_hash
-          })
-          .eq("id", id)
-          .select()
-          .single();
-        
-        console.log('Updated user:', updated);
-        
-        await db
-          .from("users")
-          .delete()
-          .eq("email", tempEmail);
-      } else {
-        await db
-          .from("users")
-          .update({
-            name: userData.name,
-            email: userData.email,
-            role: userData.role
-          })
-          .eq("id", id);
+        console.log('[Password Update] Success');
       }
-      
+
       await fetchUsers();
-      
-      const storedUser = localStorage.getItem('clowee_user');
+
+      const storedUser = sessionStorage.getItem('clowee_user');
       const userId = storedUser ? JSON.parse(storedUser).user.id : null;
       await createNotification('Info', `User ${userData.name || userData.email} updated`, 'Users', userId);
     } catch (error) {
@@ -122,7 +104,7 @@ export function useUsers() {
 
   const deleteUser = async (id: string) => {
     const userToDelete = users.find(u => u.id === id);
-    
+
     await db
       .from("users")
       .delete()
@@ -130,8 +112,8 @@ export function useUsers() {
       .execute();
 
     setUsers(prev => prev.filter(user => user.id !== id));
-    
-    const storedUser = localStorage.getItem('clowee_user');
+
+    const storedUser = sessionStorage.getItem('clowee_user');
     const userId = storedUser ? JSON.parse(storedUser).user.id : null;
     await createNotification('Warning', `User ${userToDelete?.name || userToDelete?.email} deleted`, 'Users', userId);
   };

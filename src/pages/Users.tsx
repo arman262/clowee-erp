@@ -11,6 +11,7 @@ import { Plus, Eye, Edit, Trash2, Activity } from "lucide-react";
 import { useUsers } from "@/hooks/useUsers";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/dateUtils";
+import { db } from "@/integrations/postgres/client";
 
 export default function Users() {
   const { users, loading, addUser, updateUser, deleteUser } = useUsers();
@@ -31,13 +32,19 @@ export default function Users() {
     fetchActivityLogs();
   }, []);
 
+
+
   const fetchActivityLogs = async () => {
     setLoadingLogs(true);
     try {
-      const response = await fetch('http://202.59.208.112:3008/api/notifications');
-      const result = await response.json();
-      if (result.data) {
-        setActivityLogs(result.data);
+      const data = await db
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .execute();
+
+      if (data) {
+        setActivityLogs(data);
       }
     } catch (error) {
       console.error('Error fetching activity logs:', error);
@@ -169,11 +176,10 @@ export default function Users() {
               <TableCell>{user.name || "N/A"}</TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>
-                <span className={`px-2 py-1 rounded text-xs ${
-                  user.role === 'admin' ? 'bg-red-100 text-red-800' : 
-                  user.role === 'spectator' ? 'bg-blue-100 text-blue-800' : 
-                  'bg-green-100 text-green-800'
-                }`}>
+                <span className={`px-2 py-1 rounded text-xs ${user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                  user.role === 'spectator' ? 'bg-blue-100 text-blue-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
                   {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                 </span>
               </TableCell>
@@ -247,12 +253,11 @@ export default function Users() {
                         <TableCell>{formatDateTime(log.created_at)}</TableCell>
                         <TableCell>{user?.name || user?.email || 'Unknown'}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            log.action_type === 'create' ? 'bg-green-100 text-green-800' :
+                          <span className={`px-2 py-1 rounded text-xs ${log.action_type === 'create' ? 'bg-green-100 text-green-800' :
                             log.action_type === 'update' ? 'bg-blue-100 text-blue-800' :
-                            log.action_type === 'delete' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
+                              log.action_type === 'delete' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                            }`}>
                             {log.action_type?.toUpperCase()}
                           </span>
                         </TableCell>

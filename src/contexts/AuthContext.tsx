@@ -27,8 +27,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check for stored session
-    const storedUser = localStorage.getItem('clowee_user');
-    if (storedUser) {
+    const storedUser = sessionStorage.getItem('clowee_user');
+    const token = sessionStorage.getItem('clowee_token');
+    if (storedUser && token) {
       const userData = JSON.parse(storedUser);
       setUser(userData.user);
       setUserRole(userData.role);
@@ -53,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3009/api';
+      const API_URL = import.meta.env.VITE_API_URL || 'https://erp.tolpar.com.bd/api';
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,19 +62,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       const result = await response.json();
-      console.log('Login response:', result);
       
       if (!response.ok || result.error) {
+        if (result.retryAfter) {
+          throw new Error(`Too many login attempts. Please wait ${result.retryAfter} seconds.`);
+        }
         throw new Error(result.error || 'Invalid credentials');
       }
       
       const userData = result.data;
-      const mockUser = { id: userData.id, email: userData.email } as User;
-      setUser(mockUser);
+      const user = { id: userData.id, email: userData.email } as User;
+      setUser(user);
       setUserRole(userData.role);
       
-      localStorage.setItem('clowee_user', JSON.stringify({
-        user: mockUser,
+      // Store token securely
+      sessionStorage.setItem('clowee_token', userData.token);
+      sessionStorage.setItem('clowee_user', JSON.stringify({
+        user,
         role: userData.role
       }));
     } catch (error) {
@@ -83,7 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    localStorage.removeItem('clowee_user');
+    sessionStorage.removeItem('clowee_user');
+    sessionStorage.removeItem('clowee_token');
     setUser(null);
     setUserRole(null);
   };

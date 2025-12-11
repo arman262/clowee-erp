@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'clowee-server',
-      cwd: '/var/www/html/web_apps/clowee-erp/server',
+      cwd: '/var/www/clowee-erp/server',
       script: 'npm',
       args: 'start'
     },

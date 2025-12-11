@@ -1,8 +1,22 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://erp.tolpar.com.bd/api';
+
+const getAuthHeaders = () => {
+  const token = sessionStorage.getItem('clowee_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+};
 
 const apiCall = async (url: string, options?: RequestInit) => {
   try {
-    const response = await fetch(url, options);
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getAuthHeaders(),
+        ...options?.headers
+      }
+    });
     const result = await response.json();
     return {
       data: result.data || [],
@@ -31,7 +45,7 @@ export const db = {
           data.sort((a: any, b: any) => {
             const aVal = a[column];
             const bVal = b[column];
-            return options?.ascending === false ? 
+            return options?.ascending === false ?
               (bVal > aVal ? 1 : -1) : (aVal > bVal ? 1 : -1);
           });
           return data;
@@ -42,13 +56,12 @@ export const db = {
         return result.data || [];
       }
     }),
-    
+
     insert: (data: any) => ({
       select: () => ({
         single: async () => {
           const result = await apiCall(`${API_BASE}/${table}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
           });
           if (result.error) throw new Error(result.error);
@@ -56,14 +69,13 @@ export const db = {
         }
       })
     }),
-    
+
     update: (data: any) => ({
       eq: (column: string, value: any) => ({
         select: () => ({
           single: async () => {
             const result = await apiCall(`${API_BASE}/${table}/${value}`, {
               method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data)
             });
             if (result.error) throw new Error(result.error);
@@ -72,7 +84,7 @@ export const db = {
         })
       })
     }),
-    
+
     delete: () => ({
       eq: (column: string, value: any) => ({
         execute: async () => {

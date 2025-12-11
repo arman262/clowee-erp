@@ -17,46 +17,55 @@ interface CounterReadingFormProps {
 export function CounterReadingForm({ onSubmit, onCancel, initialData }: CounterReadingFormProps) {
   const { data: machines } = useMachines();
   const { data: counterReadings } = useMachineCounters();
-  const [formData, setFormData] = useState({
-    machine_id: initialData?.machine_id || "",
-    reading_date: initialData?.reading_date || new Date().toISOString().split('T')[0],
-    coin_counter: initialData?.coin_counter || 0,
-    prize_counter: initialData?.prize_counter || 0,
-    notes: initialData?.notes || ""
+  const [formData, setFormData] = useState(() => {
+    // Format the date properly for the date input
+    let readingDate = new Date().toISOString().split('T')[0];
+    if (initialData?.reading_date) {
+      const date = new Date(initialData.reading_date);
+      readingDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    }
+
+    return {
+      machine_id: initialData?.machine_id || "",
+      reading_date: readingDate,
+      coin_counter: initialData?.coin_counter || 0,
+      prize_counter: initialData?.prize_counter || 0,
+      notes: initialData?.notes || ""
+    };
   });
   const [validationErrors, setValidationErrors] = useState({ coin: false, prize: false });
 
   const selectedMachine = machines?.find(m => m.id === formData.machine_id);
-  
+
   const getLastCounterValues = () => {
     if (!formData.machine_id || !selectedMachine || !formData.reading_date) {
       return { lastCoin: 0, lastPrize: 0 };
     }
-    
+
     if (!counterReadings) {
-      return { 
-        lastCoin: selectedMachine.initial_coin_counter, 
-        lastPrize: selectedMachine.initial_prize_counter 
+      return {
+        lastCoin: selectedMachine.initial_coin_counter,
+        lastPrize: selectedMachine.initial_prize_counter
       };
     }
-    
+
     const selectedDate = new Date(formData.reading_date);
-    
+
     // Find readings before the selected date for this machine
     const previousReadings = counterReadings
       .filter(r => r.machine_id === formData.machine_id && new Date(r.reading_date) < selectedDate)
       .sort((a, b) => new Date(b.reading_date).getTime() - new Date(a.reading_date).getTime());
-    
+
     const lastReading = previousReadings[0];
-    
+
     return {
       lastCoin: lastReading ? lastReading.coin_counter : selectedMachine.initial_coin_counter,
       lastPrize: lastReading ? lastReading.prize_counter : selectedMachine.initial_prize_counter
     };
   };
-  
+
   const { lastCoin, lastPrize } = getLastCounterValues();
-  
+
   const validateCounters = (coinValue: number, prizeValue: number) => {
     const errors = {
       coin: coinValue < lastCoin,
@@ -84,8 +93,8 @@ export function CounterReadingForm({ onSubmit, onCancel, initialData }: CounterR
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="machine_id">Machine*</Label>
-            <Select 
-              value={formData.machine_id || ''} 
+            <Select
+              value={formData.machine_id || ''}
               onValueChange={(value) => setFormData({ ...formData, machine_id: value || null })}
             >
               <SelectTrigger>
@@ -138,7 +147,7 @@ export function CounterReadingForm({ onSubmit, onCancel, initialData }: CounterR
                 </div>
               )}
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="prize_counter">Prize Counter*</Label>
               <div className="text-xs text-muted-foreground mb-1">

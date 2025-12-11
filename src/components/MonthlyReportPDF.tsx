@@ -19,6 +19,7 @@ interface MonthlyReportData {
     fixedCost: number;
     variableCost: number;
   };
+  totalSalesAmount: number;
   salesBreakdown: Array<{
     location: string;
     sales: number;
@@ -32,7 +33,6 @@ interface MonthlyReportPDFProps {
 }
 
 export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
-  console.log('MonthlyReportPDF received data:', data);
   
   const { data: franchises } = useFranchises();
   const { data: machines } = useMachines();
@@ -44,29 +44,36 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
   const lastDay = new Date(parseInt(year), monthIndex, 0).getDate();
   const endDate = `${year}-${monthIndex.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
   
-  console.log('Date Range:', { startDate, endDate, reportMonth: data.reportMonth });
+  // Group sales data by franchise and sum monthly amounts
+  const franchiseSalesMap = new Map<string, number>();
   
-  const franchiseWithSales = (franchises || []).map(franchise => {
-    const franchiseMachines = machines?.filter(m => m.franchise_id === franchise.id) || [];
-    const machineIds = franchiseMachines.map(m => m.id);
-    const totalSales = sales?.filter(s => {
-      const saleDate = s.sales_date;
-      return machineIds.includes(s.machine_id) && saleDate >= startDate && saleDate <= endDate;
-    }).reduce((sum, s) => sum + Number(s.sales_amount || 0), 0) || 0;
-    return { ...franchise, totalSales, machineCount: franchiseMachines.length };
-  }).filter(f => f.totalSales > 0).sort((a, b) => b.totalSales - a.totalSales);
+  (data.salesBreakdown || []).forEach(item => {
+    const franchiseName = item.location || 'Unknown';
+    const currentSales = franchiseSalesMap.get(franchiseName) || 0;
+    franchiseSalesMap.set(franchiseName, currentSales + (Number(item.sales) || 0));
+  });
   
-  console.log('Franchise Sales:', franchiseWithSales.map(f => ({ name: f.name, totalSales: f.totalSales })));
+  const machineWithSales = Array.from(franchiseSalesMap.entries())
+    .filter(([name, sales]) => sales > 0)
+    .map(([name, totalSales]) => ({
+      name,
+      totalSales,
+      profitShare: 0
+    }))
+    .sort((a, b) => b.totalSales - a.totalSales);
   
-  const totalFranchiseSales = franchiseWithSales.reduce((sum, f) => sum + f.totalSales, 0);
   
-  const midPoint = Math.ceil(franchiseWithSales.length / 2);
-  const leftColumn = franchiseWithSales.slice(0, midPoint);
-  const rightColumn = franchiseWithSales.slice(midPoint);
+  const totalMachineSales = machineWithSales.reduce((sum, m) => sum + m.totalSales, 0);
   
-  const totalIncome = data.income.profitShareClowee + data.income.prizeIncome + data.income.maintenanceCharge;
-  const totalExpense = data.expense.fixedCost + data.expense.variableCost + (data.income.totalElectricityCost || 0);
+  const midPoint = Math.ceil(machineWithSales.length / 2);
+  const leftColumn = machineWithSales.slice(0, midPoint);
+  const rightColumn = machineWithSales.slice(midPoint);
+  
+  const totalIncome = Number(data.income?.profitShareClowee || 0) + Number(data.income?.prizeIncome || 0) + Number(data.income?.maintenanceCharge || 0);
+  const totalExpense = Number(data.expense?.fixedCost || 0) + Number(data.expense?.variableCost || 0) + Number(data.income?.totalElectricityCost || 0);
   const netProfitLoss = totalIncome - totalExpense;
+  
+  console.log('Calculated totals:', { totalIncome, totalExpense, netProfitLoss, totalMachineSales });
 
   const handlePrint = () => {
     const printContent = document.getElementById('report-content');
@@ -152,6 +159,9 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             .franchise-item { display: flex; justify-content: space-between; padding: 0.4rem 0.6rem; background: white; border: 1px solid #e2e8f0; border-radius: 0.25rem; }
             .franchise-name { font-size: 0.85rem; color: #475569; }
             .franchise-sales { font-size: 1rem; font-weight: 600; color: #1e293b; }
+            .sales-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+            .sales-table th, .sales-table td { border: 1px solid #e2e8f0; padding: 0.5rem; text-align: left; font-size: 0.85rem; }
+            .sales-table th { background-color: #f8fafc; font-weight: 600; }
             table { border-collapse: collapse; width: 100%; margin-top: 0.2rem; margin-bottom: 0.5rem; }
             th, td { border: none; padding: 0.3rem 0.5rem; text-align: left; vertical-align: top; font-size: 0.8rem; }
             th { background-color: #f9fafb; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -291,9 +301,15 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
 
             {/* Report Info Card */}
             <div className="bg-gray-50 p-4 rounded-lg mb-4 sm:mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">REPORT PERIOD</h3>
-              <div className="text-sm text-gray-900">
-                <p className="font-medium text-lg">{data.reportMonth}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">REPORT PERIOD</h3>
+                  <p className="font-medium text-lg text-gray-900">{data.reportMonth}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">TOTAL SALES AMOUNT</h3>
+                  <p className="font-bold text-2xl text-blue-600">৳{formatCurrency(data.totalSalesAmount || 0)}</p>
+                </div>
               </div>
             </div>
 
@@ -320,7 +336,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                       <td className="px-4 py-3 text-sm font-medium text-blue-600 text-right border-r">৳{formatCurrency(data.income.profitShareClowee)}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         Fixed Cost
-                        <div className="text-xs text-gray-500 mt-0.5">(Office Rent, Salary, Internet Bill, etc.)</div>
+                        <div className="text-xs text-gray-500 mt-0.5">(Office Rent, Salary, cloud Bill, etc.)</div>
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">৳{formatCurrency(data.expense.fixedCost)}</td>
                     </tr>
@@ -341,10 +357,10 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                     </tr>
                     
                     <tr className="font-bold border-r hover:bg-gray-200">
-                      <td className="px-4 py-3 text-sm text-gray-900 ">Total Income</td>
-                      <td className="px-4 py-3 text-sm font-bold text-green-800 text-right border-r">৳{formatCurrency(totalIncome)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">Total Expenses</td>
-                      <td className="px-4 py-3 text-sm font-bold text-red-800 text-right">৳{formatCurrency(totalExpense)}</td>
+                      <td className="px-4 py-3 text-xl text-gray-900 ">Total Income</td>
+                      <td className="px-4 py-3 text-xl font-bold text-green-800 text-right border-r">৳{formatCurrency(totalIncome)}</td>
+                      <td className="px-4 py-3 text-xl text-gray-900">Total Expenses</td>
+                      <td className="px-4 py-3 text-xl font-bold text-red-900 text-right">৳{formatCurrency(totalExpense)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -389,8 +405,8 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                         <span className="text-sm font-medium text-red-600">৳{formatCurrency(data.income.totalElectricityCost)}</span>
                       </div>
                       <div className="flex justify-between p-2 bg-red-50 rounded font-bold">
-                        <span className="text-xs text-gray-900">Total Expenses</span>
-                        <span className="text-sm text-red-800">৳{formatCurrency(totalExpense)}</span>
+                        <span className="text-xl text-gray-900">Total Expenses</span>
+                        <span className="text-2xl font-bold text-red-800">৳{formatCurrency(totalExpense)}</span>
                       </div>
                     </div>
                   </div>
@@ -398,7 +414,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                 <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
                   <div className="space-y-2">
                     <div className="flex justify-between items-center py-3 border-t-2 border-blue-600">
-                      <span className="text-base font-semibold text-gray-900">Net {netProfitLoss >= 0 ? 'Profit' : 'Loss'}</span>
+                      <span className="text-2xl font-bold text-gray-900">Net {netProfitLoss >= 0 ? 'Profit' : 'Loss'}</span>
                       <span 
                         className="text-3xl font-bold"
                         style={{
@@ -425,46 +441,17 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             {/* Sales Breakdown - Matching Invoice Table Style */}
             <div className="mb-6">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-blue-50 px-4 py-3 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Sales Breakdown by Franchises</h3>
-                </div>
                 
                 {/* Desktop Grid View */}
                 <div className="hidden sm:grid print:grid grid-cols-2 gap-2 p-2">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-2 py-2 text-left text-xs font-bold text-black uppercase">Franchise</th>
-                        <th className="px-2 py-2 text-right text-xs font-bold text-black uppercase">Sales Amount</th>
-                      </tr>
-                    </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {leftColumn.map((franchise, index) => (
+                      {rightColumn.map((machine, index) => (
                         <tr key={index}>
                           <td className="px-2 py-2 text-sm text-gray-900">
-                            {franchise.name}
-                            <span className="text-xs text-gray-500 ml-1">({franchise.machineCount} {franchise.machineCount === 1 ? 'machine' : 'machines'})</span>
+                            {machine.name}
                           </td>
-                          <td className="px-2 py-2 text-sm text-gray-900 text-right">৳{formatCurrency(franchise.totalSales)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-2 py-2 text-left text-xs font-bold text-black uppercase">Franchise</th>
-                        <th className="px-2 py-2 text-right text-xs font-bold text-black uppercase">Sales Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {rightColumn.map((franchise, index) => (
-                        <tr key={index}>
-                          <td className="px-2 py-2 text-sm text-gray-900">
-                            {franchise.name}
-                            <span className="text-xs text-gray-500 ml-1">({franchise.machineCount} {franchise.machineCount === 1 ? 'machine' : 'machines'})</span>
-                          </td>
-                          <td className="px-2 py-2 text-sm text-gray-900 text-right">৳{formatCurrency(franchise.totalSales)}</td>
+                          <td className="px-2 py-2 text-sm text-gray-900 text-right">৳{formatCurrency(machine.totalSales)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -473,21 +460,20 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                 
                 {/* Mobile Card View */}
                 <div className="sm:hidden print:hidden p-3 space-y-2">
-                  {franchiseWithSales.map((franchise, index) => (
+                  {machineWithSales.map((machine, index) => (
                     <div key={index} className="flex justify-between p-2 bg-gray-50 rounded">
                       <div>
-                        <span className="text-xs font-medium text-gray-900">{franchise.name}</span>
-                        <span className="text-xs text-gray-500 ml-1">({franchise.machineCount})</span>
+                        <span className="text-xs font-medium text-gray-900">{machine.name}</span>
                       </div>
-                      <span className="text-sm font-medium text-gray-900">৳{formatCurrency(franchise.totalSales)}</span>
+                      <span className="text-sm font-medium text-gray-900">৳{formatCurrency(machine.totalSales)}</span>
                     </div>
                   ))}
                 </div>
                 
-                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
+                <div className="bg-gray-50 px-4 py-3 border-gray-200">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-gray-900">Total Franchise Sales</span>
-                    <span className="text-lg font-bold text-success">৳{formatCurrency(totalFranchiseSales)}</span>
+                    <span className="text-xl font-bold text-gray-900">Total Sales Amount</span>
+                    <span className="text-2xl font-bold text-success">৳{formatCurrency(data.totalSalesAmount || 0)}</span>
                   </div>
                 </div>
               </div>

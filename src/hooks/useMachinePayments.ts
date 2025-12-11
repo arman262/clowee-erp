@@ -84,7 +84,7 @@ export function useCreateMachinePayment() {
     mutationFn: async (data: Omit<MachinePayment, 'id' | 'created_at'>) => {
       console.log('Creating payment with data:', data);
       try {
-        const storedUser = localStorage.getItem('clowee_user');
+        const storedUser = sessionStorage.getItem('clowee_user');
         const userId = storedUser ? JSON.parse(storedUser).user.id : null;
         const insertData = userId ? { ...data, created_by: userId } : data;
         

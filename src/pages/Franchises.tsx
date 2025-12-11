@@ -198,7 +198,7 @@ export default function Franchises() {
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-success">
-              {franchises?.length || 0}
+              {franchises?.filter(f => f.is_active !== false).length || 0}
             </div>
             <div className="text-sm text-muted-foreground">Active Franchises</div>
           </CardContent>
@@ -251,9 +251,9 @@ export default function Franchises() {
                 </div>
                 <Badge 
                   variant="default"
-                  className="bg-success text-success-foreground"
+                  className={franchise?.is_active !== false ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}
                 >
-                  Active
+                  {franchise?.is_active !== false ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
             </CardHeader>

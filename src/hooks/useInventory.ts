@@ -236,13 +236,15 @@ export const useMachineWisePrizeStock = () => {
       const machineMap = new Map();
       
       (machines || []).forEach((machine: any) => {
-        machineMap.set(machine.id, {
-          machineId: machine.id,
-          machineName: machine.machine_name,
-          purchased: 0,
-          prizeOut: 0,
-          stock: 0
-        });
+        if (machine.is_active !== false) {
+          machineMap.set(machine.id, {
+            machineId: machine.id,
+            machineName: machine.machine_name,
+            purchased: 0,
+            prizeOut: 0,
+            stock: 0
+          });
+        }
       });
       
       prizeExpenses.forEach((exp: any) => {

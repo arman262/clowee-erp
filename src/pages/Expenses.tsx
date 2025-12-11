@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import * as XLSX from 'xlsx';
+import { db } from "@/integrations/postgres/client";
 
 export default function Expenses() {
   const { canEdit } = usePermissions();
@@ -42,15 +43,19 @@ export default function Expenses() {
 
   const { data: expenses, isLoading } = useMachineExpenses();
 
+
+
   useEffect(() => {
     if (viewingExpense?.employee_id) {
-      fetch('http://202.59.208.112:3008/api/employees')
-        .then(res => res.json())
-        .then(result => {
-          const employee = result.data?.find((emp: any) => emp.employee_id === viewingExpense.employee_id);
-          setEmployeeName(employee ? `${employee.name} - ${employee.designation}` : viewingExpense.employee_id);
-        })
-        .catch(() => setEmployeeName(viewingExpense.employee_id));
+      const employees = [
+        { employee_id: "10016", name: "Md. Sohel Rana", designation: "Accountant" },
+        { employee_id: "10006", name: "Md. Arman Al Sharif", designation: "COO" },
+        { employee_id: "10011", name: "Badhon Kumar Roy", designation: "Software Engineer" },
+        { employee_id: "10018", name: "Md. Sajibur Rahman", designation: "Assistant Engineer" },
+        { employee_id: "10021", name: "Md. Rezaul Karim", designation: "Office Boy" }
+      ];
+      const employee = employees.find((emp: any) => emp.employee_id === viewingExpense.employee_id);
+      setEmployeeName(employee ? `${employee.name} - ${employee.designation}` : viewingExpense.employee_id);
     } else {
       setEmployeeName('');
     }
@@ -75,13 +80,13 @@ export default function Expenses() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
-    const fileName = fromDate && toDate 
+    const fileName = fromDate && toDate
       ? `Expenses_${fromDate}_to_${toDate}.xlsx`
-      : fromDate 
-      ? `Expenses_from_${fromDate}.xlsx`
-      : toDate 
-      ? `Expenses_to_${toDate}.xlsx`
-      : 'Expenses_All.xlsx';
+      : fromDate
+        ? `Expenses_from_${fromDate}.xlsx`
+        : toDate
+          ? `Expenses_to_${toDate}.xlsx`
+          : 'Expenses_All.xlsx';
     XLSX.writeFile(wb, fileName);
   };
 
@@ -97,7 +102,7 @@ export default function Expenses() {
   const filteredExpenses = expenses?.filter((expense: any) => {
     const matchesSearch = expense.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       expense.expense_categories?.category_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     if (fromDate || toDate) {
       if (!expense.expense_date) return false;
       const date = new Date(expense.expense_date);
@@ -105,7 +110,7 @@ export default function Expenses() {
       const matchesDateRange = (!fromDate || expenseDateLocal >= fromDate) && (!toDate || expenseDateLocal <= toDate);
       return matchesSearch && matchesDateRange;
     }
-    
+
     return matchesSearch;
   }) || [];
 
@@ -178,7 +183,7 @@ export default function Expenses() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
+          <Button
             variant="outline"
             className="border-success text-success hover:bg-success/10"
             onClick={handleExportExcel}
@@ -187,13 +192,13 @@ export default function Expenses() {
             Export Excel
           </Button>
           {canEdit && (
-          <Button 
-            className="bg-gradient-primary hover:opacity-90 shadow-neon"
-            onClick={() => setShowAddForm(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Expense
-          </Button>
+            <Button
+              className="bg-gradient-primary hover:opacity-90 shadow-neon"
+              onClick={() => setShowAddForm(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Expense
+            </Button>
           )}
         </div>
       </div>
@@ -294,7 +299,7 @@ export default function Expenses() {
         <Table>
           <TableHeader>
             <TableRow>
-                <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
+              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
                 <div className="flex items-center gap-1">
                   Expense Date
                   {sortColumn === 'date' ? (sortDirection === 'desc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
@@ -362,47 +367,47 @@ export default function Expenses() {
                   <TableCell>{expense.banks?.bank_name || '-'}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => setViewingExpense(expense)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                       {canEdit && (
-                      <>
-                      <Dialog open={editingExpense?.id === expense.id} onOpenChange={(open) => !open && setEditingExpense(null)}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
+                        <>
+                          <Dialog open={editingExpense?.id === expense.id} onOpenChange={(open) => !open && setEditingExpense(null)}>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingExpense(expense)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                              <DialogTitle className="sr-only">Edit Expense</DialogTitle>
+                              <DialogDescription className="sr-only">Edit expense record</DialogDescription>
+                              <ExpenseForm
+                                initialData={expense}
+                                onSubmit={(data) => {
+                                  updateExpense.mutate({ id: expense.id, ...data });
+                                  setEditingExpense(null);
+                                }}
+                                onCancel={() => setEditingExpense(null)}
+                              />
+                            </DialogContent>
+                          </Dialog>
+                          <Button
+                            variant="outline"
                             size="sm"
-                            onClick={() => setEditingExpense(expense)}
+                            className="border-destructive text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeletingExpense(expense)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                          <DialogTitle className="sr-only">Edit Expense</DialogTitle>
-                          <DialogDescription className="sr-only">Edit expense record</DialogDescription>
-                          <ExpenseForm
-                            initialData={expense}
-                            onSubmit={(data) => {
-                              updateExpense.mutate({ id: expense.id, ...data });
-                              setEditingExpense(null);
-                            }}
-                            onCancel={() => setEditingExpense(null)}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="border-destructive text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeletingExpense(expense)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      </>
+                        </>
                       )}
                     </div>
                   </TableCell>
@@ -471,8 +476,8 @@ export default function Expenses() {
                   </div>
                 </div>
                 <div className="flex gap-2 pt-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     className="flex-1"
                     onClick={() => setViewingExpense(expense)}
@@ -481,41 +486,41 @@ export default function Expenses() {
                     View
                   </Button>
                   {canEdit && (
-                  <>
-                  <Dialog open={editingExpense?.id === expense.id} onOpenChange={(open) => !open && setEditingExpense(null)}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
+                    <>
+                      <Dialog open={editingExpense?.id === expense.id} onOpenChange={(open) => !open && setEditingExpense(null)}>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setEditingExpense(expense)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogTitle className="sr-only">Edit Expense</DialogTitle>
+                          <DialogDescription className="sr-only">Edit expense record</DialogDescription>
+                          <ExpenseForm
+                            initialData={expense}
+                            onSubmit={(data) => {
+                              updateExpense.mutate({ id: expense.id, ...data });
+                              setEditingExpense(null);
+                            }}
+                            onCancel={() => setEditingExpense(null)}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                      <Button
+                        variant="outline"
                         size="sm"
-                        className="flex-1"
-                        onClick={() => setEditingExpense(expense)}
+                        className="border-destructive text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeletingExpense(expense)}
                       >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                      <DialogTitle className="sr-only">Edit Expense</DialogTitle>
-                      <DialogDescription className="sr-only">Edit expense record</DialogDescription>
-                      <ExpenseForm
-                        initialData={expense}
-                        onSubmit={(data) => {
-                          updateExpense.mutate({ id: expense.id, ...data });
-                          setEditingExpense(null);
-                        }}
-                        onCancel={() => setEditingExpense(null)}
-                      />
-                    </DialogContent>
-                  </Dialog>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="border-destructive text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeletingExpense(expense)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  </>
+                    </>
                   )}
                 </div>
               </CardContent>
@@ -542,7 +547,7 @@ export default function Expenses() {
         onPageChange={handlePageChange}
         onRowsPerPageChange={handleRowsPerPageChange}
       />
-      
+
       {/* Add Expense Modal */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -625,7 +630,7 @@ export default function Expenses() {
           </Card>
         </div>
       )}
-      
+
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         open={!!deletingExpense}

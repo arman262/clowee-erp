@@ -69,7 +69,7 @@ export function useCreateMachineExpense() {
 
   return useMutation({
     mutationFn: async (data: Omit<MachineExpense, 'id' | 'created_at'>) => {
-      const storedUser = localStorage.getItem('clowee_user');
+      const storedUser = sessionStorage.getItem('clowee_user');
       const userId = storedUser ? JSON.parse(storedUser).user.id : null;
       
       // Get the next expense number

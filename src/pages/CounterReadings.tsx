@@ -3,14 +3,14 @@ import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { 
-  Activity, 
-  Plus, 
-  Search, 
-  Eye, 
-  Edit, 
+import {
+  Activity,
+  Plus,
+  Search,
+  Eye,
+  Edit,
   Trash2,
   Cpu,
   Calendar,
@@ -54,7 +54,7 @@ export default function CounterReadings() {
 
   // Combine readings with machine and franchise data, plus initial values
   const enrichedReadings = [];
-  
+
   // Add initial counter values from machines table
   machines?.forEach(machine => {
     const franchise = franchises?.find(f => f.id === machine.franchise_id);
@@ -80,7 +80,7 @@ export default function CounterReadings() {
       });
     }
   });
-  
+
   // Add actual readings
   readings?.forEach(reading => {
     const machine = machines?.find(m => m.id === reading.machine_id);
@@ -99,7 +99,7 @@ export default function CounterReadings() {
       }
     });
   });
-  
+
   // Sort by date descending (newest first)
   enrichedReadings.sort((a, b) => {
     return new Date(b.reading_date).getTime() - new Date(a.reading_date).getTime();
@@ -119,11 +119,11 @@ export default function CounterReadings() {
       reading.machine_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       reading.franchise_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       reading.notes?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const readingDate = new Date(reading.reading_date);
     const matchesFromDate = !fromDate || readingDate >= new Date(fromDate);
     const matchesToDate = !toDate || readingDate <= new Date(toDate + 'T23:59:59');
-    
+
     return matchesSearch && matchesFromDate && matchesToDate;
   }) || [];
 
@@ -192,6 +192,7 @@ export default function CounterReadings() {
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogTitle className="sr-only">Add Counter Reading</DialogTitle>
                 <CounterReadingForm
                   onSubmit={(data) => {
                     createReading.mutate(data);
@@ -201,7 +202,7 @@ export default function CounterReadings() {
                 />
               </DialogContent>
             </Dialog>
-            <Button 
+            <Button
               onClick={() => setShowPayToClowee(true)}
               className="bg-gradient-accent hover:opacity-90 shadow-neon"
             >
@@ -292,143 +293,143 @@ export default function CounterReadings() {
         <Card className="bg-gradient-card border-border shadow-card">
           {/* Desktop Table */}
           <div className="hidden md:block">
-          <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-16">#</TableHead>
-              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('machine')}>
-                <div className="flex items-center gap-1">
-                  Machine
-                  {sortColumn === 'machine' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
-                </div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('franchise')}>
-                <div className="flex items-center gap-1">
-                  Franchise
-                  {sortColumn === 'franchise' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
-                </div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
-                <div className="flex items-center gap-1">
-                  Reading Date
-                  {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
-                </div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('coins')}>
-                <div className="flex items-center gap-1">
-                  Coin Counter
-                  {sortColumn === 'coins' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
-                </div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('prizes')}>
-                <div className="flex items-center gap-1">
-                  Prize Counter
-                  {sortColumn === 'prizes' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
-                </div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('type')}>
-                <div className="flex items-center gap-1">
-                  Type
-                  {sortColumn === 'type' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
-                </div>
-              </TableHead>
-              <TableHead>Notes</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedReadings.map((reading, index) => (
-              <TableRow key={reading.id} className={reading.is_initial ? 'bg-secondary/20' : ''}>
-                <TableCell className="font-medium text-muted-foreground">
-                  {getSerialNumber(index)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      reading.is_initial ? 'bg-gradient-primary' : 'bg-gradient-accent'
-                    }`}>
-                      <Activity className="h-4 w-4 text-white" />
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">#</TableHead>
+                  <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('machine')}>
+                    <div className="flex items-center gap-1">
+                      Machine
+                      {sortColumn === 'machine' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                     </div>
-                    <div>
-                      <div className="font-medium">{reading.machine_name}</div>
-                      <div className="text-sm text-muted-foreground">{reading.machine_number}</div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('franchise')}>
+                    <div className="flex items-center gap-1">
+                      Franchise
+                      {sortColumn === 'franchise' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Cpu className="h-4 w-4 text-primary" />
-                    <span>{reading.franchise_name}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-white" />
-                    <span>{formatDate(reading.reading_date)}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-primary font-medium">{reading.coin_counter.toLocaleString()}</TableCell>
-                <TableCell className="text-accent font-medium">{reading.prize_counter.toLocaleString()}</TableCell>
-                <TableCell>
-                  <Badge variant={reading.is_initial ? 'default' : 'secondary'} className={reading.is_initial ? 'bg-primary text-primary-foreground' : ''}>
-                    {reading.is_initial ? 'Initial' : 'Reading'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="max-w-32 truncate" title={reading.notes || ''}>
-                    {reading.notes || '-'}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setViewingReading(reading)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {canEdit && !reading.is_initial && (
-                      <>
-                        <Dialog open={editingReading?.id === reading.id} onOpenChange={(open) => !open && setEditingReading(null)}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setEditingReading(reading)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                            <CounterReadingForm
-                              initialData={reading}
-                              onSubmit={(data) => {
-                                updateReading.mutate({ id: reading.id, ...data });
-                                setEditingReading(null);
-                              }}
-                              onCancel={() => setEditingReading(null)}
-                            />
-                          </DialogContent>
-                        </Dialog>
-                        <Button 
-                          variant="outline" 
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
+                    <div className="flex items-center gap-1">
+                      Reading Date
+                      {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('coins')}>
+                    <div className="flex items-center gap-1">
+                      Coin Counter
+                      {sortColumn === 'coins' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('prizes')}>
+                    <div className="flex items-center gap-1">
+                      Prize Counter
+                      {sortColumn === 'prizes' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('type')}>
+                    <div className="flex items-center gap-1">
+                      Type
+                      {sortColumn === 'type' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                    </div>
+                  </TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedReadings.map((reading, index) => (
+                  <TableRow key={reading.id} className={reading.is_initial ? 'bg-secondary/20' : ''}>
+                    <TableCell className="font-medium text-muted-foreground">
+                      {getSerialNumber(index)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${reading.is_initial ? 'bg-gradient-primary' : 'bg-gradient-accent'
+                          }`}>
+                          <Activity className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-medium">{reading.machine_name}</div>
+                          <div className="text-sm text-muted-foreground">{reading.machine_number}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Cpu className="h-4 w-4 text-primary" />
+                        <span>{reading.franchise_name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-white" />
+                        <span>{formatDate(reading.reading_date)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-primary font-medium">{reading.coin_counter.toLocaleString()}</TableCell>
+                    <TableCell className="text-accent font-medium">{reading.prize_counter.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={reading.is_initial ? 'default' : 'secondary'} className={reading.is_initial ? 'bg-primary text-primary-foreground' : ''}>
+                        {reading.is_initial ? 'Initial' : 'Reading'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-32 truncate" title={reading.notes || ''}>
+                        {reading.notes || '-'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
                           size="sm"
-                          className="border-destructive text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeletingReading(reading)}
+                          onClick={() => setViewingReading(reading)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      </>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-          </Table>
+                        {canEdit && !reading.is_initial && (
+                          <>
+                            <Dialog open={editingReading?.id === reading.id} onOpenChange={(open) => !open && setEditingReading(null)}>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setEditingReading(reading)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                                <DialogTitle className="sr-only">Edit Counter Reading</DialogTitle>
+                                <CounterReadingForm
+                                  initialData={reading}
+                                  onSubmit={(data) => {
+                                    updateReading.mutate({ id: reading.id, ...data });
+                                    setEditingReading(null);
+                                  }}
+                                  onCancel={() => setEditingReading(null)}
+                                />
+                              </DialogContent>
+                            </Dialog>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-destructive text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeletingReading(reading)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-          
+
           {/* Mobile Card View */}
           <div className="md:hidden p-3 space-y-3">
             {paginatedReadings.map((reading, index) => (
@@ -448,7 +449,7 @@ export default function CounterReadings() {
                       {reading.is_initial ? 'Initial' : 'Reading'}
                     </Badge>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <div className="text-xs text-muted-foreground mb-1">Franchise</div>
@@ -473,14 +474,14 @@ export default function CounterReadings() {
                       <div className="text-sm font-medium text-accent">{reading.prize_counter.toLocaleString()}</div>
                     </div>
                   </div>
-                  
+
                   {reading.notes && (
                     <div className="text-xs">
                       <span className="text-muted-foreground">Notes: </span>
                       <span>{reading.notes}</span>
                     </div>
                   )}
-                  
+
                   <div className="flex gap-2 pt-2">
                     <Button variant="outline" size="sm" className="flex-1" onClick={() => setViewingReading(reading)}>
                       <Eye className="h-4 w-4 mr-1" />
@@ -496,6 +497,7 @@ export default function CounterReadings() {
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <DialogTitle className="sr-only">Edit Counter Reading</DialogTitle>
                             <CounterReadingForm
                               initialData={reading}
                               onSubmit={(data) => {
@@ -529,20 +531,20 @@ export default function CounterReadings() {
           onRowsPerPageChange={handleRowsPerPageChange}
         />
       )}
-      
+
       {/* Counter Reading Details Modal */}
       <CounterReadingDetailsModal
         reading={viewingReading}
         open={!!viewingReading}
         onOpenChange={(open) => !open && setViewingReading(null)}
       />
-      
+
       {/* Pay to Clowee Modal */}
       <PayToCloweeModal
         open={showPayToClowee}
         onOpenChange={setShowPayToClowee}
       />
-      
+
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         open={!!deletingReading}

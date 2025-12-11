@@ -131,7 +131,7 @@ export function useCreateSale() {
 
   return useMutation({
     mutationFn: async (data: Omit<Sale, 'id' | 'created_at'>) => {
-      const storedUser = localStorage.getItem('clowee_user');
+      const storedUser = sessionStorage.getItem('clowee_user');
       const userId = storedUser ? JSON.parse(storedUser).user.id : null;
       const insertData = userId ? { ...data, payment_status: 'Due', created_by: userId } : { ...data, payment_status: 'Due' };
       

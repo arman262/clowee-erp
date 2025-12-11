@@ -60,6 +60,8 @@ export default function MonthlyReport() {
       const lastDay = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).getDate();
       const endDate = `${selectedYear}-${selectedMonth.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
 
+      console.log('Fetching data for period:', { startDate, endDate, selectedYear, selectedMonth });
+      
       const [allSales, machines, franchises, allExpenses, expenseCategories] = await Promise.all([
         db.from('sales').select('*').execute(),
         db.from('machines').select('*').execute(),
@@ -67,6 +69,14 @@ export default function MonthlyReport() {
         db.from('machine_expenses').select('*').execute(),
         db.from('expense_categories').select('*').execute()
       ]);
+      
+      console.log('Raw data counts:', {
+        allSales: allSales?.length || 0,
+        machines: machines?.length || 0,
+        franchises: franchises?.length || 0,
+        allExpenses: allExpenses?.length || 0,
+        expenseCategories: expenseCategories?.length || 0
+      });
 
       const sales = (allSales || []).filter((sale: any) => {
         const saleDate = sale.sales_date;
@@ -92,6 +102,7 @@ export default function MonthlyReport() {
       let profitShareClowee = 0;
       let totalPrizeOutSales = 0;
       let maintenanceCharge = 0;
+      let totalSalesAmount = 0;
       const franchiseData: any = {};
       
       // Initialize all franchises with zero values
@@ -110,6 +121,7 @@ export default function MonthlyReport() {
         profitShareClowee += cloweeProfit;
         totalPrizeOutSales += prizeOut;
         maintenanceCharge += maintenance;
+        totalSalesAmount += Number(sale.sales_amount) || 0;
 
         const franchiseName = franchise?.franchise_name || 'Unknown';
         if (!franchiseData[franchiseName]) {
@@ -149,24 +161,38 @@ export default function MonthlyReport() {
           profitShare: data.profitShare,
         }));
 
+      console.log('Final calculated data:', {
+        profitShareClowee,
+        prizeIncome: totalPrizeOutSales * 0.3,
+        maintenanceCharge,
+        totalExpenses,
+        variableCost,
+        salesBreakdownCount: salesBreakdown.length,
+        totalSalesInBreakdown: salesBreakdown.reduce((sum, item) => sum + item.sales, 0)
+      });
+
       setReportData({
         reportMonth: selectedMonthYear,
         income: {
           profitShareClowee,
+          prizeIncome: totalPrizeOutSales * 0.3,
           maintenanceCharge,
+          totalElectricityCost: 0,
         },
         expense: {
           fixedCost: totalExpenses - variableCost,
           variableCost: variableCost,
         },
+        totalSalesAmount,
         salesBreakdown,
       });
     } catch (error) {
       console.error('Error fetching report data:', error);
       setReportData({
         reportMonth: selectedMonthYear,
-        income: { profitShareClowee: 0, maintenanceCharge: 0 },
+        income: { profitShareClowee: 0, prizeIncome: 0, maintenanceCharge: 0, totalElectricityCost: 0 },
         expense: { fixedCost: 0, variableCost: 0 },
+        totalSalesAmount: 0,
         salesBreakdown: [{ location: 'No Data', sales: 0, profitShare: 0 }],
       });
     } finally {
@@ -562,7 +588,7 @@ export default function MonthlyReport() {
 
                         setMonthReportData({
                           reportMonth: `${data.month} ${selectedYear}`,
-                          preparedBy: "Md. Asif Sahariwar",
+                          preparedBy: "System Generated",
                           income: {
                             profitShareClowee: data.totalCloweeProfit,
                             prizeIncome: data.prizeProfit,
@@ -573,6 +599,7 @@ export default function MonthlyReport() {
                             fixedCost: (data.totalOtherExpenses || 0) - (data.variableCost || 0),
                             variableCost: data.variableCost || 0,
                           },
+                          totalSalesAmount: data.totalSalesAmount,
                           salesBreakdown,
                         });
                         setShowMonthReport(true);
@@ -627,7 +654,8 @@ export default function MonthlyReport() {
                     ]);
 
                     const sales = (allSales || []).filter((sale: any) => {
-                      const saleDate = sale.sales_date;
+                      if (!sale.sales_date) return false;
+                      const saleDate = new Date(sale.sales_date).toISOString().split('T')[0];
                       return saleDate >= startDate && saleDate <= endDate;
                     });
 
@@ -637,38 +665,37 @@ export default function MonthlyReport() {
                     const franchiseMap = new Map();
                     franchises?.forEach(franchise => franchiseMap.set(franchise.id, franchise));
 
-                    const franchiseData: any = {};
-                    franchises?.forEach((franchise: any) => {
-                      franchiseData[franchise.franchise_name] = { sales: 0, profitShare: 0, salesList: [] };
-                    });
-
+                    const machineData: any = {};
+                    
                     sales?.forEach((sale: any) => {
                       const machine = machineMap.get(sale.machine_id);
                       const franchise = machine ? franchiseMap.get(machine.franchise_id) : null;
                       const cloweeProfit = Number(sale.clowee_profit) || 0;
-                      const franchiseName = franchise?.franchise_name || 'Unknown';
+                      const machineName = machine ? `${machine.machine_name} (${franchise?.name || 'Unknown'})` : 'Unknown Machine';
                       
-                      if (!franchiseData[franchiseName]) {
-                        franchiseData[franchiseName] = { sales: 0, profitShare: 0, salesList: [] };
+                      let salesAmount = Number(sale.sales_amount) || 0;
+                      
+                      if (!machineData[machineName]) {
+                        machineData[machineName] = { sales: 0, profitShare: 0, salesList: [] };
                       }
-                      franchiseData[franchiseName].sales += Number(sale.sales_amount) || 0;
-                      franchiseData[franchiseName].profitShare += cloweeProfit;
-                      franchiseData[franchiseName].salesList.push({
+                      machineData[machineName].sales += salesAmount;
+                      machineData[machineName].profitShare += cloweeProfit;
+                      machineData[machineName].salesList.push({
                         date: new Date(sale.sales_date).toLocaleDateString('en-GB'),
-                        amount: Number(sale.sales_amount) || 0
+                        amount: salesAmount
                       });
                     });
 
-                    const salesBreakdown = Object.entries(franchiseData)
-                      .map(([location, fData]: [string, any]) => ({
+                    const salesBreakdown = Object.entries(machineData)
+                      .map(([location, mData]: [string, any]) => ({
                         location,
-                        sales: fData.sales,
-                        profitShare: fData.profitShare,
+                        sales: mData.sales,
+                        profitShare: mData.profitShare,
                       }));
 
                     setMonthReportData({
                       reportMonth: `${data.month} ${selectedYear}`,
-                      preparedBy: "Md. Asif Sahariwar",
+                      preparedBy: "System Generated",
                       income: {
                         profitShareClowee: data.totalCloweeProfit,
                         prizeIncome: data.prizeProfit,
@@ -679,6 +706,7 @@ export default function MonthlyReport() {
                         fixedCost: (data.totalOtherExpenses || 0) - (data.variableCost || 0),
                         variableCost: data.variableCost || 0,
                       },
+                      totalSalesAmount: data.totalSalesAmount,
                       salesBreakdown,
                     });
                     setShowMonthReport(true);

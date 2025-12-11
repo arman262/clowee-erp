@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Upload, X, FileText, Download, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://erp.tolpar.com.bd/api';
 
 interface FileUploadProps {
   label: string;
@@ -16,13 +16,13 @@ interface FileUploadProps {
   fileType: 'agreement_copy' | 'trade_nid_copy';
 }
 
-export function FileUpload({ 
-  label, 
-  accept = ".pdf", 
-  multiple = false, 
-  value, 
-  onChange, 
-  fileType 
+export function FileUpload({
+  label,
+  accept = ".pdf",
+  multiple = false,
+  value,
+  onChange,
+  fileType
 }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -30,13 +30,18 @@ export function FileUpload({
   const uploadFile = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    
+
+    const token = sessionStorage.getItem('clowee_token');
+
     try {
       const response = await fetch(`${API_URL}/upload`, {
         method: 'POST',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
         body: formData
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         return result.url;
@@ -66,7 +71,7 @@ export function FileUpload({
     try {
       const uploadPromises = files.map(file => uploadFile(file));
       const fileUrls = await Promise.all(uploadPromises);
-      
+
       // Only update if all uploads succeeded
       if (fileType === 'agreement_copy') {
         // agreement_copy is a single string field
@@ -78,7 +83,7 @@ export function FileUpload({
         onChange([...currentFiles, ...fileUrls]);
         toast.success(`${files.length} file(s) uploaded successfully`);
       }
-      
+
       // Clear selected files after upload
       setSelectedFiles([]);
     } catch (error) {
@@ -105,11 +110,11 @@ export function FileUpload({
 
   // Combine uploaded files and currently selected files for display
   const uploadedFiles = fileType === 'trade_nid_copy'
-    ? (Array.isArray(value) ? value.filter(url => url && typeof url === 'string' && url.startsWith('http')) : []) 
+    ? (Array.isArray(value) ? value.filter(url => url && typeof url === 'string' && url.startsWith('http')) : [])
     : (value && typeof value === 'string' && value.startsWith('http') ? [value as string] : []);
-  
+
   const displayFiles = [...uploadedFiles];
-  
+
   // Add selected files that are being uploaded
   if (uploading && selectedFiles.length > 0) {
     const pendingFiles = selectedFiles.map(f => `uploading://${f.name}`);
@@ -144,16 +149,16 @@ export function FileUpload({
             {uploading ? 'Uploading...' : 'Upload Files'}
           </Button>
         </div>
-        
+
         {displayFiles.length > 0 && (
           <div className="space-y-2">
             {displayFiles.map((url, index) => {
               if (!url || typeof url !== 'string') return null;
-              
+
               const isUploading = url.startsWith('uploading://');
               const isPlaceholder = url.startsWith('file://');
               const fileName = url.includes('/') ? url.split('/').pop() || 'file' : url.split('://')[1] || 'file';
-              
+
               return (
                 <div key={index} className="flex items-center gap-2 p-2 border rounded">
                   {isUploading ? (
@@ -171,11 +176,47 @@ export function FileUpload({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          if (url && url.startsWith('http')) {
-                            window.open(url, '_blank');
-                          } else {
-                            console.warn('Cannot view file with invalid URL:', url);
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+
+                          if (url) {
+                            try {
+                              const token = sessionStorage.getItem('token');
+                              if (!token) {
+                                toast.error("Authentication token missing");
+                                return;
+                              }
+
+                              // Extract filename from URL
+                              const filename = url.split('/').pop();
+                              if (!filename) throw new Error('Invalid filename');
+
+                              // Use the secure download endpoint
+                              // Ensure API_URL is HTTPS
+                              const secureApiUrl = API_URL.replace('http:', 'https:').replace('202.59.208.112:3008', 'erp.tolpar.com.bd');
+                              const downloadUrl = `${secureApiUrl}/download?filename=${filename}`;
+                              console.log('Fetching file via API:', downloadUrl);
+
+                              const response = await fetch(downloadUrl, {
+                                method: 'GET',
+                                headers: {
+                                  'Authorization': `Bearer ${token}`
+                                }
+                              });
+
+                              if (!response.ok) throw new Error('Failed to fetch file');
+
+                              const blob = await response.blob();
+                              const blobUrl = window.URL.createObjectURL(blob);
+                              window.open(blobUrl, '_blank');
+
+                              // Clean up blob URL after a delay
+                              setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+                            } catch (error) {
+                              console.error('Error viewing file:', error);
+                              toast.error("Failed to view file");
+                            }
                           }
                         }}
                       >
@@ -185,21 +226,56 @@ export function FileUpload({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          if (url && url.startsWith('http')) {
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = fileName;
-                            a.click();
-                          } else {
-                            console.warn('Cannot download file with invalid URL:', url);
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+
+                          if (url) {
+                            try {
+                              const token = sessionStorage.getItem('token');
+                              if (!token) {
+                                toast.error("Authentication token missing");
+                                return;
+                              }
+
+                              // Extract filename from URL
+                              const filename = url.split('/').pop();
+                              if (!filename) throw new Error('Invalid filename');
+
+                              // Use the secure download endpoint
+                              const secureApiUrl = API_URL.replace('http:', 'https:').replace('202.59.208.112:3008', 'erp.tolpar.com.bd');
+                              const downloadUrl = `${secureApiUrl}/download?filename=${filename}`;
+
+                              const response = await fetch(downloadUrl, {
+                                method: 'GET',
+                                headers: {
+                                  'Authorization': `Bearer ${token}`
+                                }
+                              });
+
+                              if (!response.ok) throw new Error('Failed to download file');
+
+                              const blob = await response.blob();
+                              const blobUrl = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = blobUrl;
+                              a.download = fileName;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              window.URL.revokeObjectURL(blobUrl);
+                            } catch (error) {
+                              console.error('Error downloading file:', error);
+                              toast.error("Failed to download file");
+                            }
                           }
                         }}
                       >
                         <Download className="h-4 w-4" />
                       </Button>
                     </>
-                  )}
+                  )
+                  }
                   {!isUploading && (
                     <Button
                       type="button"
@@ -216,6 +292,6 @@ export function FileUpload({
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }

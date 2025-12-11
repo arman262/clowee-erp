@@ -11,12 +11,18 @@ for file in Payments Banks CounterReadings ExpenseCategories Invoices; do
     # Add import if not exists
     if ! grep -q "usePermissions" "$filepath"; then
       # Find the last import line and add after it
-      sed -i '/^import.*from/a import { usePermissions } from "@/hooks/usePermissions";' "$filepath"
+      if ! sed -i '/^import.*from/a import { usePermissions } from "@/hooks/usePermissions";' "$filepath"; then
+        echo "Error: Failed to add import to $file" >&2
+        continue
+      fi
     fi
     
     # Add const { canEdit } after function declaration
     if ! grep -q "const { canEdit }" "$filepath"; then
-      sed -i "/export default function ${file}()/a \  const { canEdit } = usePermissions();" "$filepath"
+      if ! sed -i "/export default function ${file}()/a \  const { canEdit } = usePermissions();" "$filepath"; then
+        echo "Error: Failed to add canEdit to $file" >&2
+        continue
+      fi
     fi
     
     echo "✓ Updated $file"

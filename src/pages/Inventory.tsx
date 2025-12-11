@@ -94,8 +94,10 @@ export default function Inventory() {
   const [selectedStockOut, setSelectedStockOut] = useState<any>(null);
   const [accessoriesSearch, setAccessoriesSearch] = useState('');
   const [dollStockSearch, setDollStockSearch] = useState('');
+  const [stockOutSearch, setStockOutSearch] = useState('');
   const [accessoriesPage, setAccessoriesPage] = useState(1);
   const [dollStockPage, setDollStockPage] = useState(1);
+  const [stockOutPage, setStockOutPage] = useState(1);
   const rowsPerPage = 50;
 
   const { data: stockOutHistory = [] } = useQuery({
@@ -208,7 +210,12 @@ export default function Inventory() {
                     const filtered = accessoriesData.filter((item: any) => 
                       item.item_name?.toLowerCase().includes(accessoriesSearch.toLowerCase()) ||
                       item.category_name?.toLowerCase().includes(accessoriesSearch.toLowerCase())
-                    );
+                    ).sort((a: any, b: any) => {
+                      // Sort by quantity: items with stock first (descending), then items without stock
+                      if (b.quantity > 0 && a.quantity <= 0) return 1;
+                      if (a.quantity > 0 && b.quantity <= 0) return -1;
+                      return b.quantity - a.quantity;
+                    });
                     const paginated = filtered.slice((accessoriesPage - 1) * rowsPerPage, accessoriesPage * rowsPerPage);
                     const totalQty = filtered.reduce((sum, item) => sum + (item.quantity || 0), 0);
                     const totalAmount = filtered.reduce((sum, item) => sum + (item.total_amount || 0), 0);
@@ -252,7 +259,12 @@ export default function Inventory() {
                 const filtered = accessoriesData.filter((item: any) => 
                   item.item_name?.toLowerCase().includes(accessoriesSearch.toLowerCase()) ||
                   item.category_name?.toLowerCase().includes(accessoriesSearch.toLowerCase())
-                );
+                ).sort((a: any, b: any) => {
+                  // Sort by quantity: items with stock first (descending), then items without stock
+                  if (b.quantity > 0 && a.quantity <= 0) return 1;
+                  if (a.quantity > 0 && b.quantity <= 0) return -1;
+                  return b.quantity - a.quantity;
+                });
                 const paginated = filtered.slice((accessoriesPage - 1) * rowsPerPage, accessoriesPage * rowsPerPage);
                 const totalQty = filtered.reduce((sum, item) => sum + (item.quantity || 0), 0);
                 const totalAmount = filtered.reduce((sum, item) => sum + (item.total_amount || 0), 0);
@@ -312,7 +324,12 @@ export default function Inventory() {
               const filtered = accessoriesData.filter((item: any) => 
                 item.item_name?.toLowerCase().includes(accessoriesSearch.toLowerCase()) ||
                 item.category_name?.toLowerCase().includes(accessoriesSearch.toLowerCase())
-              );
+              ).sort((a: any, b: any) => {
+                // Sort by quantity: items with stock first (descending), then items without stock
+                if (b.quantity > 0 && a.quantity <= 0) return 1;
+                if (a.quantity > 0 && b.quantity <= 0) return -1;
+                return b.quantity - a.quantity;
+              });
               const totalPages = Math.ceil(filtered.length / rowsPerPage);
               return totalPages > 1 && (
                 <div className="flex items-center justify-between">
@@ -358,7 +375,7 @@ export default function Inventory() {
                   {(() => {
                     const filtered = machineWiseStock.filter((machine: any) => 
                       (machine.machineName || '').toLowerCase().includes(dollStockSearch.toLowerCase())
-                    );
+                    ).sort((a: any, b: any) => a.stock - b.stock);
                     const paginated = filtered.slice((dollStockPage - 1) * rowsPerPage, dollStockPage * rowsPerPage);
                     const totalPurchased = filtered.reduce((sum, m) => sum + (m.purchased || 0), 0);
                     const totalPrizeOut = filtered.reduce((sum, m) => sum + (m.prizeOut || 0), 0);
@@ -375,13 +392,13 @@ export default function Inventory() {
                         ) : (
                           <>
                             {paginated.map((machine: any) => (
-                              <TableRow key={machine.machineId} className="h-10">
-                                <TableCell className="font-medium py-2">{machine.machineName || ''}</TableCell>
-                                <TableCell className="text-success py-2">{machine.purchased}</TableCell>
-                                <TableCell className="text-destructive py-2">{machine.prizeOut}</TableCell>
-                                <TableCell className="font-bold py-2">{machine.stock}</TableCell>
-                                <TableCell className="py-2">
-                                  <Button variant="outline" size="sm" onClick={() => { setSelectedMachine(machine); setShowDollAdjustModal(true); }} className="border-primary text-primary h-7">
+                              <TableRow key={machine.machineId} className={machine.stock < 50 ? 'bg-red-500/20' : ''}>
+                                <TableCell className="font-medium py-1">{machine.machineName || ''}</TableCell>
+                                <TableCell className="text-success py-1">{machine.purchased}</TableCell>
+                                <TableCell className="text-destructive py-1">{machine.prizeOut}</TableCell>
+                                <TableCell className="font-bold py-1">{machine.stock}</TableCell>
+                                <TableCell className="py-1">
+                                  <Button variant="outline" size="sm" onClick={() => { setSelectedMachine(machine); setShowDollAdjustModal(true); }} className="border-primary text-primary h-6">
                                     <ArrowUpDown className="h-3 w-3" />
                                   </Button>
                                 </TableCell>
@@ -406,7 +423,7 @@ export default function Inventory() {
               {(() => {
                 const filtered = machineWiseStock.filter((machine: any) => 
                   (machine.machineName || '').toLowerCase().includes(dollStockSearch.toLowerCase())
-                );
+                ).sort((a: any, b: any) => a.stock - b.stock);
                 const paginated = filtered.slice((dollStockPage - 1) * rowsPerPage, dollStockPage * rowsPerPage);
                 const totalPurchased = filtered.reduce((sum, m) => sum + (m.purchased || 0), 0);
                 const totalPrizeOut = filtered.reduce((sum, m) => sum + (m.prizeOut || 0), 0);
@@ -419,7 +436,7 @@ export default function Inventory() {
                     ) : (
                       <>
                         {paginated.map((machine: any) => (
-                          <Card key={machine.machineId} className="bg-secondary/5 border-border">
+                          <Card key={machine.machineId} className={machine.stock < 50 ? 'bg-red-500/20 border-red-500' : 'bg-secondary/5 border-border'}>
                             <CardContent className="p-4 space-y-3">
                               <div className="flex items-center justify-between">
                                 <div className="font-medium">{machine.machineName || ''}</div>
@@ -471,7 +488,7 @@ export default function Inventory() {
             {(() => {
               const filtered = machineWiseStock.filter((machine: any) => 
                 (machine.machineName || '').toLowerCase().includes(dollStockSearch.toLowerCase())
-              );
+              ).sort((a: any, b: any) => a.stock - b.stock);
               const totalPages = Math.ceil(filtered.length / rowsPerPage);
               return totalPages > 1 && (
                 <div className="flex items-center justify-between">
@@ -493,7 +510,16 @@ export default function Inventory() {
         <CardHeader>
           <CardTitle>Stock Out History</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by item name, machine, or remarks..."
+              value={stockOutSearch}
+              onChange={(e) => { setStockOutSearch(e.target.value); setStockOutPage(1); }}
+              className="pl-10 bg-secondary/30 border-border"
+            />
+          </div>
           <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
@@ -509,14 +535,25 @@ export default function Inventory() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stockOutHistory.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      No stock out history
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  stockOutHistory.map((record: any) => {
+                {(() => {
+                  const filtered = stockOutHistory.filter((record: any) => {
+                    const itemName = record.adjustment_type === 'stock_in' ? record.item_name : (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-');
+                    const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
+                    const searchLower = stockOutSearch.toLowerCase();
+                    return itemName.toLowerCase().includes(searchLower) ||
+                           machineName.toLowerCase().includes(searchLower) ||
+                           (record.remarks || '').toLowerCase().includes(searchLower);
+                  });
+                  const paginated = filtered.slice((stockOutPage - 1) * rowsPerPage, stockOutPage * rowsPerPage);
+                  
+                  return paginated.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        No stock out history
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginated.map((record: any) => {
                     const itemName = record.adjustment_type === 'stock_in' ? record.item_name : (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-');
                     const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
                     const user = users.find((u: any) => u.id === record.handled_by);
@@ -553,15 +590,27 @@ export default function Inventory() {
                       </TableRow>
                     );
                   })
-                )}
+                  );
+                })()}
               </TableBody>
             </Table>
           </div>
           <div className="md:hidden space-y-3">
-            {stockOutHistory.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No stock out history</div>
-            ) : (
-              stockOutHistory.map((record: any) => {
+            {(() => {
+              const filtered = stockOutHistory.filter((record: any) => {
+                const itemName = record.adjustment_type === 'stock_in' ? record.item_name : (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-');
+                const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
+                const searchLower = stockOutSearch.toLowerCase();
+                return itemName.toLowerCase().includes(searchLower) ||
+                       machineName.toLowerCase().includes(searchLower) ||
+                       (record.remarks || '').toLowerCase().includes(searchLower);
+              });
+              const paginated = filtered.slice((stockOutPage - 1) * rowsPerPage, stockOutPage * rowsPerPage);
+              
+              return paginated.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No stock out history</div>
+              ) : (
+                paginated.map((record: any) => {
                 const itemName = record.adjustment_type === 'stock_in' ? record.item_name : (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-');
                 const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
                 const user = users.find((u: any) => u.id === record.handled_by);
@@ -618,8 +667,31 @@ export default function Inventory() {
                   </Card>
                 );
               })
-            )}
+              );
+            })()}
           </div>
+          {(() => {
+            const filtered = stockOutHistory.filter((record: any) => {
+              const itemName = record.adjustment_type === 'stock_in' ? record.item_name : (accessoriesData.find((item: any) => item.id === record.item_id)?.item_name || '-');
+              const machineName = machines.find((m: any) => m.id === record.machine_id)?.machine_name || '-';
+              const searchLower = stockOutSearch.toLowerCase();
+              return itemName.toLowerCase().includes(searchLower) ||
+                     machineName.toLowerCase().includes(searchLower) ||
+                     (record.remarks || '').toLowerCase().includes(searchLower);
+            });
+            const totalPages = Math.ceil(filtered.length / rowsPerPage);
+            return totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((stockOutPage - 1) * rowsPerPage) + 1} to {Math.min(stockOutPage * rowsPerPage, filtered.length)} of {filtered.length}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setStockOutPage(p => Math.max(1, p - 1))} disabled={stockOutPage === 1}>Previous</Button>
+                  <Button variant="outline" size="sm" onClick={() => setStockOutPage(p => Math.min(totalPages, p + 1))} disabled={stockOutPage === totalPages}>Next</Button>
+                </div>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
       <AdjustDollStockModal open={showDollAdjustModal} onClose={() => setShowDollAdjustModal(false)} machine={selectedMachine} />

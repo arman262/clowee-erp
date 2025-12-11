@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/integrations/postgres/client";
 import { toast } from "sonner";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://erp.tolpar.com.bd/api';
 
 // Try to use franchise_agreements table, fallback to franchises table
 export function useFranchiseAgreements(franchiseId?: string) {
@@ -10,27 +10,24 @@ export function useFranchiseAgreements(franchiseId?: string) {
     queryKey: ["franchise-agreements", franchiseId],
     queryFn: async () => {
       if (!franchiseId) return [];
-      
+
       try {
-        // Get from franchise_agreements table using direct API call
-        const response = await fetch(`${API_URL}/franchise_agreements`);
-        const result = await response.json();
-        
-        if (result.error) {
-          throw new Error(result.error);
-        }
-        
+        // Get from franchise_agreements table using db client (handles auth)
+        const data = await db
+          .from("franchise_agreements")
+          .select("*")
+          .execute();
+
         // Filter by franchise_id and sort by effective_date
-        const agreements = (result.data || [])
+        const agreements = (data || [])
           .filter((agreement: any) => agreement.franchise_id === franchiseId)
           .sort((a: any, b: any) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime());
-        
+
         if (agreements && agreements.length > 0) {
           console.log('Found franchise agreements:', agreements);
           return agreements;
         }
 
-        
         // No agreements found
         console.log('No franchise agreements found');
         return [];
@@ -48,18 +45,18 @@ export function useUpdateFranchiseAgreement() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: any) => {
-      const response = await fetch(`${API_URL}/franchise_agreements/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      
-      const result = await response.json();
-      
+      // Update using db client
+      const result = await db
+        .from("franchise_agreements")
+        .update(data)
+        .eq("id", id)
+        .select()
+        .single();
+
       if (result.error) {
         throw new Error(result.error);
       }
-      
+
       // Update franchises table with new agreement values
       console.log('Updating franchise table for ID:', data.franchise_id);
       try {
@@ -72,24 +69,24 @@ export function useUpdateFranchiseAgreement() {
           clowee_share: data.clowee_share,
           payment_duration: data.payment_duration
         };
-        
+
         const updateResult = await db
           .from("franchises")
           .update(franchiseUpdateData)
           .eq("id", data.franchise_id)
           .select()
           .single();
-        
+
         console.log('Franchise update result:', updateResult);
-        
+
         if (updateResult.error) {
           console.warn('Franchise update failed:', updateResult.error);
         }
       } catch (error) {
         console.warn('Franchise update error:', error);
       }
-      
-      return result.data || result;
+
+      return result.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["franchise-agreements"] });
@@ -108,16 +105,16 @@ export function useDeleteFranchiseAgreement() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`${API_URL}/franchise_agreements/${id}`, {
-        method: 'DELETE'
-      });
-      
-      const result = await response.json();
-      
+      const result = await db
+        .from("franchise_agreements")
+        .delete()
+        .eq("id", id)
+        .execute();
+
       if (result.error) {
         throw new Error(result.error);
       }
-      
+
       return result;
     },
     onSuccess: () => {
@@ -138,21 +135,20 @@ export function useCreateFranchiseAgreement() {
   return useMutation({
     mutationFn: async (data: any) => {
       console.log('Creating franchise agreement with data:', data);
-      
-      // Insert into franchise_agreements table using direct API call
-      const agreementResponse = await fetch(`${API_URL}/franchise_agreements`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      
-      const agreementResult = await agreementResponse.json();
+
+      // Insert into franchise_agreements table using db client
+      const agreementResult = await db
+        .from("franchise_agreements")
+        .insert(data)
+        .select()
+        .single();
+
       console.log('Agreement insert result:', agreementResult);
-      
+
       if (agreementResult.error) {
         throw new Error(agreementResult.error);
       }
-      
+
       // Update franchises table with new agreement values
       console.log('Updating franchise table for ID:', data.franchise_id);
       try {
@@ -165,23 +161,23 @@ export function useCreateFranchiseAgreement() {
           clowee_share: data.clowee_share,
           payment_duration: data.payment_duration
         };
-        
+
         const updateResult = await db
           .from("franchises")
           .update(franchiseUpdateData)
           .eq("id", data.franchise_id)
           .select()
           .single();
-        
+
         console.log('Franchise update result:', updateResult);
-        
+
         if (updateResult.error) {
           console.warn('Franchise update failed:', updateResult.error);
         }
       } catch (error) {
         console.warn('Franchise update error:', error);
       }
-      
+
       return agreementResult.data || agreementResult;
     },
     onSuccess: () => {
@@ -203,14 +199,14 @@ export function useCreateFranchiseAgreement() {
 // Get effective agreement for a specific date
 export function getEffectiveAgreement(agreements: any[], date: string) {
   if (!agreements || agreements.length === 0) return null;
-  
+
   const targetDate = new Date(date);
-  const validAgreements = agreements.filter(agreement => 
+  const validAgreements = agreements.filter(agreement =>
     new Date(agreement.effective_date) <= targetDate
   );
-  
+
   // Return the most recent agreement before or on the target date
-  return validAgreements.sort((a, b) => 
+  return validAgreements.sort((a, b) =>
     new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime()
   )[0] || null;
 }
@@ -227,7 +223,7 @@ export function useAllFranchiseAgreements() {
           .select("*")
           .order("effective_date", { ascending: false })
           .execute();
-        
+
         return agreements || [];
       } catch (error) {
         console.error('Error fetching all franchise agreements:', error);

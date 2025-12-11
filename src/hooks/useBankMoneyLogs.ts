@@ -1,29 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { db } from '@/integrations/postgres/client';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://202.59.208.112:3008/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://erp.tolpar.com.bd/api';
 
 export function useBankMoneyLogs() {
   return useQuery({
     queryKey: ['bank_money_logs'],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/bank_money_logs`);
-      const result = await response.json();
-      return result.data;
+      const data = await db.from('bank_money_logs').select('*').execute();
+      return data || [];
     },
   });
 }
 
 export function useCreateBankMoneyLog() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch(`${API_URL}/bank_money_logs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const result = await response.json();
+      const result = await db
+        .from('bank_money_logs')
+        .insert(data)
+        .select()
+        .single();
+
       if (result.error) throw new Error(result.error);
       return result.data;
     },
@@ -36,15 +36,16 @@ export function useCreateBankMoneyLog() {
 
 export function useUpdateBankMoneyLog() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, ...data }: any) => {
-      const response = await fetch(`${API_URL}/bank_money_logs/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const result = await response.json();
+      const result = await db
+        .from('bank_money_logs')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
       if (result.error) throw new Error(result.error);
       return result.data;
     },
@@ -57,13 +58,15 @@ export function useUpdateBankMoneyLog() {
 
 export function useDeleteBankMoneyLog() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`${API_URL}/bank_money_logs/${id}`, {
-        method: 'DELETE',
-      });
-      const result = await response.json();
+      const result = await db
+        .from('bank_money_logs')
+        .delete()
+        .eq('id', id)
+        .execute();
+
       if (result.error) throw new Error(result.error);
     },
     onSuccess: () => {

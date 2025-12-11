@@ -2,7 +2,7 @@ import { createNotification } from "./useNotifications";
 
 export const useNotificationMutations = () => {
   const getCurrentUserId = () => {
-    const storedUser = localStorage.getItem('clowee_user');
+    const storedUser = sessionStorage.getItem('clowee_user');
     return storedUser ? JSON.parse(storedUser).user.id : null;
   };
 

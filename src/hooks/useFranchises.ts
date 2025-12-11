@@ -33,10 +33,10 @@ export const useFranchises = () => {
         .select('*')
         .order('created_at', { ascending: false })
         .execute();
-      
+
       // Fetch bank details for each franchise
       const banks = await db.from('banks').select('*').execute();
-      
+
       return franchises.map(franchise => ({
         ...franchise,
         banks: franchise.payment_bank_id ? banks.find(bank => bank.id === franchise.payment_bank_id) : null
@@ -48,40 +48,31 @@ export const useFranchises = () => {
 export const useCreateFranchise = () => {
   const queryClient = useQueryClient();
   const { notifyCreate } = useNotificationMutations();
-  
+
   return useMutation({
     mutationFn: async (franchise: Omit<Franchise, 'id' | 'created_at' | 'updated_at'>) => {
-      // Generate UUID manually
-      const generateUUID = () => {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          const r = Math.random() * 16 | 0;
-          const v = c == 'x' ? r : (r & 0x3 | 0x8);
-          return v.toString(16);
-        });
-      };
-      
       // Clean up empty strings that should be null for UUID fields
+      // Exclude payment_bank_id as it doesn't exist in the database
+      const { payment_bank_id, ...rest } = franchise;
+
       const cleanedFranchise = {
-        ...franchise,
-        payment_bank_id: franchise.payment_bank_id || null,
+        ...rest,
         agreement_copy: franchise.agreement_copy || null,
         security_deposit_type: franchise.security_deposit_type || null,
         security_deposit_notes: franchise.security_deposit_notes || null
       };
-      
+
+      // Let database handle ID and timestamps
       const franchiseData = {
-        id: generateUUID(),
-        ...cleanedFranchise,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        ...cleanedFranchise
       };
-      
+
       const { data } = await db
         .from('franchises')
         .insert(franchiseData)
         .select()
         .single();
-      
+
       return data;
     },
     onSuccess: (data) => {
@@ -98,7 +89,7 @@ export const useCreateFranchise = () => {
 export const useUpdateFranchise = () => {
   const queryClient = useQueryClient();
   const { notifyUpdate } = useNotificationMutations();
-  
+
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Franchise> & { id: string }) => {
       // Clean up empty strings that should be null for UUID fields
@@ -110,14 +101,14 @@ export const useUpdateFranchise = () => {
         security_deposit_notes: updates.security_deposit_notes || null,
         updated_at: new Date().toISOString()
       };
-      
+
       const { data } = await db
         .from('franchises')
         .update(cleanedUpdates)
         .eq('id', id)
         .select()
         .single();
-      
+
       return data;
     },
     onSuccess: (data) => {
@@ -134,7 +125,7 @@ export const useUpdateFranchise = () => {
 export const useDeleteFranchise = () => {
   const queryClient = useQueryClient();
   const { notifyDelete } = useNotificationMutations();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       // First check if there are any machines linked to this franchise
@@ -142,13 +133,13 @@ export const useDeleteFranchise = () => {
         .from('machines')
         .select('id')
         .execute();
-      
+
       const linkedMachines = machines?.filter((machine: any) => machine.franchise_id === id) || [];
-      
+
       if (linkedMachines.length > 0) {
         throw new Error(`Cannot delete franchise. ${linkedMachines.length} machine(s) are still linked to this franchise. Please remove or reassign the machines first.`);
       }
-      
+
       await db
         .from('franchises')
         .delete()

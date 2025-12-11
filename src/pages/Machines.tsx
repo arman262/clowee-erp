@@ -93,8 +93,8 @@ export default function Machines() {
         bVal = b.initial_prize_counter || 0;
         return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
       case 'status':
-        aVal = a.notes?.includes('[STATUS:inactive]') ? 'Inactive' : 'Active';
-        bVal = b.notes?.includes('[STATUS:inactive]') ? 'Inactive' : 'Active';
+        aVal = a.is_active !== false ? 'Active' : 'Inactive';
+        bVal = b.is_active !== false ? 'Active' : 'Inactive';
         return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       default:
         return 0;
@@ -157,7 +157,7 @@ export default function Machines() {
         <Card className="bg-gradient-glass border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-success">
-              {machines?.length || 0}
+              {machines?.filter(m => m.is_active !== false).length || 0}
             </div>
             <div className="text-sm text-muted-foreground">Active Machines</div>
           </CardContent>
@@ -274,8 +274,8 @@ export default function Machines() {
                 <TableCell className="text-primary font-medium">{machine.initial_coin_counter.toLocaleString()}</TableCell>
                 <TableCell className="text-accent font-medium">{machine.initial_prize_counter.toLocaleString()}</TableCell>
                 <TableCell>
-                  <Badge className={machine.notes?.includes('[STATUS:inactive]') ? 'bg-destructive text-destructive-foreground' : 'bg-success text-success-foreground'}>
-                    {machine.notes?.includes('[STATUS:inactive]') ? 'Inactive' : 'Active'}
+                  <Badge className={machine.is_active !== false ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground'}>
+                    {machine.is_active !== false ? 'Active' : 'Inactive'}
                   </Badge>
                 </TableCell>
                 <TableCell>

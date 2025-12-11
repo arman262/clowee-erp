@@ -10,12 +10,7 @@ import { Plus } from "lucide-react";
 import { useMachines } from "@/hooks/useMachines";
 import { useActiveExpenseCategories } from "@/hooks/useExpenseCategories";
 import { useBanks } from "@/hooks/useBanks";
-
-interface Employee {
-  employee_id: string;
-  name: string;
-  designation: string;
-}
+import { useEmployees } from "@/hooks/useEmployees";
 
 interface ExpenseFormProps {
   onSubmit: (data: any) => void;
@@ -27,18 +22,19 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
   const { data: machines } = useMachines();
   const { data: categories } = useActiveExpenseCategories();
   const { data: banks } = useBanks();
-  
+  const { data: employees, isLoading: employeesLoading } = useEmployees();
+
   const [formData, setFormData] = useState(() => {
     let expenseDate = new Date().toISOString().split('T')[0];
     let expenseMonth = new Date().toISOString().slice(0, 7);
-    
+
     if (initialData?.expense_date) {
       const date = new Date(initialData.expense_date);
       const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
       expenseDate = localDate;
       expenseMonth = localDate.slice(0, 7);
     }
-    
+
     return {
       category_id: initialData?.category_id ? String(initialData.category_id) : "",
       machine_id: initialData?.machine_id ? String(initialData.machine_id) : "",
@@ -53,14 +49,13 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
     };
   });
 
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isMonthlyExpense, setIsMonthlyExpense] = useState(false);
   const [prizeQuantity, setPrizeQuantity] = useState(initialData?.quantity || 1);
   const [prizeRate, setPrizeRate] = useState(initialData?.item_price || 0);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isEmployeeSalary, setIsEmployeeSalary] = useState(false);
   const [isAccessoryCategory, setIsAccessoryCategory] = useState(false);
-  const [accessoryItems, setAccessoryItems] = useState<Array<{item_name: string, quantity: number, unit_price: number}>>(() => {
+  const [accessoryItems, setAccessoryItems] = useState<Array<{ item_name: string, quantity: number, unit_price: number }>>(() => {
     if (initialData?.item_name) {
       return [{
         item_name: initialData.item_name,
@@ -68,7 +63,7 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
         unit_price: initialData.item_price || 0
       }];
     }
-    return [{item_name: "", quantity: 1, unit_price: 0}];
+    return [{ item_name: "", quantity: 1, unit_price: 0 }];
   });
 
   const monthlyCategories = ["Employee Salary", "Factory Rent", "Office Rent", "Server Bill"];
@@ -77,20 +72,20 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
     const selectedCategory = categories?.find(cat => String(cat.id) === formData.category_id);
     const categoryName = selectedCategory?.category_name?.trim();
     console.log('Selected Category:', categoryName, '| Length:', categoryName?.length);
-    
+
     setIsMonthlyExpense(selectedCategory ? monthlyCategories.includes(categoryName) : false);
     setIsEmployeeSalary(categoryName === 'Employee Salary');
-    
+
     const isAccessory = categoryName?.includes('Accessories') || false;
     console.log('Is Accessory Category:', isAccessory, '| Category:', categoryName);
     setIsAccessoryCategory(isAccessory);
-    
+
     // Auto-calculate total for Accessories
     if (isAccessory) {
       const calculatedTotal = accessoryItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
       setFormData(prev => ({ ...prev, total_amount: calculatedTotal }));
     }
-    
+
     // Auto-calculate total for Prize Purchase
     if (categoryName === 'Prize Purchase') {
       const calculatedTotal = prizeQuantity * prizeRate;
@@ -98,43 +93,38 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
     }
   }, [formData.category_id, categories, prizeQuantity, prizeRate, accessoryItems]);
 
-  useEffect(() => {
-    if (isEmployeeSalary || initialData?.employee_id) {
-      fetch('http://202.59.208.112:3008/api/employees')
-        .then(res => res.json())
-        .then(result => setEmployees(result.data || []))
-        .catch(err => console.error('Error fetching employees:', err));
-    }
-  }, [isEmployeeSalary, initialData?.employee_id]);
+
+
+
 
   const isPrizePurchase = categories?.find(cat => String(cat.id) === formData.category_id)?.category_name === 'Prize Purchase';
 
   const validateForm = () => {
-    const newErrors: {[key: string]: string} = {};
-    
+    const newErrors: { [key: string]: string } = {};
+
     if (!formData.category_id) {
       newErrors.category_id = "Category is required";
     }
-    
+
     if (isEmployeeSalary && !formData.employee_id) {
       newErrors.employee_id = "Employee Name is required for Employee Salary";
     }
-    
+
     if (!formData.total_amount || formData.total_amount <= 0) {
       newErrors.total_amount = "Amount must be greater than 0";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     // For accessories with multiple items, create separate expense entries sequentially
     if (isAccessoryCategory && accessoryItems.length > 0) {
       for (const item of accessoryItems) {
@@ -156,7 +146,7 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
       }
       return;
     }
-    
+
     const submitData = {
       machine_id: formData.machine_id && formData.machine_id !== "none" ? formData.machine_id : null,
       category_id: formData.category_id ? Number(formData.category_id) : null,
@@ -169,7 +159,7 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
       employee_id: isEmployeeSalary ? formData.employee_id : null,
       item_name: null,
     };
-    
+
     onSubmit(submitData);
   };
 
@@ -185,8 +175,8 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
           {/* Category Field - First and Mandatory */}
           <div className="space-y-2">
             <Label htmlFor="category_id">Category*</Label>
-            <Select 
-              value={formData.category_id} 
+            <Select
+              value={formData.category_id}
               onValueChange={(value) => {
                 setFormData({ ...formData, category_id: value });
                 setErrors({ ...errors, category_id: "" });
@@ -218,22 +208,32 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
           {isEmployeeSalary ? (
             <div className="space-y-2">
               <Label htmlFor="employee_id">Employee Name*</Label>
-              <Select 
-                value={formData.employee_id} 
+              <Select
+                value={formData.employee_id}
                 onValueChange={(value) => {
                   setFormData({ ...formData, employee_id: value });
                   setErrors({ ...errors, employee_id: "" });
                 }}
               >
                 <SelectTrigger className={errors.employee_id ? "border-destructive" : ""}>
-                  <SelectValue placeholder="Select employee" />
+                  <SelectValue placeholder={employeesLoading ? "Loading employees..." : employees?.length ? "Select employee" : "No employees available"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.employee_id} value={emp.employee_id}>
-                      {emp.name} - {emp.designation}
+                  {employeesLoading ? (
+                    <SelectItem value="loading" disabled>
+                      Loading employees...
                     </SelectItem>
-                  ))}
+                  ) : !employees?.length ? (
+                    <SelectItem value="no-employees" disabled>
+                      No employees available
+                    </SelectItem>
+                  ) : (
+                    employees.map((emp) => (
+                      <SelectItem key={emp.employee_id} value={emp.employee_id}>
+                        {emp.name} - {emp.designation}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {errors.employee_id && (
@@ -243,8 +243,8 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
           ) : (
             <div className="space-y-2">
               <Label htmlFor="machine_id">Machine</Label>
-              <Select 
-                value={formData.machine_id} 
+              <Select
+                value={formData.machine_id}
                 onValueChange={(value) => setFormData({ ...formData, machine_id: value })}
               >
                 <SelectTrigger>
@@ -371,7 +371,7 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setAccessoryItems([...accessoryItems, {item_name: "", quantity: 1, unit_price: 0}])}
+                onClick={() => setAccessoryItems([...accessoryItems, { item_name: "", quantity: 1, unit_price: 0 }])}
                 className="w-full"
               >
                 <Plus className="h-4 w-4 mr-2" />

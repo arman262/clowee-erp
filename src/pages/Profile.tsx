@@ -5,37 +5,37 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { User, Mail, Lock, Save, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUpdateProfile } from "@/hooks/useProfile";
+import { useUpdateProfile, useCurrentUser } from "@/hooks/useProfile";
 import { toast } from "sonner";
 
 export default function Profile() {
   const { user } = useAuth();
+  const { data: currentUser } = useCurrentUser();
   const updateProfile = useUpdateProfile();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: (user as any)?.first_name || "",
-    lastName: (user as any)?.last_name || "",
-    username: (user as any)?.username || (user as any)?.name || "",
-    email: user?.email || "",
+    firstName: "",
+    lastName: "",
+    username: "",
+    email: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: ""
   });
 
   useEffect(() => {
-    if (user) {
-      console.log('User data:', user);
+    if (currentUser) {
       setFormData({
-        firstName: (user as any).first_name || "",
-        lastName: (user as any).last_name || "",
-        username: (user as any).username || (user as any).name || "",
-        email: user.email || "",
+        firstName: currentUser.first_name || "",
+        lastName: currentUser.last_name || "",
+        username: currentUser.username || currentUser.name || "",
+        email: currentUser.email || "",
         currentPassword: "",
         newPassword: "",
         confirmPassword: ""
       });
     }
-  }, [user]);
+  }, [currentUser]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));

@@ -16,7 +16,7 @@ interface FranchiseFormProps {
 
 export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseFormProps) {
   const { data: banks } = useBanks();
-  
+
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     coin_price: initialData?.coin_price || 5,
@@ -31,12 +31,15 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
     security_deposit_notes: initialData?.security_deposit_notes || "",
     payment_bank_id: initialData?.payment_bank_id || "",
     agreement_copy: initialData?.agreement_copy || "",
-    trade_nid_copy: initialData?.trade_nid_copy || []
+    trade_nid_copy: initialData?.trade_nid_copy || [],
+    is_active: initialData?.is_active ?? true
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Exclude payment_bank_id as it doesn't exist in the database
+    const { payment_bank_id, ...submitData } = formData;
+    onSubmit(submitData);
   };
 
   return (
@@ -58,11 +61,11 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="payment_duration">Payment Duration*</Label>
-              <select 
-                value={formData.payment_duration} 
+              <select
+                value={formData.payment_duration}
                 onChange={(e) => setFormData({ ...formData, payment_duration: e.target.value })}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -73,6 +76,20 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
                 <option value="Quarterly">Quarterly</option>
               </select>
             </div>
+
+            {initialData && (
+              <div className="space-y-2">
+                <Label htmlFor="is_active">Status*</Label>
+                <select
+                  value={formData.is_active ? "active" : "inactive"}
+                  onChange={(e) => setFormData({ ...formData, is_active: e.target.value === "active" })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -87,7 +104,7 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="doll_price">Doll Price (৳)*</Label>
               <Input
@@ -99,7 +116,7 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="electricity_cost">Electricity Cost (৳)*</Label>
               <Input
@@ -111,7 +128,7 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="vat_percentage">VAT %</Label>
               <Input
@@ -136,7 +153,7 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="clowee_share">Clowee Share (%)*</Label>
               <Input
@@ -161,7 +178,7 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
                 onChange={(e) => setFormData({ ...formData, maintenance_percentage: e.target.value ? Number(e.target.value) : null })}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="security_deposit_type">Security Deposit Type</Label>
               <Input
@@ -184,8 +201,8 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
 
           <div className="space-y-2">
             <Label htmlFor="payment_bank_id">Payment Bank Details</Label>
-            <select 
-              value={formData.payment_bank_id} 
+            <select
+              value={formData.payment_bank_id}
               onChange={(e) => setFormData({ ...formData, payment_bank_id: e.target.value })}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -206,7 +223,7 @@ export function FranchiseForm({ onSubmit, onCancel, initialData }: FranchiseForm
               onChange={(file) => setFormData({ ...formData, agreement_copy: file })}
               fileType="agreement_copy"
             />
-            
+
             <FileUpload
               label="Trade & NID Copy (Multiple files)"
               accept=".pdf,.jpg,.jpeg,.png"

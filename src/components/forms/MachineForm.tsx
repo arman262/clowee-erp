@@ -24,18 +24,13 @@ export function MachineForm({ onSubmit, onCancel, initialData }: MachineFormProp
     franchise_id: initialData?.franchise_id || "",
     initial_coin_counter: initialData?.initial_coin_counter || 0,
     initial_prize_counter: initialData?.initial_prize_counter || 0,
-
-
-    status: initialData?.notes?.includes('[STATUS:inactive]') ? 'inactive' : 'active',
-    notes: initialData?.notes?.replace('[STATUS:inactive]', '').replace('[STATUS:active]', '').trim() || ""
+    is_active: initialData?.is_active ?? true,
+    notes: initialData?.notes || ""
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const { status, notes, ...submitData } = formData;
-    const statusTag = `[STATUS:${status}]`;
-    const updatedNotes = notes ? `${statusTag} ${notes}` : statusTag;
-    onSubmit({ ...submitData, notes: updatedNotes });
+    onSubmit(formData);
   };
 
   return (
@@ -124,10 +119,10 @@ export function MachineForm({ onSubmit, onCancel, initialData }: MachineFormProp
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="status">Status*</Label>
+              <Label htmlFor="is_active">Status*</Label>
               <Select 
-                value={formData.status} 
-                onValueChange={(value) => setFormData({ ...formData, status: value })}
+                value={formData.is_active ? "active" : "inactive"} 
+                onValueChange={(value) => setFormData({ ...formData, is_active: value === "active" })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
