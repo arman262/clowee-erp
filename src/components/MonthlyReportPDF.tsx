@@ -5,7 +5,7 @@ import { Download, Printer, X } from "lucide-react";
 import { useFranchises } from "@/hooks/useFranchises";
 import { useMachines } from "@/hooks/useMachines";
 import { useSales } from "@/hooks/useSales";
-import { useDollStockValue } from "@/hooks/useDollStockValue";
+import { usePrizeStock } from "@/hooks/useInventory";
 
 interface MonthlyReportData {
   reportMonth: string;
@@ -38,14 +38,13 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
   const { data: franchises } = useFranchises();
   const { data: machines } = useMachines();
   const { data: sales } = useSales();
+  const { data: prizeStock } = usePrizeStock();
   
   const [month, year] = data.reportMonth.split(' ');
   const monthIndex = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].indexOf(month) + 1;
   const startDate = `${year}-${monthIndex.toString().padStart(2, '0')}-01`;
   const lastDay = new Date(parseInt(year), monthIndex, 0).getDate();
   const endDate = `${year}-${monthIndex.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
-  
-  const { data: dollStockData } = useDollStockValue(endDate);
   
   // Group sales data by franchise and sum monthly amounts
   const franchiseSalesMap = new Map<string, number>();
@@ -76,12 +75,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
   const totalExpense = Number(data.expense?.fixedCost || 0) + Number(data.expense?.variableCost || 0) + Number(data.income?.totalElectricityCost || 0);
   const netProfitLoss = totalIncome - totalExpense;
   
-  // Get doll stock value from hook
-  const currentDollStock = dollStockData?.currentStock || 0;
-  const avgDollPrice = dollStockData?.avgPurchasePrice || 0;
-  const dollStockValue = dollStockData?.stockValue || 0;
-  
-  console.log('Calculated totals:', { totalIncome, totalExpense, netProfitLoss, totalMachineSales, dollStockData });
+  console.log('Calculated totals:', { totalIncome, totalExpense, netProfitLoss, totalMachineSales });
 
   const handlePrint = () => {
     const printContent = document.getElementById('report-content');
@@ -479,22 +473,13 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                 </div>
                 
                 <div className="bg-gray-50 px-4 py-3 border-gray-200">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-xl font-bold text-gray-900">Total Sales Amount</span>
-                      <div className="text-2xl font-bold text-success">৳{formatCurrency(data.totalSalesAmount || 0)}</div>
-                    </div>
-                    <div>
-                      <span className="text-xl font-bold text-gray-900">Total Doll Stock Value</span>
-                      <div className="text-2xl font-bold text-green-600">৳{formatCurrency(dollStockValue)}</div>
-                      <div className="text-xs text-gray-500 mt-1">{currentDollStock} dolls @ ৳{formatCurrency(avgDollPrice)}/doll</div>
-                    </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xl font-bold text-gray-900">Total Sales Amount</span>
+                    <span className="text-2xl font-bold text-success">৳{formatCurrency(data.totalSalesAmount || 0)}</span>
                   </div>
                 </div>
               </div>
             </div>
-
-
             {/* Footer - Matching Invoice */}
             <div className="border-t border-gray-200 pt-4 mt-6">
               <div className="flex justify-between items-center">
