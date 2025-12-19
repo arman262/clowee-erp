@@ -1,5 +1,6 @@
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { EditSalesModal } from "@/components/EditSalesModal";
+import { FranchiseInvoiceModal } from "@/components/FranchiseInvoiceModal";
 import { InvoicePrint } from "@/components/InvoicePrint";
 import { ManualSalesModal } from "@/components/ManualSalesModal";
 import { PayToCloweeModal } from "@/components/PayToCloweeModal";
@@ -22,6 +23,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Building2,
   Calendar,
   Coins,
   Download,
@@ -45,6 +47,7 @@ export default function Sales() {
   const [toDate, setToDate] = useState("");
   const [showPayToClowee, setShowPayToClowee] = useState(false);
   const [showManualSales, setShowManualSales] = useState(false);
+  const [showFranchiseInvoice, setShowFranchiseInvoice] = useState(false);
   const [viewingSale, setViewingSale] = useState<any | null>(null);
   const [editingSale, setEditingSale] = useState<any | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
@@ -448,6 +451,11 @@ export default function Sales() {
             <span className="hidden sm:inline">Pay to Clowee</span>
             <span className="sm:hidden">Pay</span>
           </Button>
+          <Button onClick={() => setShowFranchiseInvoice(true)} className="bg-gradient-primary hover:opacity-90 flex-1 sm:flex-none">
+            <FileText className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Franchise Invoice</span>
+            <span className="sm:hidden">Invoice</span>
+          </Button>
         </div>
         )}
       </div>
@@ -462,6 +470,12 @@ export default function Sales() {
       <PayToCloweeModal
         open={showPayToClowee}
         onOpenChange={setShowPayToClowee}
+      />
+
+      {/* Franchise Invoice Modal */}
+      <FranchiseInvoiceModal
+        open={showFranchiseInvoice}
+        onOpenChange={setShowFranchiseInvoice}
       />
 
       {/* Sales Summary */}
@@ -524,9 +538,9 @@ export default function Sales() {
       {/* Search and Filters */}
       <Card className="bg-gradient-card border-border shadow-card">
         <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-3">
+          <div className="flex flex-col lg:flex-row gap-6">
             <div className="relative flex-1 lg:max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-6 text-muted-foreground" />
               <Input
                 placeholder="Search by invoice, machine, amount, pay to clowee..."
                 value={searchQuery}
@@ -569,6 +583,16 @@ export default function Sales() {
                 <FileText className="h-4 w-4 mr-2" />
                 Export PDF
               </Button>
+
+            <Button onClick={() => setShowFranchiseInvoice(true)} className="bg-gradient-primary hover:opacity-90 flex-1 sm:flex-none">
+              <FileText className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Franchise Invoice</span>
+              <span className="sm:hidden">Invoice</span>
+            </Button>
+
+
+
+
             </div>
           </div>
         </CardContent>
