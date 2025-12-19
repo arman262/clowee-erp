@@ -144,7 +144,7 @@ export default function MonthlyReport() {
         const categoryName = category?.category_name || '';
         const amount = Number(expense.total_amount) || 0;
         
-        if (categoryName !== 'Profit Share(Share Holders)') {
+        if (category && categoryName !== 'Profit Share(Share Holders)' && categoryName !== 'Prize Purchase') {
           totalExpenses += amount;
           if (variableCategories.includes(categoryName)) {
             variableCost += amount;
@@ -313,7 +313,7 @@ export default function MonthlyReport() {
           if (categoryName === 'Prize Purchase') {
             totalPrizePurchaseAmount += amount;
             totalPrizePurchaseQty += Number(expense.quantity) || 0;
-          } else if (categoryName !== 'Profit Share(Share Holders)') {
+          } else if (category && categoryName !== 'Profit Share(Share Holders)' && categoryName !== 'Prize Purchase') {
             totalOtherExpenses += amount;
             if (variableCategories.includes(categoryName)) {
               variableCost += amount;
@@ -620,7 +620,7 @@ export default function MonthlyReport() {
                     <td className="px-4 py-2 text-right text-green-600">৳{data.totalFranchiseeProfit.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-4 py-2 text-right text-success">৳{data.totalCloweeProfit.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-4 py-2 text-right text-blue-600">৳{data.prizeProfit.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-2 text-right text-destructive">৳{data.totalExpenses.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-2 text-right text-destructive">৳{data.variableCost.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -731,7 +731,7 @@ export default function MonthlyReport() {
                   </div>
                   <div>
                     <span className="text-xs text-muted-foreground">Expenses</span>
-                    <p className="font-medium text-destructive">৳{data.totalExpenses.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className="font-medium text-destructive">৳{data.variableCost.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
                 </div>
               </div>

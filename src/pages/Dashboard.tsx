@@ -240,6 +240,9 @@ export default function Dashboard() {
   const mdbBank = calculateBankBalance('MDB Bank');
   const nccBank = calculateBankBalance('NCC Bank');
   const bkashPersonal = calculateBankBalance('Bkash(Personal)');
+  
+  // Calculate total cash amount (Cash In Hand + MDB Bank + Bkash Personal)
+  const totalCashAmount = cashInHand + mdbBank + bkashPersonal;
 
   // Prepare chart data
   const getChartData = () => {
@@ -548,12 +551,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-
-
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
-              Cash In Hand
+              Cash Balance
             </CardTitle>
             <div className="flex items-center gap-1">
               <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
@@ -567,7 +568,7 @@ export default function Dashboard() {
               ৳ {formatCurrency(cashInHand)}
             </div>
             <div className="text-[10px] sm:text-xs text-muted-foreground">
-              Cash Amount
+              Total Cash In Hand: ৳{formatCurrency(totalCashAmount)}
             </div>
           </CardContent>
         </Card>

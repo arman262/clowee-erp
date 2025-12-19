@@ -86,21 +86,22 @@ export function BankTransactionsDialog({
   });
 
   const handlePrint = () => {
-    const printWindow = window.open('', '', 'width=800,height=600');
+    const printWindow = window.open('', '', 'width=600,height=400');
     if (!printWindow) return;
 
-    let runningBalance = 0;
-    const rows = filteredTransactions.map(txn => {
-      runningBalance += txn.isCredit ? Number(txn.amount) : -Number(txn.amount);
+    let runningBalance = calculateBankBalance(bank.bank_name);
+    const rows = filteredTransactions.map((txn) => {
+      const currentRowBalance = runningBalance;
+      runningBalance = runningBalance - (txn.isCredit ? Number(txn.amount) : -Number(txn.amount));
       return `
         <tr>
-          <td style="padding: 8px; border: 1px solid #ddd;">${formatDate(txn.date)}</td>
-          <td style="padding: 8px; border: 1px solid #ddd;">${txn.type}</td>
-          <td style="padding: 8px; border: 1px solid #ddd;">${txn.description}</td>
-          <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #dc2626;">${!txn.isCredit ? `৳${formatCurrency(txn.amount)}` : ''}</td>
-          <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #16a34a;">${txn.isCredit ? `৳${formatCurrency(txn.amount)}` : ''}</td>
-          <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">৳${formatCurrency(runningBalance)}</td>
-          <td style="padding: 8px; border: 1px solid #ddd;">${txn.remarks || '-'}</td>
+          <td style="padding: 4px; border: 1px solid #ddd; font-size: 9px;">${formatDate(txn.date)}</td>
+          <td style="padding: 4px; border: 1px solid #ddd; font-size: 9px;">${txn.type}</td>
+          <td style="padding: 4px; border: 1px solid #ddd; font-size: 9px;">${txn.description}</td>
+          <td style="padding: 4px; border: 1px solid #ddd; text-align: right; color: #dc2626; font-size: 9px;">${!txn.isCredit ? `৳${formatCurrency(txn.amount)}` : ''}</td>
+          <td style="padding: 4px; border: 1px solid #ddd; text-align: right; color: #16a34a; font-size: 9px;">${txn.isCredit ? `৳${formatCurrency(txn.amount)}` : ''}</td>
+          <td style="padding: 4px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 9px;">৳${formatCurrency(currentRowBalance)}</td>
+          <td style="padding: 4px; border: 1px solid #ddd; font-size: 9px;">${txn.remarks || '-'}</td>
         </tr>
       `;
     }).join('');
@@ -108,21 +109,22 @@ export function BankTransactionsDialog({
     printWindow.document.write(`
       <html>
         <head>
-          <title>Bank Transactions - ${bank.bank_name}</title>
+          <title>Bank Statement - ${bank.bank_name}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { text-align: center; margin-bottom: 10px; }
-            .info { text-align: center; margin-bottom: 20px; color: #666; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background-color: #f3f4f6; padding: 10px; border: 1px solid #ddd; text-align: left; }
+            @page { size: A4; margin: 15mm; }
+            body { font-family: Arial, sans-serif; font-size: 9px; margin: 0; padding: 15px; }
+            h1 { text-align: center; margin-bottom: 5px; font-size: 12px; }
+            .info { text-align: center; margin-bottom: 15px; color: #666; font-size: 9px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th { background-color: #f3f4f6; padding: 4px; border: 1px solid #ddd; text-align: left; font-size: 9px; }
             @media print { button { display: none; } }
           </style>
         </head>
         <body>
-          <h1>Bank Transactions</h1>
+          <h1>Bank Statement</h1>
           <div class="info">
             <strong>${bank.bank_name}</strong><br/>
-            Account: ${bank.account_number}<br/>
+            Account: ${bank.account_number || 'N/A'}<br/>
             ${dateFrom || dateTo ? `Period: ${dateFrom || 'Start'} to ${dateTo || 'End'}` : 'All Transactions'}<br/>
             Current Balance: ৳${formatCurrency(calculateBankBalance(bank.bank_name))}
           </div>
@@ -198,9 +200,11 @@ export function BankTransactionsDialog({
                     </TableCell>
                   </TableRow>
                 ) : (() => {
-                  let runningBalance = 0;
-                  return filteredTransactions.map((txn) => {
-                    runningBalance += txn.isCredit ? Number(txn.amount) : -Number(txn.amount);
+                  let runningBalance = calculateBankBalance(bank.bank_name);
+                  return filteredTransactions.map((txn, index) => {
+                    const currentRowBalance = runningBalance;
+                    // Calculate balance for next row by reversing current transaction
+                    runningBalance = runningBalance - (txn.isCredit ? Number(txn.amount) : -Number(txn.amount));
                     return (
                       <TableRow key={txn.id}>
                         <TableCell className="text-xs sm:text-sm">{formatDate(txn.date)}</TableCell>
@@ -218,7 +222,7 @@ export function BankTransactionsDialog({
                           {txn.isCredit && `৳${formatCurrency(txn.amount)}`}
                         </TableCell>
                         <TableCell className="font-bold text-primary text-xs sm:text-sm">
-                          ৳{formatCurrency(runningBalance)}
+                          ৳{formatCurrency(currentRowBalance)}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs sm:text-sm hidden sm:table-cell">{txn.remarks || '-'}</TableCell>
                       </TableRow>

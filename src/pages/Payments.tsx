@@ -18,8 +18,10 @@ import {
   Building,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  FileDown
 } from "lucide-react";
+import * as XLSX from 'xlsx';
 import { PaymentForm } from "@/components/forms/PaymentForm";
 import { useMachinePayments, useCreateMachinePayment, useUpdateMachinePayment, useDeleteMachinePayment } from "@/hooks/useMachinePayments";
 import { TablePager } from "@/components/TablePager";
@@ -29,6 +31,8 @@ import { formatDate } from "@/lib/dateUtils";
 export default function Payments() {
   const { canEdit } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewingPayment, setViewingPayment] = useState<any | null>(null);
   const [editingPayment, setEditingPayment] = useState<any | null>(null);
@@ -50,10 +54,50 @@ export default function Payments() {
     }
   };
 
-  const filteredPayments = payments?.filter((payment: any) =>
-    payment.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    payment.banks?.bank_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const handleExportExcel = () => {
+    const exportData = sortedPayments.map((payment: any, index: number) => ({
+      'SL': index + 1,
+      'Invoice No': payment.sales?.invoice_number || (payment.sales ? `CLW/${new Date(payment.sales.sales_date).getFullYear()}/${payment.sales.id.slice(-3).padStart(3, '0')}` : 'N/A'),
+      'Machine': payment.machines?.machine_name || '',
+      'Payment Date': formatDate(payment.payment_date),
+      'Amount': payment.amount,
+      'Bank': payment.banks?.bank_name || '',
+      'Remarks': payment.remarks || '',
+      'Created By': payment.created_by_user?.name || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Payments');
+    XLSX.writeFile(wb, `Payments_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const filteredPayments = payments?.filter((payment: any) => {
+    // Search filter
+    const matchesSearch = !searchQuery || 
+      payment.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      payment.banks?.bank_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // Date filter
+    if (fromDate || toDate) {
+      // Extract date in YYYY-MM-DD format, handling both ISO strings and date-only strings
+      const paymentDateStr = payment.payment_date.includes('T') 
+        ? payment.payment_date.split('T')[0] 
+        : payment.payment_date.split(' ')[0];
+      
+      // Debug log
+      if (fromDate === '2024-12-01' && paymentDateStr.startsWith('2024-11')) {
+        console.log('Nov date showing:', paymentDateStr, 'fromDate:', fromDate, 'comparison:', paymentDateStr < fromDate);
+      }
+      
+      if (fromDate && paymentDateStr < fromDate) return false;
+      if (toDate && paymentDateStr > toDate) return false;
+    }
+    
+    return true;
+  }) || [];
 
   const sortedPayments = [...filteredPayments].sort((a, b) => {
     if (!sortColumn) return 0;
@@ -187,14 +231,38 @@ export default function Payments() {
       {/* Search */}
       <Card className="bg-gradient-card border-border shadow-card">
         <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="flex flex-col md:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search payments by machine or bank..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-secondary/30 border-border"
+              />
+            </div>
             <Input
-              placeholder="Search payments by machine or bank..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-secondary/30 border-border"
+              type="date"
+              placeholder="From Date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="bg-secondary/30 border-border w-full md:w-40"
             />
+            <Input
+              type="date"
+              placeholder="To Date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="bg-secondary/30 border-border w-full md:w-40"
+            />
+            <Button 
+              variant="outline" 
+              onClick={handleExportExcel}
+              className="border-primary text-primary hover:bg-primary/10 whitespace-nowrap"
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Export Excel
+            </Button>
           </div>
         </CardContent>
       </Card>
