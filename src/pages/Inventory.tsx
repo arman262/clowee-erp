@@ -217,8 +217,8 @@ export default function Inventory() {
                       return b.quantity - a.quantity;
                     });
                     const paginated = filtered.slice((accessoriesPage - 1) * rowsPerPage, accessoriesPage * rowsPerPage);
-                    const totalQty = filtered.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                    const totalAmount = filtered.reduce((sum, item) => sum + (item.total_amount || 0), 0);
+                    const totalQty = filtered.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+                    const totalAmount = filtered.reduce((sum, item) => sum + (Number(item.total_amount) || 0), 0);
                     
                     return (
                       <>
@@ -266,8 +266,8 @@ export default function Inventory() {
                   return b.quantity - a.quantity;
                 });
                 const paginated = filtered.slice((accessoriesPage - 1) * rowsPerPage, accessoriesPage * rowsPerPage);
-                const totalQty = filtered.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                const totalAmount = filtered.reduce((sum, item) => sum + (item.total_amount || 0), 0);
+                const totalQty = filtered.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+                const totalAmount = filtered.reduce((sum, item) => sum + (Number(item.total_amount) || 0), 0);
                 
                 return (
                   <>

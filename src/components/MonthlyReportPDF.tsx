@@ -61,6 +61,10 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
   }>({ totalDollsInStock: 0, averageCostPerDoll: 0, totalInventoryValue: 0 });
   const [nccBankBalance, setNccBankBalance] = useState(0);
   const [totalCashInHand, setTotalCashInHand] = useState(0);
+  const [accessoriesData, setAccessoriesData] = useState<{
+    totalQuantity: number;
+    totalValue: number;
+  }>({ totalQuantity: 0, totalValue: 0 });
   
   const [month, year] = data.reportMonth.split(' ');
   const monthIndex = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].indexOf(month) + 1;
@@ -319,6 +323,64 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
     
     calculateTotalCashInHand();
   }, [banks, moneyLogs, payments, expenses, endDate]);
+  
+  // Calculate accessories inventory value at end of month
+  useEffect(() => {
+    const calculateAccessoriesValue = async () => {
+      try {
+        const [expenses, categories, stockOut] = await Promise.all([
+          db.from('machine_expenses').select().execute(),
+          db.from('expense_categories').select().execute(),
+          db.from('stock_out_history').select().execute()
+        ]);
+        
+        const accessoryCategories = (categories || []).filter((cat: any) => 
+          cat.category_name === 'Local Accessories' || cat.category_name === 'Import Accessories'
+        );
+        
+        const accessoryCategoryIds = accessoryCategories.map((cat: any) => cat.id);
+        const accessoryExpenses = (expenses || []).filter((exp: any) => {
+          if (!accessoryCategoryIds.includes(exp.category_id) || !exp.expense_date) return false;
+          const expenseDate = new Date(exp.expense_date).toISOString().split('T')[0];
+          return expenseDate <= endDate;
+        });
+        
+        const stockInItems = (stockOut || []).filter((record: any) => {
+          if (record.adjustment_type !== 'stock_in' || !record.out_date) return false;
+          const outDate = new Date(record.out_date).toISOString().split('T')[0];
+          return outDate <= endDate;
+        });
+        
+        const combinedData = [...accessoryExpenses.map((exp: any) => {
+          const stockOutQuantity = (stockOut || []).filter((out: any) => {
+            if (out.item_id !== exp.id || !out.out_date) return false;
+            const outDate = new Date(out.out_date).toISOString().split('T')[0];
+            return outDate <= endDate;
+          }).reduce((sum: number, out: any) => sum + (out.quantity || 0), 0);
+          
+          const presentStock = exp.quantity - stockOutQuantity;
+          const presentTotalAmount = presentStock * (exp.item_price || 0);
+          
+          return {
+            quantity: presentStock,
+            total_amount: presentTotalAmount
+          };
+        }), ...stockInItems.map((item: any) => ({
+          quantity: item.quantity,
+          total_amount: item.total_price
+        }))];
+        
+        const totalQuantity = combinedData.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+        const totalValue = combinedData.reduce((sum, item) => sum + (Number(item.total_amount) || 0), 0);
+        
+        setAccessoriesData({ totalQuantity, totalValue });
+      } catch (error) {
+        console.error('Error calculating accessories value:', error);
+      }
+    };
+    
+    calculateAccessoriesValue();
+  }, [endDate]);
   
   // Group sales data by franchise and sum monthly amounts
   const franchiseSalesMap = new Map<string, number>();
@@ -595,7 +657,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             </div>
           </div>
 
-          <div id="report-content" className="bg-white p-3 sm:p-6 max-w-4xl mx-auto">
+          <div id="report-content" className="bg-white p-0 sm:p-6 max-w-4xl mx-auto">
 
             {/* Header - Matching Invoice */}
             <div className="border-b-2 border-blue-600 pb-4 mb-6">
@@ -727,8 +789,6 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                       <span 
                         className="text-3xl font-bold"
                         style={{
-                          border: `2px solid ${netProfitLoss >= 0 ? '#16a34a' : '#dc2626'}`,
-                          backgroundColor: netProfitLoss >= 0 ? '#dcfce7' : '#fee2e2',
                           color: netProfitLoss >= 0 ? '#16a34a' : '#dc2626',
                           padding: '8px 12px',
                           borderRadius: '8px',
@@ -764,31 +824,40 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                 </div>
                 
                 <div className="bg-gray-50 px-2 py-3 border-gray-200">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                     <div className="bg-white p-2 rounded border">
                       <div className="text-center">
                         <div className="text-xs font-semibold text-gray-600 mb-1">Total Sales</div>
-                        <div className="text-sm font-bold text-success">৳{formatCurrency(data.totalSalesAmount || 0)}</div>
+                        <div className="text-xl font-bold text-success">৳{formatCurrency(data.totalSalesAmount || 0)}</div>
                       </div>
                     </div>
                     <div className="bg-white p-2 rounded border">
                       <div className="text-center">
-                        <div className="text-xs font-semibold text-gray-600 mb-1">Inventory Value</div>
-                        <div className="text-sm font-bold text-purple-600">৳{formatCurrency(inventoryData.totalInventoryValue)}</div>
-                        <div className="text-[10px] text-gray-500">{inventoryData.totalDollsInStock} dolls</div>
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Doll Inventory</div>
+                        <div className="text-xl font-bold text-purple-600">৳{formatCurrency(inventoryData.totalInventoryValue)}</div>
+                        <div className="text-[12px] text-gray-500">{inventoryData.totalDollsInStock} dolls</div>
                       </div>
                     </div>
+                    <div className="bg-white p-2 rounded border">
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Accessories Inventory</div>
+                        <div className="text-xl font-bold text-orange-600">৳{formatCurrency(accessoriesData.totalValue)}</div>
+                        <div className="text-[12px] text-gray-500">{accessoriesData.totalQuantity} items</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-2">
                     <div className="bg-white p-2 rounded border">
                       <div className="text-center">
                         <div className="text-xs font-semibold text-gray-600 mb-1">NCC Bank</div>
-                        <div className="text-sm font-bold text-purple-600">৳{formatCurrency(nccBankBalance)}</div>
+                        <div className="text-xl font-bold text-blue-600">৳{formatCurrency(nccBankBalance)}</div>
                       </div>
                     </div>
                     <div className="bg-white p-2 rounded border">
                       <div className="text-center">
                         <div className="text-xs font-semibold text-gray-600 mb-1">Cash In Hand</div>
-                        <div className="text-sm font-bold text-purple-600">৳{formatCurrency(totalCashInHand)}</div>
-                        <div className="text-[10px] text-gray-500">Cash+MDB+Bkash</div>
+                        <div className="text-xl font-bold text-green-600">৳{formatCurrency(totalCashInHand)}</div>
+                        <div className="text-[12px] text-gray-500">Cash+MDB+Bkash</div>
                       </div>
                     </div>
                   </div>

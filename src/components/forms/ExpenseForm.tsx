@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { db } from "@/integrations/postgres/client";
 
 import { useMachines } from "@/hooks/useMachines";
 import { useActiveExpenseCategories } from "@/hooks/useExpenseCategories";
@@ -23,6 +25,37 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
   const { data: categories } = useActiveExpenseCategories();
   const { data: banks } = useBanks();
   const { data: employees, isLoading: employeesLoading } = useEmployees();
+
+  // Query for existing accessories items
+  const { data: existingAccessories = [] } = useQuery({
+    queryKey: ['existing-accessories'],
+    queryFn: async () => {
+      const [expenses, expenseCategories] = await Promise.all([
+        db.from('machine_expenses').select('item_name, item_price').execute(),
+        db.from('expense_categories').select().execute()
+      ]);
+      
+      const accessoryCategories = (expenseCategories || []).filter((cat: any) => 
+        cat.category_name === 'Local Accessories' || cat.category_name === 'Import Accessories'
+      );
+      
+      const accessoryCategoryIds = accessoryCategories.map((cat: any) => cat.id);
+      const accessoryExpenses = (expenses || []).filter((exp: any) => 
+        accessoryCategoryIds.includes(exp.category_id) && exp.item_name
+      );
+      
+      // Get unique items with their most recent price
+      const uniqueItems = accessoryExpenses.reduce((acc: any, exp: any) => {
+        if (!acc[exp.item_name]) {
+          acc[exp.item_name] = { item_name: exp.item_name, item_price: exp.item_price };
+        }
+        return acc;
+      }, {});
+      
+      return Object.values(uniqueItems);
+    },
+    enabled: true
+  });
 
   const [formData, setFormData] = useState(() => {
     let expenseDate = new Date().toISOString().split('T')[0];
@@ -296,17 +329,47 @@ export function ExpenseForm({ onSubmit, onCancel, initialData }: ExpenseFormProp
                 <div key={index} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-4">
                     {index === 0 && <Label className="text-xs mb-1">Item Name</Label>}
-                    <Input
-                      type="text"
+                    <Select
                       value={item.item_name}
-                      onChange={(e) => {
+                      onValueChange={(value) => {
                         const newItems = [...accessoryItems];
-                        newItems[index].item_name = e.target.value;
+                        if (value === 'new_item') {
+                          newItems[index].item_name = '';
+                          newItems[index].unit_price = 0;
+                        } else {
+                          const existingItem = existingAccessories.find((acc: any) => acc.item_name === value);
+                          newItems[index].item_name = value;
+                          newItems[index].unit_price = existingItem?.item_price || 0;
+                        }
                         setAccessoryItems(newItems);
                       }}
-                      placeholder="Item name"
-                      required
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select or add new item" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new_item">+ Add New Item</SelectItem>
+                        {existingAccessories.map((acc: any) => (
+                          <SelectItem key={acc.item_name} value={acc.item_name}>
+                            {acc.item_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {item.item_name === '' && (
+                      <Input
+                        type="text"
+                        value={item.item_name}
+                        onChange={(e) => {
+                          const newItems = [...accessoryItems];
+                          newItems[index].item_name = e.target.value;
+                          setAccessoryItems(newItems);
+                        }}
+                        placeholder="Enter new item name"
+                        className="mt-2"
+                        required
+                      />
+                    )}
                   </div>
                   <div className="col-span-2">
                     {index === 0 && <Label className="text-xs mb-1">Qty</Label>}

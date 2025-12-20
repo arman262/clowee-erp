@@ -50,8 +50,19 @@ export default function MonthlyReport() {
   }, [selectedYear, selectedMonth]);
 
   useEffect(() => {
-    fetchChartData();
-  }, [chartYear]);
+    if (yearlyData.length > 0) {
+      const monthlyChartData = yearlyData
+        .map((data) => ({
+          month: data.month.substring(0, 3),
+          netProfit: Math.round(data.netProfit * 100) / 100,
+          prizeProfit: Math.round(data.prizeProfit * 100) / 100,
+          franchiseeProfit: Math.round(data.totalFranchiseeProfit * 100) / 100,
+          cloweeProfit: Math.round(data.totalCloweeProfit * 100) / 100,
+          totalRevenue: Math.round(data.totalRevenue * 100) / 100
+        }));
+      setChartData(monthlyChartData);
+    }
+  }, [chartYear, yearlyData]);
 
   const fetchReportData = async () => {
     setLoading(true);
@@ -428,79 +439,14 @@ export default function MonthlyReport() {
       const categoryMap = new Map();
       expenseCategories?.forEach(category => categoryMap.set(category.id, category));
 
-      const monthlyChartData = months.map((month, index) => {
-        const monthNum = index + 1;
-        const startDate = `${chartYear}-${monthNum.toString().padStart(2, '0')}-01`;
-        const lastDay = new Date(parseInt(chartYear), monthNum, 0).getDate();
-        const endDate = `${chartYear}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
-
-        const monthSales = (allSales || []).filter((sale: any) => {
-          if (!sale.sales_date) return false;
-          const date = new Date(sale.sales_date);
-          const saleDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-          return saleDateLocal >= startDate && saleDateLocal <= endDate;
-        });
-
-        const monthExpenses = (allExpenses || []).filter((expense: any) => {
-          if (!expense.expense_date) return false;
-          const date = new Date(expense.expense_date);
-          const expenseDateLocal = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-          return expenseDateLocal >= startDate && expenseDateLocal <= endDate;
-        });
-
-        let totalCloweeProfit = 0;
-        let totalFranchiseProfit = 0;
-        let totalMaintenanceCost = 0;
-        let totalPrizeOutCost = 0;
-        let totalElectricityCost = 0;
-        let totalSalesAmount = 0;
-
-        monthSales.forEach((sale: any) => {
-          const machine = machineMap.get(sale.machine_id);
-          const franchise = machine ? franchiseMap.get(machine.franchise_id) : null;
-          const maintenancePercentage = Number(franchise?.maintenance_percentage) || 0;
-          const cloweeShare = Number(franchise?.clowee_share) || 40;
-          const franchiseShare = Number(franchise?.franchise_share) || 60;
-          const netProfit = (Number(sale.sales_amount) || 0) - (Number(sale.vat_amount) || 0) - (Number(sale.prize_out_cost) || 0);
-          const maintenanceAmount = maintenancePercentage > 0 ? netProfit * maintenancePercentage / 100 : 0;
-          const profitAfterMaintenance = netProfit - maintenanceAmount;
-          const cloweeProfit = (profitAfterMaintenance * cloweeShare) / 100;
-          const franchiseProfit = (profitAfterMaintenance * franchiseShare) / 100;
-
-          totalCloweeProfit += cloweeProfit;
-          totalFranchiseProfit += franchiseProfit;
-          totalMaintenanceCost += maintenanceAmount;
-          totalPrizeOutCost += Number(sale.prize_out_cost) || 0;
-          totalElectricityCost += Number(franchise?.electricity_cost) || 0;
-          totalSalesAmount += Number(sale.sales_amount) || 0;
-        });
-
-        let totalOtherExpenses = 0;
-        const variableCategories = ['Conveyance', 'Import Accessories', 'Local Accessories', 'Digital Marketing', 'Carrying Cost', 'Prize Delivery Cost'];
-
-        monthExpenses.forEach((expense: any) => {
-          const category = categoryMap.get(Number(expense.category_id));
-          const categoryName = category?.category_name || '';
-          if (categoryName !== 'Prize Purchase' && categoryName !== 'Profit Share(Share Holders)') {
-            totalOtherExpenses += Number(expense.total_amount) || 0;
-          }
-        });
-
-        const totalExpenses = totalOtherExpenses + totalElectricityCost;
-        const totalRevenue = totalCloweeProfit + totalMaintenanceCost;
-        const prizeProfit = totalPrizeOutCost * 0.3; // Approximate prize profit
-        const netProfit = totalRevenue + prizeProfit - totalExpenses;
-
-        return {
-          month: month.label.substring(0, 3),
-          netProfit: Math.round(netProfit * 100) / 100,
-          prizeProfit: Math.round(prizeProfit * 100) / 100,
-          franchiseeProfit: Math.round(totalFranchiseProfit * 100) / 100,
-          cloweeProfit: Math.round(totalCloweeProfit * 100) / 100,
-          totalRevenue: Math.round(totalRevenue * 100) / 100
-        };
-      });
-
+      const monthlyChartData = yearlyData.map((data) => ({
+        month: data.month.substring(0, 3),
+        netProfit: Math.round(data.netProfit * 100) / 100,
+        prizeProfit: Math.round(data.prizeProfit * 100) / 100,
+        franchiseeProfit: Math.round(data.totalFranchiseeProfit * 100) / 100,
+        cloweeProfit: Math.round(data.totalCloweeProfit * 100) / 100,
+        totalRevenue: Math.round(data.totalRevenue * 100) / 100
+      }));
       setChartData(monthlyChartData);
     } catch (error) {
       console.error('Error fetching chart data:', error);
@@ -781,18 +727,6 @@ export default function MonthlyReport() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Financial Trends</h2>
-          <Select value={chartYear} onValueChange={setChartYear}>
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map(year => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
