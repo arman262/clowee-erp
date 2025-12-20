@@ -553,7 +553,7 @@ export function InvoicePrint({ sale, onClose }: InvoicePrintProps) {
                 <tbody className="bg-white divide-y divide-gray-200">
                   <tr className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      Coin Sales
+                      Coin Sales{sale.coin_adjustment ? ` (Adj.: ${sale.coin_adjustment > 0 ? ''  : ''}${sale.coin_adjustment})` : ''}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-center">৳{formatCurrency(getAgreementValue('coin_price') || 0)}/coin</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-right">{sale.coin_sales?.toLocaleString() || '0'} coins</td>

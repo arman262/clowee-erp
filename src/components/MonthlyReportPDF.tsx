@@ -6,6 +6,12 @@ import { useFranchises } from "@/hooks/useFranchises";
 import { useMachines } from "@/hooks/useMachines";
 import { useSales } from "@/hooks/useSales";
 import { usePrizeStock } from "@/hooks/useInventory";
+import { useBanks } from "@/hooks/useBanks";
+import { useBankMoneyLogs } from "@/hooks/useBankMoneyLogs";
+import { useMachineExpenses } from "@/hooks/useMachineExpenses";
+import { useMachinePayments } from "@/hooks/useMachinePayments";
+import { db } from "@/integrations/postgres/client";
+import { useEffect, useState } from "react";
 
 interface MonthlyReportData {
   reportMonth: string;
@@ -21,6 +27,11 @@ interface MonthlyReportData {
     variableCost: number;
   };
   totalSalesAmount: number;
+  inventoryValue?: {
+    totalDollsInStock: number;
+    averageCostPerDoll: number;
+    totalInventoryValue: number;
+  };
   salesBreakdown: Array<{
     location: string;
     sales: number;
@@ -39,12 +50,275 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
   const { data: machines } = useMachines();
   const { data: sales } = useSales();
   const { data: prizeStock } = usePrizeStock();
+  const { data: banks } = useBanks();
+  const { data: moneyLogs } = useBankMoneyLogs();
+  const { data: expenses } = useMachineExpenses();
+  const { data: payments } = useMachinePayments();
+  const [inventoryData, setInventoryData] = useState<{
+    totalDollsInStock: number;
+    averageCostPerDoll: number;
+    totalInventoryValue: number;
+  }>({ totalDollsInStock: 0, averageCostPerDoll: 0, totalInventoryValue: 0 });
+  const [nccBankBalance, setNccBankBalance] = useState(0);
+  const [totalCashInHand, setTotalCashInHand] = useState(0);
   
   const [month, year] = data.reportMonth.split(' ');
   const monthIndex = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].indexOf(month) + 1;
   const startDate = `${year}-${monthIndex.toString().padStart(2, '0')}-01`;
   const lastDay = new Date(parseInt(year), monthIndex, 0).getDate();
   const endDate = `${year}-${monthIndex.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+  
+  // Calculate inventory value for the month
+  useEffect(() => {
+    const calculateInventoryValue = async () => {
+      try {
+        const [allExpenses, allCategories, allSales, machines, stockOutHistory] = await Promise.all([
+          db.from('machine_expenses').select('*').execute(),
+          db.from('expense_categories').select('*').execute(),
+          db.from('sales').select('*').execute(),
+          db.from('machines').select('*').execute(),
+          db.from('stock_out_history').select('*').execute()
+        ]);
+        
+        const prizeCategoryId = (allCategories || []).find((cat: any) => cat.category_name === 'Prize Purchase')?.id;
+        
+        console.log('Prize Category ID:', prizeCategoryId);
+        
+        // Get machine-wise stock calculation (similar to Inventory.tsx)
+        const machineMap = new Map();
+        (machines || []).forEach((machine: any) => {
+          if (machine.is_active !== false) {
+            machineMap.set(machine.id, {
+              machineId: machine.id,
+              machineName: machine.machine_name,
+              purchased: 0,
+              prizeOut: 0,
+              stock: 0,
+              totalPurchaseValue: 0,
+              purchaseCount: 0
+            });
+          }
+        });
+        
+        // Calculate purchases up to month end with unit prices
+        const prizeExpenses = (allExpenses || []).filter((exp: any) => {
+          if (exp.category_id !== prizeCategoryId || !exp.expense_date) return false;
+          const expenseDate = new Date(exp.expense_date).toISOString().split('T')[0];
+          return expenseDate <= endDate;
+        });
+        
+        // Get current month's purchases for pricing
+        const currentMonthExpenses = prizeExpenses.filter((exp: any) => {
+          const expenseDate = new Date(exp.expense_date).toISOString().split('T')[0];
+          return expenseDate >= startDate && expenseDate <= endDate;
+        });
+        
+        console.log('Prize expenses found:', prizeExpenses.length);
+        console.log('Current month expenses:', currentMonthExpenses.length);
+        
+        prizeExpenses.forEach((exp: any) => {
+          const machineId = exp.machine_id || 'no_machine';
+          if (!machineMap.has(machineId)) {
+            machineMap.set(machineId, {
+              machineId: machineId,
+              machineName: '',
+              purchased: 0,
+              prizeOut: 0,
+              stock: 0,
+              totalPurchaseValue: 0,
+              purchaseCount: 0
+            });
+          }
+          const entry = machineMap.get(machineId);
+          const quantity = Number(exp.quantity) || 0;
+          // Try multiple possible unit price fields
+          const unitPrice = Number(exp.unit_price) || Number(exp.item_price) || (Number(exp.total_amount) / quantity) || 0;
+          entry.purchased += quantity;
+          entry.totalPurchaseValue += quantity * unitPrice;
+          entry.purchaseCount += 1;
+          
+          console.log(`Machine ${machineId}: +${quantity} dolls @ ৳${unitPrice} each (from unit_price: ${exp.unit_price}, item_price: ${exp.item_price}, total_amount: ${exp.total_amount})`);
+        });
+        
+        // Calculate prize outs up to month end
+        const monthEndSales = (allSales || []).filter((sale: any) => {
+          if (!sale.sales_date) return false;
+          const saleDate = new Date(sale.sales_date).toISOString().split('T')[0];
+          return saleDate <= endDate;
+        });
+        
+        monthEndSales.forEach((sale: any) => {
+          const machineId = sale.machine_id;
+          if (machineId && machineMap.has(machineId)) {
+            const entry = machineMap.get(machineId);
+            entry.prizeOut += Number(sale.prize_out_quantity) || 0;
+          }
+        });
+        
+        // Include stock adjustments from stock_out_history
+        (stockOutHistory || []).forEach((record: any) => {
+          if ((record.adjustment_type === 'doll_add' || record.adjustment_type === 'doll_deduct') && record.machine_id) {
+            const outDate = new Date(record.out_date).toISOString().split('T')[0];
+            if (outDate <= endDate && machineMap.has(record.machine_id)) {
+              const entry = machineMap.get(record.machine_id);
+              entry.purchased += Number(record.quantity) || 0;
+            }
+          }
+        });
+        
+        // Calculate stock and inventory value
+        let totalDollsInStock = 0;
+        let totalInventoryValue = 0;
+        let totalPurchaseValue = 0;
+        let totalPurchased = 0;
+        
+        // Calculate current month's average price
+        let currentMonthTotalValue = 0;
+        let currentMonthTotalQty = 0;
+        
+        currentMonthExpenses.forEach((exp: any) => {
+          const quantity = Number(exp.quantity) || 0;
+          const unitPrice = Number(exp.unit_price) || Number(exp.item_price) || (Number(exp.total_amount) / quantity) || 0;
+          currentMonthTotalValue += quantity * unitPrice;
+          currentMonthTotalQty += quantity;
+        });
+        
+        machineMap.forEach((entry) => {
+          entry.stock = entry.purchased - entry.prizeOut;
+          totalDollsInStock += entry.stock;
+          totalPurchaseValue += entry.totalPurchaseValue;
+          totalPurchased += entry.purchased;
+          
+          console.log(`Machine ${entry.machineName}: Stock=${entry.stock}, PurchaseValue=৳${entry.totalPurchaseValue}`);
+        });
+        
+        // Use current month's average price if available, otherwise use historical average
+        let averageCostPerDoll = 0;
+        if (currentMonthTotalQty > 0) {
+          averageCostPerDoll = currentMonthTotalValue / currentMonthTotalQty;
+          console.log('Using current month average price:', averageCostPerDoll);
+        } else if (totalPurchased > 0) {
+          averageCostPerDoll = totalPurchaseValue / totalPurchased;
+          console.log('Using historical average price:', averageCostPerDoll);
+        }
+        
+        totalInventoryValue = totalDollsInStock * averageCostPerDoll;
+        
+        console.log('Final calculation:', {
+          totalDollsInStock,
+          totalPurchaseValue,
+          totalPurchased,
+          averageCostPerDoll,
+          totalInventoryValue
+        });
+        
+        setInventoryData({
+          totalDollsInStock,
+          averageCostPerDoll,
+          totalInventoryValue
+        });
+      } catch (error) {
+        console.error('Error calculating inventory value:', error);
+      }
+    };
+    
+    calculateInventoryValue();
+  }, [endDate]);
+  
+  // Calculate NCC Bank balance at end of month
+  useEffect(() => {
+    const calculateNccBankBalance = () => {
+      const nccBank = banks?.find(b => b.bank_name === 'NCC Bank');
+      if (!nccBank) {
+        setNccBankBalance(0);
+        return;
+      }
+
+      let balance = 0;
+
+      // Add money logs up to end of month
+      if (moneyLogs && moneyLogs.length > 0) {
+        balance += moneyLogs
+          .filter((log: any) => {
+            if (log.bank_id !== nccBank.id || !log.created_at) return false;
+            const logDate = new Date(log.created_at).toISOString().split('T')[0];
+            return logDate <= endDate;
+          })
+          .reduce((sum: number, log: any) => {
+            const amount = Number(log.amount) || 0;
+            return log.action_type === 'add' ? sum + amount : sum - amount;
+          }, 0);
+      }
+
+      // Add payments received up to end of month
+      balance += payments?.filter(payment => {
+        if (payment.bank_id !== nccBank.id || !payment.payment_date) return false;
+        const paymentDate = new Date(payment.payment_date).toISOString().split('T')[0];
+        return paymentDate <= endDate;
+      }).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
+
+      // Subtract expenses up to end of month
+      balance -= expenses?.filter(expense => {
+        if (expense.bank_id !== nccBank.id || !expense.expense_date) return false;
+        const expenseDate = new Date(expense.expense_date).toISOString().split('T')[0];
+        return expenseDate <= endDate;
+      }).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
+
+      setNccBankBalance(balance);
+    };
+    
+    calculateNccBankBalance();
+  }, [banks, moneyLogs, payments, expenses, endDate]);
+  
+  // Calculate Total Cash In Hand at end of month (Cash + MDB Bank + Bkash Personal)
+  useEffect(() => {
+    const calculateTotalCashInHand = () => {
+      const calculateBankBalance = (bankName: string) => {
+        const bank = banks?.find(b => b.bank_name === bankName);
+        if (!bank) return 0;
+
+        let balance = 0;
+
+        // Add money logs up to end of month
+        if (moneyLogs && moneyLogs.length > 0) {
+          balance += moneyLogs
+            .filter((log: any) => {
+              if (log.bank_id !== bank.id || !log.created_at) return false;
+              const logDate = new Date(log.created_at).toISOString().split('T')[0];
+              return logDate <= endDate;
+            })
+            .reduce((sum: number, log: any) => {
+              const amount = Number(log.amount) || 0;
+              return log.action_type === 'add' ? sum + amount : sum - amount;
+            }, 0);
+        }
+
+        // Add payments received up to end of month
+        balance += payments?.filter(payment => {
+          if (payment.bank_id !== bank.id || !payment.payment_date) return false;
+          const paymentDate = new Date(payment.payment_date).toISOString().split('T')[0];
+          return paymentDate <= endDate;
+        }).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
+
+        // Subtract expenses up to end of month
+        balance -= expenses?.filter(expense => {
+          if (expense.bank_id !== bank.id || !expense.expense_date) return false;
+          const expenseDate = new Date(expense.expense_date).toISOString().split('T')[0];
+          return expenseDate <= endDate;
+        }).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
+
+        return balance;
+      };
+
+      const cashInHand = calculateBankBalance('Cash');
+      const mdbBank = calculateBankBalance('MDB Bank');
+      const bkashPersonal = calculateBankBalance('Bkash(Personal)');
+      
+      setTotalCashInHand(cashInHand + mdbBank + bkashPersonal);
+    };
+    
+    calculateTotalCashInHand();
+  }, [banks, moneyLogs, payments, expenses, endDate]);
   
   // Group sales data by franchise and sum monthly amounts
   const franchiseSalesMap = new Map<string, number>();
@@ -164,9 +438,16 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             .sales-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
             .sales-table th, .sales-table td { border: 1px solid #e2e8f0; padding: 0.5rem; text-align: left; font-size: 0.85rem; }
             .sales-table th { background-color: #f8fafc; font-weight: 600; }
-            table { border-collapse: collapse; width: 100%; margin-top: 0.2rem; margin-bottom: 0.5rem; }
-            th, td { border: none; padding: 0.3rem 0.5rem; text-align: left; vertical-align: top; font-size: 0.8rem; }
-            th { background-color: #f9fafb; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+            table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+            th, td { border: 1px solid #e5e7eb; padding: 0.6rem 0.8rem; text-align: left; vertical-align: top; font-size: 0.85rem; }
+            th { background-color: #f9fafb; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+            tbody tr:nth-child(even) { background-color: #f9fafb; }
+            .financial-summary { margin: 1.5rem 0; }
+            .financial-summary table { margin: 1rem 0; border: 2px solid #e5e7eb; }
+            .financial-summary th { padding: 1rem 0.8rem; background-color: #f3f4f6; }
+            .financial-summary td { padding: 0.8rem; line-height: 1.5; margin: 0.2rem 0; }
+            .financial-summary tbody tr { margin-bottom: 0.3rem; }
+            .financial-summary .total-row td { padding: 1rem 0.8rem; font-weight: bold; background-color: #f9fafb; }
             .divide-y > * + * { border-top: 1px solid #e5e7eb; }
             .hover\\:bg-gray-50:hover { background-color: #f9fafb; }
             img { max-width: 100%; height: auto; }
@@ -174,10 +455,42 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
             .grid { display: grid; }
             .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .gap-4 { gap: 0.5rem; }
-            .p-1 { padding: 0.25rem; }
-            .px-2 { padding-left: 0.3rem; padding-right: 0.3rem; }
-            .py-2 { padding-top: 0.2rem; padding-bottom: 0.2rem; }
+            .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .gap-2 { gap: 0.5rem; }
+            .gap-3 { gap: 0.75rem; }
+            .p-2 { padding: 0.5rem; }
+            .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+            .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+            .mb-1 { margin-bottom: 0.25rem; }
+            .mt-1 { margin-top: 0.25rem; }
+            .text-xs { font-size: 0.75rem; }
+            .text-\[10px\] { font-size: 10px; }
+            .text-success { color: #16a34a; }
+            .text-purple-600 { color: #9333ea; }
+            .text-gray-500 { color: #6b7280; }
+            .rounded { border-radius: 0.25rem; }
+            .net-profit-amount {
+              border: 2px solid;
+              padding: 8px 12px;
+              border-radius: 8px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+              line-height: 1.2;
+              min-width: 120px;
+              font-weight: bold;
+            }
+            .net-profit-positive {
+              border-color: #16a34a;
+              background-color: #dcfce7;
+              color: #16a34a;
+            }
+            .net-loss-negative {
+              border-color: #dc2626;
+              background-color: #fee2e2;
+              color: #dc2626;
+            }
           </style>
         </head>
         <body>
@@ -228,7 +541,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
       mobileElements.forEach(el => (el as HTMLElement).style.display = '');
       desktopElements.forEach(el => (el as HTMLElement).style.display = '');
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.8);
+      const imgData = canvas.toDataURL('image/jpeg', 1);
       const pdf = new jsPDF('p', 'mm', 'a4');
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -303,15 +616,9 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
 
             {/* Report Info Card */}
             <div className="bg-gray-50 p-4 rounded-lg mb-4 sm:mb-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">REPORT PERIOD</h3>
-                  <p className="font-medium text-lg text-gray-900">{data.reportMonth}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">TOTAL SALES AMOUNT</h3>
-                  <p className="font-bold text-2xl text-blue-600">৳{formatCurrency(data.totalSalesAmount || 0)}</p>
-                </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">REPORT PERIOD</h3>
+                <p className="font-medium text-lg text-gray-900">{data.reportMonth}</p>
               </div>
             </div>
 
@@ -324,7 +631,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                 
                 {/* Desktop Table */}
                 <table className="w-full hidden sm:table print:table">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 border-b-2 border-gray-200">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Income Category</th>
                       <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider border-r">Amount</th>
@@ -332,7 +639,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                       <th className="px-4 py-3 text-right text-xs font-bold text-black uppercase tracking-wider">Amount</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-300">
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900 ">Profit Share Clowee</td>
                       <td className="px-4 py-3 text-sm font-medium text-blue-600 text-right border-r">৳{formatCurrency(data.income.profitShareClowee)}</td>
@@ -429,7 +736,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                           alignItems: 'center',
                           justifyContent: 'center',
                           textAlign: 'center',
-                          lineHeight: '1.2'
+                          lineHeight: '1.4'
                         }}
                       >
                         ৳{formatCurrency(Math.abs(netProfitLoss))}
@@ -444,22 +751,6 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             <div className="mb-6">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 
-                {/* Desktop Grid View */}
-                <div className="hidden sm:grid print:grid grid-cols-2 gap-2 p-2">
-                  <table className="w-full">
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {rightColumn.map((machine, index) => (
-                        <tr key={index}>
-                          <td className="px-2 py-2 text-sm text-gray-900">
-                            {machine.name}
-                          </td>
-                          <td className="px-2 py-2 text-sm text-gray-900 text-right">৳{formatCurrency(machine.totalSales)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                
                 {/* Mobile Card View */}
                 <div className="sm:hidden print:hidden p-3 space-y-2">
                   {machineWithSales.map((machine, index) => (
@@ -472,10 +763,34 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                   ))}
                 </div>
                 
-                <div className="bg-gray-50 px-4 py-3 border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xl font-bold text-gray-900">Total Sales Amount</span>
-                    <span className="text-2xl font-bold text-success">৳{formatCurrency(data.totalSalesAmount || 0)}</span>
+                <div className="bg-gray-50 px-2 py-3 border-gray-200">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                    <div className="bg-white p-2 rounded border">
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Total Sales</div>
+                        <div className="text-sm font-bold text-success">৳{formatCurrency(data.totalSalesAmount || 0)}</div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-2 rounded border">
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Inventory Value</div>
+                        <div className="text-sm font-bold text-purple-600">৳{formatCurrency(inventoryData.totalInventoryValue)}</div>
+                        <div className="text-[10px] text-gray-500">{inventoryData.totalDollsInStock} dolls</div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-2 rounded border">
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">NCC Bank</div>
+                        <div className="text-sm font-bold text-purple-600">৳{formatCurrency(nccBankBalance)}</div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-2 rounded border">
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Cash In Hand</div>
+                        <div className="text-sm font-bold text-purple-600">৳{formatCurrency(totalCashInHand)}</div>
+                        <div className="text-[10px] text-gray-500">Cash+MDB+Bkash</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -138,6 +138,19 @@ export default function Payments() {
     getSerialNumber,
   } = usePagination({ data: sortedPayments });
 
+  // Calculate summary statistics
+  const totalPayments = filteredPayments.length;
+  const totalAmount = filteredPayments.reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+  
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const thisMonthPayments = filteredPayments.filter(payment => {
+    const paymentDate = new Date(payment.payment_date);
+    return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
+  }).length;
+  
+  const uniqueBanks = new Set(filteredPayments.map(payment => payment.bank_id).filter(Boolean)).size;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -181,7 +194,7 @@ export default function Payments() {
                 <CreditCard className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-primary">0</div>
+                <div className="text-2xl font-bold text-primary">{totalPayments}</div>
                 <div className="text-sm text-muted-foreground">Total Payments</div>
               </div>
             </div>
@@ -194,7 +207,7 @@ export default function Payments() {
                 <CreditCard className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-success">৳0</div>
+                <div className="text-2xl font-bold text-success">৳{totalAmount.toLocaleString()}</div>
                 <div className="text-sm text-muted-foreground">Total Amount</div>
               </div>
             </div>
@@ -207,7 +220,7 @@ export default function Payments() {
                 <Calendar className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-accent">0</div>
+                <div className="text-2xl font-bold text-accent">{thisMonthPayments}</div>
                 <div className="text-sm text-muted-foreground">This Month</div>
               </div>
             </div>
@@ -220,7 +233,7 @@ export default function Payments() {
                 <Building className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-warning">0</div>
+                <div className="text-2xl font-bold text-warning">{uniqueBanks}</div>
                 <div className="text-sm text-muted-foreground">Banks Used</div>
               </div>
             </div>

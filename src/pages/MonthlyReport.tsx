@@ -321,28 +321,65 @@ export default function MonthlyReport() {
           }
         });
 
-        const avgPrizeRate = totalPrizePurchaseQty > 0 ? totalPrizePurchaseAmount / totalPrizePurchaseQty : 0;
+        // Calculate doll purchase cost using same logic as inventory system
+        let totalPrizePurchaseCostForMonth = 0;
+        
+        // Get current month's prize purchases with unit prices
+        const currentMonthPrizeExpenses = monthExpenses.filter((expense: any) => {
+          const category = categoryMap.get(Number(expense.category_id));
+          return category?.category_name === 'Prize Purchase';
+        });
+        
+        // Calculate current month's average doll price
+        let currentMonthTotalValue = 0;
+        let currentMonthTotalQty = 0;
+        
+        currentMonthPrizeExpenses.forEach((exp: any) => {
+          const quantity = Number(exp.quantity) || 0;
+          const unitPrice = Number(exp.unit_price) || Number(exp.item_price) || (Number(exp.total_amount) / quantity) || 0;
+          currentMonthTotalValue += quantity * unitPrice;
+          currentMonthTotalQty += quantity;
+        });
+        
+        // Use current month's average price if available, otherwise use historical average
+        let avgDollPrice = 0;
+        if (currentMonthTotalQty > 0) {
+          avgDollPrice = currentMonthTotalValue / currentMonthTotalQty;
+        } else {
+          // Fallback to historical average from all purchases up to this month
+          const allPrizeExpensesUpToMonth = (allExpenses || []).filter((expense: any) => {
+            if (!expense.expense_date) return false;
+            const expenseDate = new Date(expense.expense_date);
+            const expenseDateLocal = new Date(expenseDate.getTime() - expenseDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+            if (expenseDateLocal > endDate) return false;
+            const category = categoryMap.get(Number(expense.category_id));
+            return category?.category_name === 'Prize Purchase';
+          });
+          
+          let historicalTotalValue = 0;
+          let historicalTotalQty = 0;
+          
+          allPrizeExpensesUpToMonth.forEach((exp: any) => {
+            const quantity = Number(exp.quantity) || 0;
+            const unitPrice = Number(exp.unit_price) || Number(exp.item_price) || (Number(exp.total_amount) / quantity) || 0;
+            historicalTotalValue += quantity * unitPrice;
+            historicalTotalQty += quantity;
+          });
+          
+          avgDollPrice = historicalTotalQty > 0 ? historicalTotalValue / historicalTotalQty : 0;
+        }
+        
+        // Calculate total prize out quantity for the month
         let totalPrizeOutQty = 0;
         monthSales.forEach((sale: any) => {
           totalPrizeOutQty += Number(sale.prize_out_quantity) || 0;
         });
-        const totalPrizePurchaseCostForMonth = totalPrizeOutQty * avgPrizeRate;
+        
+        // Calculate doll purchase cost using the same pricing logic as inventory
+        totalPrizePurchaseCostForMonth = totalPrizeOutQty * avgDollPrice;
 
         totalExpenses = totalOtherExpenses + totalElectricityCost;
 
-        console.log(`${month.label} Expenses:`, {
-          totalPrizePurchaseAmount,
-          totalPrizePurchaseQty,
-          avgPrizeRate,
-          totalPrizeOutQty,
-          totalPrizePurchaseCostForMonth,
-          totalOtherExpenses,
-          totalElectricityCost,
-          totalExpenses,
-          monthExpensesCount: monthExpenses.length
-        });
-
-        
         const prizeProfit = totalPrizeOutCost - totalPrizePurchaseCostForMonth;
 
         const totalRevenue = totalCloweeProfit + prizeProfit + totalMaintenanceCost;

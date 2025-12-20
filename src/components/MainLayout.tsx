@@ -26,7 +26,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             <div className="flex items-center justify-between h-full px-3 sm:px-6">
               <div className="flex items-center gap-2 sm:gap-4">
                 <SidebarTrigger className="md:flex hidden" />
-                <Button variant="ghost" size="icon" className="md:hidden h-12 w-12" asChild>
+                <Button variant="ghost" size="icon" className="md:hidden h-20 w-12" asChild>
                   <SidebarTrigger>
                     <Menu className="h-7 w-7" />
                   </SidebarTrigger>

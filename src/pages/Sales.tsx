@@ -444,17 +444,12 @@ export default function Sales() {
           <Button onClick={() => setShowManualSales(true)} className="bg-gradient-accent hover:opacity-90 flex-1 sm:flex-none">
             <Plus className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Add Sales</span>
-            <span className="sm:hidden">Add</span>
+            <span className="sm:hidden">Add Sales(Manual)</span>
           </Button>
           <Button onClick={() => setShowPayToClowee(true)} className="bg-gradient-primary hover:opacity-90 flex-1 sm:flex-none">
             <Plus className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Pay to Clowee</span>
-            <span className="sm:hidden">Pay</span>
-          </Button>
-          <Button onClick={() => setShowFranchiseInvoice(true)} className="bg-gradient-primary hover:opacity-90 flex-1 sm:flex-none">
-            <FileText className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Franchise Invoice</span>
-            <span className="sm:hidden">Invoice</span>
+            <span className="sm:hidden">Pay To Clowee</span>
           </Button>
         </div>
         )}
@@ -587,7 +582,7 @@ export default function Sales() {
             <Button onClick={() => setShowFranchiseInvoice(true)} className="bg-gradient-primary hover:opacity-90 flex-1 sm:flex-none">
               <FileText className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Franchise Invoice</span>
-              <span className="sm:hidden">Invoice</span>
+              <span className="sm:hidden">Franchise Invoice</span>
             </Button>
 
 
