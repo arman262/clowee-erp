@@ -239,10 +239,8 @@ export default function Dashboard() {
   const cashInHand = calculateBankBalance('Cash');
   const mdbBank = calculateBankBalance('MDB Bank');
   const nccBank = calculateBankBalance('NCC Bank');
-  const bkashPersonal = calculateBankBalance('Bkash(Personal)');
-  
-  // Calculate total cash amount (Cash In Hand + MDB Bank + Bkash Personal)
-  const totalCashAmount = cashInHand + mdbBank + bkashPersonal;
+  // Calculate total cash amount (Cash In Hand + MDB Bank)
+  const totalCashAmount = cashInHand + mdbBank;
 
   // Prepare chart data
   const getChartData = () => {
@@ -568,7 +566,7 @@ export default function Dashboard() {
               ৳ {formatCurrency(cashInHand)}
             </div>
             <div className="text-[10px] sm:text-xs text-muted-foreground">
-              Total Cash In Hand: ৳{formatCurrency(totalCashAmount)}
+              Total Cash & MDB: ৳{formatCurrency(totalCashAmount)}
             </div>
           </CardContent>
         </Card>
@@ -595,27 +593,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">
-              Bkash(Personal)
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
-                const bkashBank = banks?.find(b => b.bank_name === 'Bkash(Personal)');
-                if (bkashBank) setViewingBankTransactions(bkashBank);
-              }} />
-            </div>
-          </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-lg font-extrabold sm:text-2xl sm:font-bold text-warning mb-0">
-              ৳{formatCurrency(bkashPersonal)}
-            </div>
-            <div className="text-[10px] sm:text-xs text-muted-foreground">
-              Bkash Balance
-            </div>
-          </CardContent>
-        </Card>
+
 
         <Card className="bg-gradient-card border-border shadow-card hover:shadow-neon/20 transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2">

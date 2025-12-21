@@ -855,9 +855,8 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                     </div>
                     <div className="bg-white p-2 rounded border">
                       <div className="text-center">
-                        <div className="text-xs font-semibold text-gray-600 mb-1">Cash In Hand</div>
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Cash In Hand (Cash+MDB Bank)</div>
                         <div className="text-xl font-bold text-green-600">৳{formatCurrency(totalCashInHand)}</div>
-                        <div className="text-[12px] text-gray-500">Cash+MDB+Bkash</div>
                       </div>
                     </div>
                   </div>

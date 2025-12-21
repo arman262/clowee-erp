@@ -191,49 +191,49 @@ export default function Machines() {
           <TableHeader>
             <TableRow>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('number')}>
-                <div className="flex items-center gap-1">
-                  Machine Number
+                <div className="flex items-center">
+                  Machine No.
                   {sortColumn === 'number' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
-                </div>
+                </div>x
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('name')}>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   Machine
                   {sortColumn === 'name' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('franchise')}>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   Franchise
                   {sortColumn === 'franchise' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('location')}>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   Location
                   {sortColumn === 'location' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('date')}>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   Installation Date
                   {sortColumn === 'date' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('coins')}>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   Initial Coins
                   {sortColumn === 'coins' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('prizes')}>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   Initial Prizes
                   {sortColumn === 'prizes' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/50" onClick={() => handleSort('status')}>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   Status
                   {sortColumn === 'status' ? (sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
                 </div>
