@@ -70,9 +70,9 @@ export default function Expenses() {
       'Expense ID': expense.expense_number || '-',
       'Category': expense.expense_categories?.category_name || '-',
       'Description': expense.expense_details || '-',
-      'Quantity': expense.quantity,
-      'Unit Price': expense.item_price,
-      'Total Amount': expense.total_amount,
+      'Quantity': Number(expense.quantity) || 0,
+      'Unit Price': Number(expense.item_price) || 0,
+      'Total Amount': Number(expense.total_amount) || 0,
       'Bank': expense.banks?.bank_name || '-',
       'Created At': expense.created_at ? formatDateTime(expense.created_at) : '-'
     }));
@@ -101,7 +101,8 @@ export default function Expenses() {
 
   const filteredExpenses = expenses?.filter((expense: any) => {
     const matchesSearch = expense.machines?.machine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expense.expense_categories?.category_name?.toLowerCase().includes(searchQuery.toLowerCase());
+      expense.expense_categories?.category_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.banks?.bank_name?.toLowerCase().includes(searchQuery.toLowerCase());
 
     if (fromDate || toDate) {
       if (!expense.expense_date) return false;
@@ -259,7 +260,7 @@ export default function Expenses() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by category or machine..."
+                placeholder="Search by category, machine, or bank..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-secondary/30 border-border"

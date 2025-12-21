@@ -580,7 +580,7 @@ export default function Dashboard() {
               <Eye className="h-5 w-5 sm:h-5 sm:w-5 text-primary cursor-pointer hover:text-primary/80" onClick={() => {
                 const mdbBankData = banks?.find(b => b.bank_name === 'MDB Bank');
                 if (mdbBankData) setViewingBankTransactions(mdbBankData);
-              }} />
+              }}/>
             </div>
           </CardHeader>
           <CardContent className="pb-2">

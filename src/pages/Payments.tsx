@@ -60,7 +60,7 @@ export default function Payments() {
       'Invoice No': payment.sales?.invoice_number || (payment.sales ? `CLW/${new Date(payment.sales.sales_date).getFullYear()}/${payment.sales.id.slice(-3).padStart(3, '0')}` : 'N/A'),
       'Machine': payment.machines?.machine_name || '',
       'Payment Date': formatDate(payment.payment_date),
-      'Amount': payment.amount,
+      'Amount': Number(payment.amount) || 0,
       'Bank': payment.banks?.bank_name || '',
       'Remarks': payment.remarks || '',
       'Created By': payment.created_by_user?.name || ''
