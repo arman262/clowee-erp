@@ -230,8 +230,18 @@ export default function Dashboard() {
     // Add payments received
     balance += payments?.filter(payment => payment.bank_id === bank.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
 
-    // Subtract expenses
-    balance -= expenses?.filter(expense => expense.bank_id === bank.id).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
+    // Subtract expenses (for NCC Bank, only include Profit Share expenses)
+    if (bankName === 'NCC Bank') {
+      // For NCC Bank, only include Profit Share(Share Holders) expenses
+      balance -= expenses?.filter(expense => {
+        if (expense.bank_id !== bank.id) return false;
+        const category = expense.expense_categories;
+        return category && category.category_name === 'Profit Share(Share Holders)';
+      }).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
+    } else {
+      // For other banks, include all expenses
+      balance -= expenses?.filter(expense => expense.bank_id === bank.id).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
+    }
 
     return balance;
   };

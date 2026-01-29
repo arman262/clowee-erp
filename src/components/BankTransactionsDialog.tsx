@@ -62,8 +62,16 @@ export function BankTransactionsDialog({
     });
   });
 
-  // Add expenses
-  expenses?.filter((e: any) => e.bank_id === bank.id).forEach((expense: any) => {
+  // Add expenses (for NCC Bank, only include Profit Share expenses)
+  expenses?.filter((e: any) => {
+    if (e.bank_id !== bank.id) return false;
+    // For NCC Bank, only include Profit Share(Share Holders) expenses
+    if (bank.bank_name === 'NCC Bank') {
+      const category = e.expense_categories;
+      return category && category.category_name === 'Profit Share(Share Holders)';
+    }
+    return true;
+  }).forEach((expense: any) => {
     transactions.push({
       id: `expense-${expense.id}`,
       date: expense.expense_date,

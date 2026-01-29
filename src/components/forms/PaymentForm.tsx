@@ -5,10 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/dateUtils";
 import { useMachines } from "@/hooks/useMachines";
 import { useBanks } from "@/hooks/useBanks";
@@ -62,9 +58,6 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
     amount: initialData?.amount || 0,
     remarks: initialData?.remarks || "",
   });
-  const [openInvoiceCombobox, setOpenInvoiceCombobox] = useState(false);
-
-
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,72 +76,40 @@ export function PaymentForm({ onSubmit, onCancel, initialData }: PaymentFormProp
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="invoice_id">Invoice*</Label>
-            <Popover open={openInvoiceCombobox} onOpenChange={setOpenInvoiceCombobox}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={openInvoiceCombobox}
-                  className="w-full justify-between"
-                >
-                  {formData.invoice_id
-                    ? (() => {
-                        const selectedSale = sales?.find(s => s.id === formData.invoice_id);
-                        if (!selectedSale) return "Select Due Invoice";
-                        const salePayments = payments?.filter(p => p.invoice_id === selectedSale.id) || [];
-                        const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                        const balance = calculatePayToClowee(selectedSale) - totalPaid;
-                        return `${formatDate(selectedSale.sales_date)} - ${selectedSale.machines?.machine_name} - ৳${balance.toLocaleString()}`;
-                      })()
-                    : "Select Due Invoice"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[500px] p-0">
-                <Command>
-                  <CommandInput placeholder="Search invoices..." />
-                  <CommandList>
-                    <CommandEmpty>No invoices found.</CommandEmpty>
-                    <CommandGroup>
-                      {!sales ? (
-                        <CommandItem disabled>Loading invoices...</CommandItem>
-                      ) : dueInvoices.length === 0 ? (
-                        <CommandItem disabled>No due invoices available</CommandItem>
-                      ) : (
-                        dueInvoices.map((sale) => {
-                          const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
-                          const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                          const balance = calculatePayToClowee(sale) - totalPaid;
-                          return (
-                            <CommandItem
-                              key={sale.id}
-                              value={`${formatDate(sale.sales_date)} ${sale.machines?.machine_name} ${balance}`}
-                              onSelect={() => {
-                                setFormData({ 
-                                  ...formData, 
-                                  invoice_id: sale.id,
-                                  machine_id: sale.machine_id || "",
-                                  payment_date: sale.sales_date || formData.payment_date
-                                });
-                                setOpenInvoiceCombobox(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.invoice_id === sale.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {formatDate(sale.sales_date)} - {sale.machines?.machine_name} - ৳{balance.toLocaleString()}
-                            </CommandItem>
-                          );
-                        })
-                      )}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <Select
+              value={formData.invoice_id}
+              onValueChange={(value) => {
+                const selectedSale = sales?.find(s => s.id === value);
+                setFormData({ 
+                  ...formData, 
+                  invoice_id: value,
+                  machine_id: selectedSale?.machine_id || "",
+                  payment_date: selectedSale?.sales_date || formData.payment_date
+                });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={sales ? "Select Due Invoice" : "Loading invoices..."} />
+              </SelectTrigger>
+              <SelectContent>
+                {!sales ? (
+                  <SelectItem value="loading" disabled>Loading invoices...</SelectItem>
+                ) : dueInvoices.length === 0 ? (
+                  <SelectItem value="no-data" disabled>No due invoices available</SelectItem>
+                ) : (
+                  dueInvoices.map((sale) => {
+                    const salePayments = payments?.filter(p => p.invoice_id === sale.id) || [];
+                    const totalPaid = salePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                    const balance = calculatePayToClowee(sale) - totalPaid;
+                    return (
+                      <SelectItem key={sale.id} value={sale.id}>
+                        {formatDate(sale.sales_date)} - {sale.machines?.machine_name} - ৳{balance.toLocaleString()}
+                      </SelectItem>
+                    );
+                  })
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

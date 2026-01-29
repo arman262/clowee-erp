@@ -56,7 +56,7 @@ export default function CounterReadings() {
   const enrichedReadings = [];
 
   // Add initial counter values from machines table
-  machines?.forEach(machine => {
+  machines?.filter(machine => machine.is_active !== false).forEach(machine => {
     const franchise = franchises?.find(f => f.id === machine.franchise_id);
     if (machine.initial_coin_counter !== undefined || machine.initial_prize_counter !== undefined) {
       enrichedReadings.push({
@@ -84,20 +84,23 @@ export default function CounterReadings() {
   // Add actual readings
   readings?.forEach(reading => {
     const machine = machines?.find(m => m.id === reading.machine_id);
-    const franchise = franchises?.find(f => f.id === machine?.franchise_id);
-    enrichedReadings.push({
-      ...reading,
-      machine_name: machine?.machine_name || 'Unknown Machine',
-      machine_number: machine?.machine_number || 'N/A',
-      franchise_name: franchise?.name || 'No Franchise',
-      is_initial: false,
-      type: 'reading',
-      machines: {
+    // Only include readings for active machines
+    if (machine && machine.is_active !== false) {
+      const franchise = franchises?.find(f => f.id === machine?.franchise_id);
+      enrichedReadings.push({
+        ...reading,
         machine_name: machine?.machine_name || 'Unknown Machine',
         machine_number: machine?.machine_number || 'N/A',
-        franchises: { name: franchise?.name || 'No Franchise' }
-      }
-    });
+        franchise_name: franchise?.name || 'No Franchise',
+        is_initial: false,
+        type: 'reading',
+        machines: {
+          machine_name: machine?.machine_name || 'Unknown Machine',
+          machine_number: machine?.machine_number || 'N/A',
+          franchises: { name: franchise?.name || 'No Franchise' }
+        }
+      });
+    }
   });
 
   // Sort by date descending (newest first)

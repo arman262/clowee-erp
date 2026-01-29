@@ -60,7 +60,9 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
     totalInventoryValue: number;
   }>({ totalDollsInStock: 0, averageCostPerDoll: 0, totalInventoryValue: 0 });
   const [nccBankBalance, setNccBankBalance] = useState(0);
+  const [currentNccBankBalance, setCurrentNccBankBalance] = useState(0);
   const [totalCashInHand, setTotalCashInHand] = useState(0);
+  const [currentTotalCashInHand, setCurrentTotalCashInHand] = useState(0);
   const [accessoriesData, setAccessoriesData] = useState<{
     totalQuantity: number;
     totalValue: number;
@@ -85,8 +87,6 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
         ]);
         
         const prizeCategoryId = (allCategories || []).find((cat: any) => cat.category_name === 'Prize Purchase')?.id;
-        
-        console.log('Prize Category ID:', prizeCategoryId);
         
         // Get machine-wise stock calculation (similar to Inventory.tsx)
         const machineMap = new Map();
@@ -117,9 +117,6 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
           return expenseDate >= startDate && expenseDate <= endDate;
         });
         
-        console.log('Prize expenses found:', prizeExpenses.length);
-        console.log('Current month expenses:', currentMonthExpenses.length);
-        
         prizeExpenses.forEach((exp: any) => {
           const machineId = exp.machine_id || 'no_machine';
           if (!machineMap.has(machineId)) {
@@ -140,8 +137,6 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
           entry.purchased += quantity;
           entry.totalPurchaseValue += quantity * unitPrice;
           entry.purchaseCount += 1;
-          
-          console.log(`Machine ${machineId}: +${quantity} dolls @ ৳${unitPrice} each (from unit_price: ${exp.unit_price}, item_price: ${exp.item_price}, total_amount: ${exp.total_amount})`);
         });
         
         // Calculate prize outs up to month end
@@ -192,29 +187,17 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
           totalDollsInStock += entry.stock;
           totalPurchaseValue += entry.totalPurchaseValue;
           totalPurchased += entry.purchased;
-          
-          console.log(`Machine ${entry.machineName}: Stock=${entry.stock}, PurchaseValue=৳${entry.totalPurchaseValue}`);
         });
         
         // Use current month's average price if available, otherwise use historical average
         let averageCostPerDoll = 0;
         if (currentMonthTotalQty > 0) {
           averageCostPerDoll = currentMonthTotalValue / currentMonthTotalQty;
-          console.log('Using current month average price:', averageCostPerDoll);
         } else if (totalPurchased > 0) {
           averageCostPerDoll = totalPurchaseValue / totalPurchased;
-          console.log('Using historical average price:', averageCostPerDoll);
         }
         
         totalInventoryValue = totalDollsInStock * averageCostPerDoll;
-        
-        console.log('Final calculation:', {
-          totalDollsInStock,
-          totalPurchaseValue,
-          totalPurchased,
-          averageCostPerDoll,
-          totalInventoryValue
-        });
         
         setInventoryData({
           totalDollsInStock,
@@ -261,11 +244,14 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
         return paymentDate <= endDate;
       }).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
 
-      // Subtract expenses up to end of month
+      // Subtract expenses up to end of month (only Profit Share for NCC Bank)
       balance -= expenses?.filter(expense => {
         if (expense.bank_id !== nccBank.id || !expense.expense_date) return false;
         const expenseDate = new Date(expense.expense_date).toISOString().split('T')[0];
-        return expenseDate <= endDate;
+        if (expenseDate > endDate) return false;
+        // Only include Profit Share(Share Holders) expenses for NCC Bank
+        const category = expense.expense_categories;
+        return category && category.category_name === 'Profit Share(Share Holders)';
       }).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
 
       setNccBankBalance(balance);
@@ -273,6 +259,44 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
     
     calculateNccBankBalance();
   }, [banks, moneyLogs, payments, expenses, endDate]);
+  
+  // Calculate current NCC Bank balance (till today) - Match Dashboard exactly
+  useEffect(() => {
+    const calculateCurrentNccBankBalance = () => {
+      const nccBank = banks?.find(b => b.bank_name === 'NCC Bank');
+      if (!nccBank) {
+        setCurrentNccBankBalance(0);
+        return;
+      }
+
+      let balance = 0;
+
+      // Add money logs (add/deduct) - same as Dashboard
+      if (moneyLogs && moneyLogs.length > 0) {
+        balance += moneyLogs
+          .filter((log: any) => log.bank_id === nccBank.id)
+          .reduce((sum: number, log: any) => {
+            const amount = Number(log.amount) || 0;
+            return log.action_type === 'add' ? sum + amount : sum - amount;
+          }, 0);
+      }
+
+      // Add payments received - same as Dashboard
+      balance += payments?.filter(payment => payment.bank_id === nccBank.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
+
+      // Subtract expenses up to today (only Profit Share for NCC Bank)
+      balance -= expenses?.filter(expense => {
+        if (expense.bank_id !== nccBank.id) return false;
+        // Only include Profit Share(Share Holders) expenses for NCC Bank
+        const category = expense.expense_categories;
+        return category && category.category_name === 'Profit Share(Share Holders)';
+      }).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
+
+      setCurrentNccBankBalance(balance);
+    };
+    
+    calculateCurrentNccBankBalance();
+  }, [banks, moneyLogs, payments, expenses]);
   
   // Calculate Total Cash In Hand at end of month (Cash + MDB Bank + Bkash Personal)
   useEffect(() => {
@@ -323,6 +347,58 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
     
     calculateTotalCashInHand();
   }, [banks, moneyLogs, payments, expenses, endDate]);
+  
+  // Calculate current Total Cash In Hand (till today)
+  useEffect(() => {
+    const calculateCurrentTotalCashInHand = () => {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const calculateBankBalance = (bankName: string) => {
+        const bank = banks?.find(b => b.bank_name === bankName);
+        if (!bank) return 0;
+
+        let balance = 0;
+
+        // Add money logs up to today
+        if (moneyLogs && moneyLogs.length > 0) {
+          balance += moneyLogs
+            .filter((log: any) => {
+              if (log.bank_id !== bank.id || !log.created_at) return false;
+              const logDate = new Date(log.created_at).toISOString().split('T')[0];
+              return logDate <= today;
+            })
+            .reduce((sum: number, log: any) => {
+              const amount = Number(log.amount) || 0;
+              return log.action_type === 'add' ? sum + amount : sum - amount;
+            }, 0);
+        }
+
+        // Add payments received up to today
+        balance += payments?.filter(payment => {
+          if (payment.bank_id !== bank.id || !payment.payment_date) return false;
+          const paymentDate = new Date(payment.payment_date).toISOString().split('T')[0];
+          return paymentDate <= today;
+        }).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
+
+        // Subtract expenses up to today
+        balance -= expenses?.filter(expense => {
+          if (expense.bank_id !== bank.id || !expense.expense_date) return false;
+          const expenseDate = new Date(expense.expense_date).toISOString().split('T')[0];
+          return expenseDate <= today;
+        }).reduce((sum, expense) => sum + Number(expense.total_amount || 0), 0) || 0;
+
+        return balance;
+      };
+
+      const cashInHand = calculateBankBalance('Cash');
+      const mdbBank = calculateBankBalance('MDB Bank');
+      const bkashPersonal = calculateBankBalance('Bkash(Personal)');
+      
+      setCurrentTotalCashInHand(cashInHand + mdbBank + bkashPersonal);
+    };
+    
+    calculateCurrentTotalCashInHand();
+  }, [banks, moneyLogs, payments, expenses]);
   
   // Calculate accessories inventory value at end of month
   useEffect(() => {
@@ -410,8 +486,6 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
   const totalIncome = Number(data.income?.profitShareClowee || 0) + Number(data.income?.prizeIncome || 0) + Number(data.income?.maintenanceCharge || 0);
   const totalExpense = Number(data.expense?.fixedCost || 0) + Number(data.expense?.variableCost || 0) + Number(data.income?.totalElectricityCost || 0);
   const netProfitLoss = totalIncome - totalExpense;
-  
-  console.log('Calculated totals:', { totalIncome, totalExpense, netProfitLoss, totalMachineSales });
 
   const handlePrint = () => {
     const printContent = document.getElementById('report-content');
@@ -672,6 +746,7 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                 <div className="text-right">
                   <h2 className="text-3xl font-bold text-blue-600 mb-1">MONTHLY REPORT</h2>
                   <p className="text-xl font-bold text-green-600 mb-1">{data.reportMonth}</p>
+                  <p className="text-sm text-gray-500">Generated on: {new Date().toLocaleDateString('en-GB')}</p>
                 </div>
               </div>
             </div>
@@ -811,18 +886,6 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
             <div className="mb-6">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 
-                {/* Mobile Card View */}
-                <div className="sm:hidden print:hidden p-3 space-y-2">
-                  {machineWithSales.map((machine, index) => (
-                    <div key={index} className="flex justify-between p-2 bg-gray-50 rounded">
-                      <div>
-                        <span className="text-xs font-medium text-gray-900">{machine.name}</span>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900">৳{formatCurrency(machine.totalSales)}</span>
-                    </div>
-                  ))}
-                </div>
-                
                 <div className="bg-gray-50 px-2 py-3 border-gray-200">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                     <div className="bg-white p-2 rounded border">
@@ -849,14 +912,16 @@ export function MonthlyReportPDF({ data, onClose }: MonthlyReportPDFProps) {
                   <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-2">
                     <div className="bg-white p-2 rounded border">
                       <div className="text-center">
-                        <div className="text-xs font-semibold text-gray-600 mb-1">NCC Bank</div>
+                        <div className="text-xs font-semibold text-gray-600 mb-1">NCC Bank End of {data.reportMonth}</div>
                         <div className="text-xl font-bold text-blue-600">৳{formatCurrency(nccBankBalance)}</div>
+                        <p className="text-xs text-gray-500 mt-1">Present Balance: ৳{formatCurrency(currentNccBankBalance)}</p>
                       </div>
                     </div>
                     <div className="bg-white p-2 rounded border">
                       <div className="text-center">
-                        <div className="text-xs font-semibold text-gray-600 mb-1">Cash In Hand (Cash+MDB Bank)</div>
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Cash In Hand (Cash+MDB) End of {data.reportMonth}</div>
                         <div className="text-xl font-bold text-green-600">৳{formatCurrency(totalCashInHand)}</div>
+                        <p className="text-xs text-gray-500 mt-1">Present Balance: ৳{formatCurrency(currentTotalCashInHand)}</p>
                       </div>
                     </div>
                   </div>

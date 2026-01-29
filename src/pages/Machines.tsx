@@ -61,6 +61,13 @@ export default function Machines() {
   ) || [];
 
   const sortedMachines = [...filteredMachines].sort((a, b) => {
+    // First, prioritize active machines over inactive ones
+    const aActive = a.is_active !== false;
+    const bActive = b.is_active !== false;
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    
+    // Then apply the selected sorting
     if (!sortColumn) return parseInt(a.machine_number) - parseInt(b.machine_number);
     let aVal: any, bVal: any;
     switch (sortColumn) {

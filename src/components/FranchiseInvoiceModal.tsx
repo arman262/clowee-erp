@@ -34,7 +34,7 @@ export function FranchiseInvoiceModal({ open, onOpenChange }: FranchiseInvoiceMo
   const { data: sales } = useSales();
 
   const selectedFranchise = franchises?.find(f => f.id === selectedFranchiseId);
-  const franchiseMachines = machines?.filter(m => m.franchise_id === selectedFranchiseId) || [];
+  const franchiseMachines = machines?.filter(m => m.franchise_id === selectedFranchiseId && m.is_active !== false) || [];
 
   // Calculate date range based on selection
   const getDateRange = () => {

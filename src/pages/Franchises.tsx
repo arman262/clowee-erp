@@ -120,7 +120,14 @@ export default function Franchises() {
 
   const filteredFranchises = franchises?.filter(franchise =>
     franchise?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  ).sort((a, b) => {
+    // Show active franchises first, then inactive
+    const aActive = a.is_active !== false;
+    const bActive = b.is_active !== false;
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    return 0;
+  }) || [];
 
   const {
     currentPage,

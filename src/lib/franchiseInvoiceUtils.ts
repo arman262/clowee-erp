@@ -108,7 +108,7 @@ export const calculateMachineBreakdown = (
   sales: any[],
   agreements?: any[]
 ): MachineBreakdown[] => {
-  return machines.map(machine => {
+  return machines.filter(machine => machine.is_active !== false).map(machine => {
     const machineSales = sales.filter(sale => sale.machine_id === machine.id);
     
     const machineTotal = machineSales.reduce((acc, sale) => {
@@ -202,7 +202,7 @@ export const filterFranchiseSales = (
   toDate: string
 ): any[] => {
   const franchiseMachineIds = machines
-    .filter(m => m.franchise_id === franchiseId)
+    .filter(m => m.franchise_id === franchiseId && m.is_active !== false)
     .map(m => m.id);
 
   return sales?.filter(sale => {
